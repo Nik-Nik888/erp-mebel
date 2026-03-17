@@ -99,6 +99,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
 .b-ship{background:var(--blue-light);color:var(--blue)}
 .b-done{background:#f1efe8;color:#5f5e5a}
 .b-pause{background:var(--red-light);color:var(--red)}
+.b-refuse{background:#f5f0e8;color:#8a7340}
 .b-kp{background:#E6F1FB;color:#185FA5}
 
 /* INLINE STATUS */
@@ -109,6 +110,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
 .inline-status.b-ship{background:var(--blue-light);color:var(--blue)}
 .inline-status.b-done{background:#f1efe8;color:#5f5e5a}
 .inline-status.b-pause{background:var(--red-light);color:var(--red)}
+.inline-status.b-refuse{background:#f5f0e8;color:#8a7340}
 .inline-status.b-kp{background:#E6F1FB;color:#185FA5}
 
 /* ORDER NUM */
@@ -302,6 +304,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="tab" onclick="setTab('Отгружен',this)">Отгружены <span class="tab-count" id="tc-ship">0</span></div>
         <div class="tab" onclick="setTab('Закрыт',this)">Закрыт <span class="tab-count" id="tc-done">0</span></div>
         <div class="tab" onclick="setTab('Приостановлен',this)">Пауза <span class="tab-count" id="tc-pause">0</span></div>
+        <div class="tab" onclick="setTab('Отказались',this)">Отказ <span class="tab-count" id="tc-refuse">0</span></div>
       </div>
 
       <div class="table-wrap">
@@ -452,7 +455,11 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div id="sklad-base-tree"></div>
       </div>
       <div id="sklad-tab-log" style="display:none">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <div class="search-box" style="flex:1;min-width:180px">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#9c9a92" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="14" y2="14"/></svg>
+            <input type="text" id="sklad-log-search" placeholder="Поиск по материалу, заказу, комментарию..." oninput="renderSkladLog()" style="background:none;border:none;outline:none;font-size:13px;color:var(--text);width:100%;font-family:'Geologica',sans-serif">
+          </div>
           <select class="fsel" id="sklad-filter-type" onchange="renderSkladLog()">
             <option value="">Все операции</option>
             <option value="in">Приход</option>
@@ -497,7 +504,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f full"><label class="flabel">Описание</label><input class="finput" id="f-desc"></div>
         <div class="f"><label class="flabel">Дедлайн</label><input class="finput" type="date" id="f-ddl"></div>
         <div class="f"><label class="flabel">Статус</label>
-          <select class="fsel2" id="f-status"><option>Отправлено КП</option><option>Новый</option><option>В работе</option><option>Готов к выдаче</option><option>Отгружен</option><option>Закрыт</option><option>Приостановлен</option></select></div>
+          <select class="fsel2" id="f-status"><option>Отправлено КП</option><option>Новый</option><option>В работе</option><option>Готов к выдаче</option><option>Отгружен</option><option>Закрыт</option><option>Приостановлен</option><option>Отказались</option></select></div>
         <div class="f"><label class="flabel">Менеджер</label><input class="finput" id="f-manager" list="mgr-list"><datalist id="mgr-list"></datalist></div>
         <div class="f"><label class="flabel">Источник</label>
           <select class="fsel2" id="f-src2"><option>Авито</option><option>Instagram</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option><option>Другое</option></select></div>
@@ -586,7 +593,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="fg">
         <div class="f full">
           <label class="flabel">Материал</label>
-          <select class="fsel2" id="sm-mat"></select>
+          <input class="finput" id="sm-mat" list="sm-mat-list" placeholder="Начните вводить название..." autocomplete="off" oninput="onSmMatInput()" onchange="onSmMatInput()">
+          <datalist id="sm-mat-list"></datalist>
         </div>
         <div class="f">
           <label class="flabel" id="sm-qty-label">Количество (листов)</label>
@@ -726,7 +734,7 @@ function $(x){ return document.getElementById(x) }
 function fmt(n){ return Math.round(n).toLocaleString('ru-RU')+' ₽' }
 function fmtK(n){ return n>=1000?Math.round(n/1000)+'к ₽':Math.round(n)+' ₽' }
 function pDate(v){ if(!v)return null; const d=new Date(v); return isNaN(d)?null:d }
-function badgeClass(st){ return{'Отправлено КП':'b-kp',Новый:'b-new','В работе':'b-work','Готов к выдаче':'b-ready',Отгружен:'b-ship',Закрыт:'b-done',Приостановлен:'b-pause'}[st]||'b-done' }
+function badgeClass(st){ return{'Отправлено КП':'b-kp',Новый:'b-new','В работе':'b-work','Готов к выдаче':'b-ready',Отгружен:'b-ship',Закрыт:'b-done',Приостановлен:'b-pause',Отказались:'b-refuse'}[st]||'b-done' }
 function showToast(msg){ const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500) }
 function sync(state,txt){
   const saw=$('saw-loader'), stxt=$('stxt');
@@ -747,7 +755,11 @@ function showPage(p, el){
   document.querySelectorAll('.nav-item,.mnav-btn').forEach(x=>x.classList.remove('active'));
   $('page-'+p).classList.add('active');
   if(el) el.classList.add('active');
-  if(p==='kp'&&!kpInited){ initKp(); kpInited=true }
+  if(p==='kp'){
+    if(!kpInited){ initKp(); kpInited=true }
+    // Убедимся что данные склада загружены для материалов КП
+    if(!skladItems.length) loadSkladSilent();
+  }
   if(p==='sklad') loadSklad();
 }
 function syncMobNav(p){
@@ -798,14 +810,14 @@ function getFilteredByPeriod(){
 
 function updateStats(){
   const today=new Date(); today.setHours(0,0,0,0);
-  const INACTIVE=['Закрыт','Отгружен','Отправлено КП'];
+  const INACTIVE=['Закрыт','Отгружен','Отправлено КП','Отказались'];
   const active=orders.filter(o=>{ const s=(o.status||'').trim(); return !INACTIVE.includes(s)&&s!=='' });
   const over=orders.filter(o=>{
     const d=pDate(o.deadline); if(!d) return false; d.setHours(0,0,0,0);
-    const s=(o.status||'').trim(); return d<today&&s!=='Закрыт'&&s!=='Отгружен';
+    const s=(o.status||'').trim(); return d<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
   });
   const ready=orders.filter(o=>(o.status||'').trim()==='Готов к выдаче');
-  const po=getFilteredByPeriod().filter(o=>(o.status||'').trim()!=='Отправлено КП');
+  const po=getFilteredByPeriod().filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
   const contracts=po.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
   const received=po.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
 
@@ -818,7 +830,7 @@ function updateStats(){
 
   const pAll=getFilteredByPeriod().length;
   const pDone=getFilteredByPeriod().filter(o=>(o.status||'').trim()==='Закрыт').length;
-  const cnt={kp:0,new:0,work:0,ready:0,ship:0,pause:0};
+  const cnt={kp:0,new:0,work:0,ready:0,ship:0,pause:0,refuse:0};
   orders.forEach(o=>{
     const s=(o.status||'').trim();
     if(s==='Отправлено КП')cnt.kp++;
@@ -827,10 +839,11 @@ function updateStats(){
     else if(s==='Готов к выдаче')cnt.ready++;
     else if(s==='Отгружен')cnt.ship++;
     else if(s==='Приостановлен')cnt.pause++;
+    else if(s==='Отказались')cnt.refuse++;
   });
   const tc=$('tc-all'); if(tc)tc.textContent=pAll;
   const td=$('tc-done'); if(td)td.textContent=pDone;
-  ['kp','new','work','ready','ship','pause'].forEach(k=>{const el=$('tc-'+k);if(el)el.textContent=cnt[k]});
+  ['kp','new','work','ready','ship','pause','refuse'].forEach(k=>{const el=$('tc-'+k);if(el)el.textContent=cnt[k]});
 }
 
 // ══════════════════════════════════════════════════════
@@ -910,7 +923,7 @@ function render(){
   const list=getFiltered();
   const today=new Date(); today.setHours(0,0,0,0);
   const m=v=>v&&parseFloat(v)?Number(v).toLocaleString('ru-RU')+' ₽':'—';
-  const STATUS=['Отправлено КП','Новый','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен'];
+  const STATUS=['Отправлено КП','Новый','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Отказались'];
 
   if(!list.length){
     $('tbl-body').innerHTML='<div class="empty-state">Заказов не найдено</div>';
@@ -929,7 +942,7 @@ function render(){
     const st=(o.status||'').trim();
     const ddl=pDate(o.deadline); if(ddl) ddl.setHours(0,0,0,0);
     const dt=pDate(o.order_date);
-    const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен';
+    const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
     const soon=ddl&&!over&&(ddl-today)<3*86400000;
     const ddlHtml=ddl?`<span class="${over?'dl-over':soon?'dl-soon':'dl-ok'}">${ddl.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'})}${over?' !':''}</span>`:'—';
     const dtHtml=dt?dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
@@ -950,8 +963,9 @@ function render(){
       }
     }
     const cmt=(o.comment||'').trim();
+    const hasMaterialWarn=cmt.includes('🔴 ЗАКАЗАТЬ');
     const cmtCell=cmt
-      ?`<span onclick="openComment('${rid}')" style="cursor:pointer;color:var(--blue);font-size:11px;text-decoration:underline dotted;max-width:110px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cmt}</span>`
+      ?`<span onclick="openComment('${rid}')" style="cursor:pointer;color:${hasMaterialWarn?'var(--red)':'var(--blue)'};font-size:11px;${hasMaterialWarn?'font-weight:600;':''}text-decoration:underline dotted;max-width:110px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${cmt.replace(/"/g,'&quot;')}">${hasMaterialWarn?'🔴 Заказать мат.':cmt}</span>`
       :`<span onclick="openComment('${rid}')" style="cursor:pointer;color:var(--text3);font-size:11px">+ добавить</span>`;
     const desc=(o.description||'').trim();
     const descCell=desc
@@ -988,7 +1002,7 @@ function render(){
     const rid=o.order_num||'';
     const st=(o.status||'').trim();
     const ddl=pDate(o.deadline); if(ddl) ddl.setHours(0,0,0,0);
-    const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен';
+    const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
     const sum=parseFloat(o.order_sum)||0, prep=parseFloat(o.prepay)||0;
     const dop=Math.max(0,sum-prep);
     let hasKp=false;
@@ -1114,9 +1128,37 @@ async function saveOrder(){
       if(error) throw error;
       showToast('Заказ обновлён');
     } else {
-      const {error}=await sb.from('orders').insert(row);
+      const {error,data:inserted}=await sb.from('orders').insert(row).select();
       if(error) throw error;
-      showToast('Заказ добавлен');
+      const newId=inserted&&inserted[0]?inserted[0].id:null;
+      // При новом заказе со статусом "Отправлено КП" — резервируем материалы
+      if(row.status==='Отправлено КП' && row.specification){
+        try{
+          const sp=JSON.parse(row.specification);
+          if(sp&&sp.kp&&sp.mats&&sp.mats.length){
+            const warnings=await reserveMaterials(row.order_num, sp.mats);
+            if(warnings.length){
+              if(newId) await addMaterialWarningToComment(newId, row.order_num, warnings);
+              showToast('Заказ добавлен. ⚠ Не хватает материала — пометка в комментарии');
+            } else {
+              showToast('Заказ добавлен, материалы зарезервированы');
+            }
+          } else { showToast('Заказ добавлен'); }
+        }catch(e){ showToast('Заказ добавлен'); }
+      } else if(WRITEOFF_STATUSES.includes(row.status) && row.specification){
+        try{
+          const sp=JSON.parse(row.specification);
+          if(sp&&sp.kp&&sp.mats&&sp.mats.length){
+            const warnings=await convertReserveToOut(row.order_num, sp.mats);
+            if(warnings.length){
+              if(newId) await addMaterialWarningToComment(newId, row.order_num, warnings);
+              showToast('Заказ добавлен. ⚠ Не хватает материала — пометка в комментарии');
+            } else { showToast('Заказ добавлен, материал списан'); }
+          } else { showToast('Заказ добавлен'); }
+        }catch(e){ showToast('Заказ добавлен'); }
+      } else {
+        showToast('Заказ добавлен');
+      }
     }
     closeOrder();
     await loadOrders();
@@ -1124,14 +1166,284 @@ async function saveOrder(){
   btn.textContent=editId?'Сохранить':'Добавить заказ'; btn.disabled=false;
 }
 
-// ── QUICK STATUS ──────────────────────────────────────
+// ── QUICK STATUS with material logic ──────────────────
+const KP_STATUS = 'Отправлено КП';
+const RESERVE_STATUSES = [KP_STATUS]; // статусы где материал в резерве
+const WRITEOFF_STATUSES = ['Новый','В работе','Готов к выдаче','Отгружен','Закрыт']; // материал списан
+const RELEASE_STATUSES = ['Отказались']; // снять резерв
+
+function getSpecMats(o){
+  // Извлекает массив материалов из спецификации КП заказа
+  try{
+    const sp=JSON.parse(o.specification||'');
+    if(sp&&sp.kp&&sp.mats) return sp.mats; // [{name,qty,price,...}]
+  }catch(e){}
+  return [];
+}
+
+function findSkladItemId(matName){
+  // Найти item_id по названию материала
+  const si=skladItems.find(i=>(i.name||'').toLowerCase()===(matName||'').toLowerCase());
+  return si?si.item_id:null;
+}
+
+async function reserveMaterials(orderNum, mats){
+  // Создаёт записи резерва на складе
+  const moves=[];
+  const warnings=[];
+  for(const mat of mats){
+    const itemId=findSkladItemId(mat.name);
+    if(!itemId){warnings.push(mat.name+' — нет на складе');continue;}
+    const stock=skladStock(itemId);
+    if(stock<mat.qty) warnings.push(mat.name+': в наличии '+stock+', нужно '+mat.qty);
+    moves.push({
+      move_date:new Date().toISOString().split('T')[0],
+      move_type:'reserve',
+      item_id:itemId,
+      qty:mat.qty,
+      unit:'шт',
+      price:0,
+      order_num:orderNum,
+      comment:'Резерв по КП'
+    });
+  }
+  if(moves.length){
+    const {error}=await sb.from('sklad_moves').insert(moves);
+    if(error) console.error('Reserve error:',error);
+    else skladLog.push(...moves);
+  }
+  return warnings;
+}
+
+async function convertReserveToOut(orderNum, mats){
+  // Снимаем резерв и создаём расход
+  // 1) Удаляем все reserve по этому заказу
+  await sb.from('sklad_moves').delete().eq('order_num',orderNum).eq('move_type','reserve');
+  // 2) Убираем из локального массива
+  skladLog=skladLog.filter(r=>!(r.order_num===orderNum&&r.move_type==='reserve'));
+  // 3) Создаём расход
+  const moves=[];
+  const warnings=[];
+  for(const mat of mats){
+    const itemId=findSkladItemId(mat.name);
+    if(!itemId){warnings.push(mat.name+' — нет на складе, нужно заказать!');continue;}
+    const stock=skladStock(itemId);
+    if(stock<mat.qty) warnings.push('⚠ '+mat.name+': в наличии '+stock+', нужно '+mat.qty+' — ЗАКАЖИТЕ!');
+    moves.push({
+      move_date:new Date().toISOString().split('T')[0],
+      move_type:'out',
+      item_id:itemId,
+      qty:mat.qty,
+      unit:'шт',
+      price:0,
+      order_num:orderNum,
+      comment:'Списание по заказу'
+    });
+  }
+  if(moves.length){
+    const {error}=await sb.from('sklad_moves').insert(moves);
+    if(error) console.error('Write-off error:',error);
+    else skladLog.push(...moves);
+  }
+  return warnings;
+}
+
+async function releaseReserve(orderNum){
+  // Снимаем резерв (клиент отказался) — просто удаляем записи reserve
+  await sb.from('sklad_moves').delete().eq('order_num',orderNum).eq('move_type','reserve');
+  skladLog=skladLog.filter(r=>!(r.order_num===orderNum&&r.move_type==='reserve'));
+}
+
+async function addMaterialWarningToComment(orderId, orderNum, warnings){
+  // Добавляет предупреждение о нехватке материала в комментарий заказа
+  if(!warnings.length) return;
+  const o=orders.find(x=>x.id===orderId);
+  const oldComment=(o?o.comment:'') || '';
+  // Убираем старые пометки о материалах
+  const cleaned=oldComment.replace(/\n?🔴 ЗАКАЗАТЬ:.*$/s,'').trim();
+  const tag='\n🔴 ЗАКАЗАТЬ: '+warnings.map(w=>w.replace(/^⚠\s*/,'')).join('; ');
+  const newComment=(cleaned?cleaned+tag:tag.trim());
+  await sb.from('orders').update({comment:newComment}).eq('id',orderId);
+  if(o) o.comment=newComment;
+}
+
+async function clearMaterialWarningFromComment(orderId){
+  // Убирает пометки о заказе материала из комментария
+  const o=orders.find(x=>x.id===orderId);
+  const oldComment=(o?o.comment:'') || '';
+  const cleaned=oldComment.replace(/\n?🔴 ЗАКАЗАТЬ:.*$/s,'').trim();
+  if(cleaned!==oldComment){
+    await sb.from('orders').update({comment:cleaned}).eq('id',orderId);
+    if(o) o.comment=cleaned;
+  }
+}
+
+function checkMaterialsAvailable(mats){
+  // Проверяет хватает ли материала на складе. Возвращает массив нехваток.
+  // Учитываем текущие остатки (свободные = stock - уже зарезервированные другими)
+  const shortages=[];
+  for(const mat of mats){
+    const itemId=findSkladItemId(mat.name);
+    if(!itemId){
+      shortages.push({name:mat.name, need:mat.qty, have:0, missing:mat.qty, noItem:true});
+      continue;
+    }
+    const stock=skladStock(itemId);
+    if(stock<mat.qty){
+      shortages.push({name:mat.name, need:mat.qty, have:stock, missing:Math.ceil(mat.qty-stock), noItem:false});
+    }
+  }
+  return shortages;
+}
+
+function showMaterialBlockModal(shortages, orderNum){
+  // Показываем модалку с информацией о нехватке
+  let html=`<div style="margin-bottom:14px;color:var(--red);font-weight:600;font-size:14px">⛔ Невозможно перевести в работу</div>`;
+  html+=`<div style="font-size:13px;color:var(--text2);margin-bottom:14px">Не хватает материала на складе для заказа <b>${orderNum}</b>. Оформите приход на складе, затем смените статус.</div>`;
+  html+=`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">
+    <thead><tr>
+      <th style="text-align:left;padding:6px 8px;background:var(--red-light);border:1px solid var(--border);color:var(--red)">Материал</th>
+      <th style="width:70px;padding:6px 8px;background:var(--red-light);border:1px solid var(--border);text-align:center;color:var(--red)">Нужно</th>
+      <th style="width:70px;padding:6px 8px;background:var(--red-light);border:1px solid var(--border);text-align:center;color:var(--red)">Есть</th>
+      <th style="width:80px;padding:6px 8px;background:var(--red-light);border:1px solid var(--border);text-align:center;color:var(--red)">Не хватает</th>
+    </tr></thead><tbody>`;
+  shortages.forEach(s=>{
+    html+=`<tr>
+      <td style="padding:7px 8px;border:1px solid var(--border);font-weight:500">${s.name}${s.noItem?' <span style="color:var(--red);font-size:10px">(нет на складе)</span>':''}</td>
+      <td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${s.need}</td>
+      <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;color:${s.have>0?'var(--accent)':'var(--red)'}">${s.have}</td>
+      <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;color:var(--red);font-weight:600">${s.missing}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  html+=`<div style="display:flex;gap:8px">
+    <button class="btn btn-primary" onclick="showPage('sklad',document.querySelectorAll('.nav-item')[2]);document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Перейти на склад →</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Закрыть</button>
+  </div>`;
+
+  // Создаём или переиспользуем модалку
+  let overlay=$('m-block');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.className='overlay';
+    overlay.id='m-block';
+    overlay.innerHTML=`<div class="modal" style="max-width:480px"><div class="modal-hd"><div class="modal-title">Нехватка материала</div><button class="modal-close" onclick="this.closest('.overlay').classList.remove('open')">×</button></div><div class="modal-body" id="m-block-body"></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  $('m-block-body').innerHTML=html;
+  overlay.classList.add('open');
+}
+
 async function quickStatus(rid,newSt){
   const o=findO(rid); if(!o) return;
+  const oldSt=(o.status||'').trim();
+
+  // ── БЛОКИРОВКА: нельзя закрыть заказ если не оплачен полностью ──
+  if(newSt==='Закрыт'){
+    const sum=parseFloat(o.order_sum)||0;
+    const paid=parseFloat(o.prepay)||0;
+    if(sum>0 && paid<sum){
+      const debt=sum-paid;
+      let overlay=$('m-block');
+      if(!overlay){
+        overlay=document.createElement('div');
+        overlay.className='overlay';
+        overlay.id='m-block';
+        overlay.innerHTML=`<div class="modal" style="max-width:480px"><div class="modal-hd"><div class="modal-title">Нехватка материала</div><button class="modal-close" onclick="this.closest('.overlay').classList.remove('open')">×</button></div><div class="modal-body" id="m-block-body"></div></div>`;
+        document.body.appendChild(overlay);
+      }
+      $('m-block-body').innerHTML=`
+        <div style="margin-bottom:14px;color:var(--red);font-weight:600;font-size:14px">⛔ Невозможно закрыть заказ</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Заказ <b>${rid}</b> не оплачен полностью. Внесите остаток оплаты перед закрытием.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;text-align:center">
+          <div style="background:var(--surface2);border-radius:var(--rs);padding:12px 8px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Сумма договора</div>
+            <div style="font-size:17px;font-weight:600">${sum.toLocaleString('ru-RU')} ₽</div>
+          </div>
+          <div style="background:var(--accent-light);border-radius:var(--rs);padding:12px 8px">
+            <div style="font-size:10px;color:var(--accent-text);margin-bottom:4px">Оплачено</div>
+            <div style="font-size:17px;font-weight:600;color:var(--accent-text)">${paid.toLocaleString('ru-RU')} ₽</div>
+          </div>
+          <div style="background:var(--red-light);border-radius:var(--rs);padding:12px 8px">
+            <div style="font-size:10px;color:var(--red);margin-bottom:4px">Остаток</div>
+            <div style="font-size:17px;font-weight:600;color:var(--red)">${debt.toLocaleString('ru-RU')} ₽</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="document.getElementById('m-block').classList.remove('open');openPrepay('${rid}')" style="flex:1;justify-content:center">Внести оплату →</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Закрыть</button>
+        </div>`;
+      overlay.classList.add('open');
+      render();
+      return;
+    }
+  }
+
+  // ── БЛОКИРОВКА: проверяем материал перед переводом в рабочие статусы ──
+  const mats=getSpecMats(o);
+  if(mats.length>0 && WRITEOFF_STATUSES.includes(newSt) && !WRITEOFF_STATUSES.includes(oldSt)){
+    // Переводят из КП/паузы в работу — нужна проверка наличия
+    // Обновляем данные склада перед проверкой
+    await loadSkladSilent();
+    const shortages=checkMaterialsAvailable(mats);
+    if(shortages.length>0){
+      // Блокируем — откатываем select обратно
+      showMaterialBlockModal(shortages, rid);
+      // Обновляем пометку в комментарии
+      const warnings=shortages.map(s=>'⚠ '+s.name+': есть '+s.have+', нужно '+s.need);
+      await addMaterialWarningToComment(o.id, rid, warnings);
+      render(); // перерисуем чтобы select вернулся на старый статус
+      return; // НЕ меняем статус
+    }
+  }
+
   try{
     const {error}=await sb.from('orders').update({status:newSt}).eq('id',o.id);
     if(error) throw error;
-    o.status=newSt; updateStats(); showToast('Статус: '+newSt);
-  }catch(e){ showToast('Ошибка') }
+    o.status=newSt;
+
+    // Логика материалов по КП
+    if(mats.length>0){
+      const wasReserve=RESERVE_STATUSES.includes(oldSt);
+      const wasWriteOff=WRITEOFF_STATUSES.includes(oldSt);
+      const nowWriteOff=WRITEOFF_STATUSES.includes(newSt);
+      const nowRelease=RELEASE_STATUSES.includes(newSt);
+
+      if(nowRelease && wasReserve){
+        await releaseReserve(rid);
+        await clearMaterialWarningFromComment(o.id);
+        showToast('Статус: '+newSt+' — резерв снят');
+      } else if(nowRelease && wasWriteOff){
+        const moves=[];
+        for(const mat of mats){
+          const itemId=findSkladItemId(mat.name);
+          if(!itemId) continue;
+          moves.push({
+            move_date:new Date().toISOString().split('T')[0],
+            move_type:'in', item_id:itemId, qty:mat.qty, unit:'шт',
+            price:0, order_num:rid, comment:'Возврат — клиент отказался'
+          });
+        }
+        if(moves.length){
+          await sb.from('sklad_moves').insert(moves);
+          skladLog.push(...moves);
+        }
+        await clearMaterialWarningFromComment(o.id);
+        showToast('Статус: '+newSt+' — материал возвращён на склад');
+      } else if(nowWriteOff && (wasReserve || (!wasReserve && !wasWriteOff))){
+        // Материал уже проверен выше — точно хватает
+        const warnings=await convertReserveToOut(rid, mats);
+        await clearMaterialWarningFromComment(o.id);
+        showToast('Статус: '+newSt+' — материал списан');
+      } else {
+        showToast('Статус: '+newSt);
+      }
+    } else {
+      showToast('Статус: '+newSt);
+    }
+
+    updateStats(); render();
+  }catch(e){ showToast('Ошибка: '+e.message) }
 }
 
 // ── COMMENT ───────────────────────────────────────────
@@ -1243,7 +1555,11 @@ function initKp(){
 }
 
 function matPrice(name){
-  const r=MAT_CATALOG.find(m=>m.name===name); return r?r.price:1800;
+  // Сначала ищем в складе (актуальная цена закупки)
+  const si=skladItems.find(i=>(i.name||'').toLowerCase()===name.toLowerCase());
+  if(si&&si.buy_price) return parseFloat(si.buy_price);
+  // Затем в каталоге
+  const r=MAT_CATALOG.find(m=>m.name===name); return r?r.price:0;
 }
 function workDefaults(name){
   const r=WORK_CATALOG.find(w=>w.name===name); return r?[r.unit,r.price]:['шт.',0];
@@ -1253,12 +1569,22 @@ function tdinput(type,val,cls){
   return`<td style="padding:0"><input type="${type}" value="${val}" class="${cls}" style="width:100%;padding:6px 8px;border:none;outline:none;background:transparent;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text)" oninput="kpCalc()"></td>`;
 }
 
+function getMatOptions(){
+  // Собираем уникальные материалы: сначала из склада, потом из каталога
+  const names=new Set();
+  const opts=[];
+  skladItems.forEach(i=>{if(i.name&&!names.has(i.name)){names.add(i.name);opts.push(i.name)}});
+  MAT_CATALOG.forEach(m=>{if(m.name&&!names.has(m.name)){names.add(m.name);opts.push(m.name)}});
+  return opts;
+}
+
 function addMat(name='', qty=1, price=0){
   const i=kpMats++;
-  const n=name||((MAT_CATALOG[0]||{}).name||'ЛДСП Белый 16мм');
+  const allMats=getMatOptions();
+  const n=name||(allMats[0]||'ЛДСП Белый 16мм');
   const p=price||matPrice(n);
   const dlId='dl-mat-'+i;
-  const opts=MAT_CATALOG.map(m=>`<option value="${m.name}">`).join('');
+  const opts=allMats.map(m=>`<option value="${m}">`).join('');
   const tr=document.createElement('tr'); tr.id='km'+i;
   tr.innerHTML=`<td style="padding:0">
     <datalist id="${dlId}">${opts}</datalist>
@@ -1503,8 +1829,23 @@ function catInput(val,style=''){return`<input type="text" value="${(val||'').toS
 function catNumInput(val){return`<input type="number" value="${val||0}" min="0" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--surface2);color:var(--text);outline:none">`}
 
 function renderCatMat(){
-  $('cat-mat-body').innerHTML=MAT_CATALOG.map(m=>`<tr>
-    <td style="padding:3px 4px;border:1px solid var(--border)">${catInput(m.name)}</td>
+  // Материалы: сначала из склада (Базы), потом из каталога (без дублей)
+  const names=new Set();
+  const allMats=[];
+  skladItems.forEach(i=>{
+    if(i.name&&!names.has(i.name)){
+      names.add(i.name);
+      allMats.push({name:i.name, price:parseFloat(i.buy_price)||0, fromSklad:true});
+    }
+  });
+  MAT_CATALOG.forEach(m=>{
+    if(m.name&&!names.has(m.name)){
+      names.add(m.name);
+      allMats.push({name:m.name, price:m.price, fromSklad:false});
+    }
+  });
+  $('cat-mat-body').innerHTML=allMats.map(m=>`<tr>
+    <td style="padding:3px 4px;border:1px solid var(--border)">${catInput(m.name)}${m.fromSklad?'<div style="font-size:9px;color:var(--accent);margin-top:1px">📦 со склада</div>':''}</td>
     <td style="padding:3px 4px;border:1px solid var(--border)">${catNumInput(m.price)}</td>
     <td style="padding:3px;border:1px solid var(--border);text-align:center"><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button></td>
   </tr>`).join('');
@@ -1573,9 +1914,11 @@ async function loadSklad(){
     skladItems=iRes.data||[];
     skladLog=mRes.data||[];
     renderSkladCards();
+    renderSkladBase();
     renderSkladLog();
     fillSkladMatFilter();
     fillOrdersDatalist();
+    showToast('Склад обновлён');
   }catch(e){
     $('sklad-cards').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>';
   }
@@ -1724,13 +2067,27 @@ function renderSkladLog(){
   const filterMat=$('sklad-filter-mat')?.value||'';
   const fromVal=$('sklad-log-from')?.value||'';
   const toVal=$('sklad-log-to')?.value||'';
+  const q=($('sklad-log-search')?.value||'').toLowerCase().trim();
   const from=fromVal?new Date(fromVal):null;
   const to=toVal?new Date(toVal+'T23:59:59'):null;
+  // Хелпер: найти название материала по item_id
+  const matName=iid=>{const it=skladItems.find(i=>i.item_id===iid);return it?it.name:iid;};
   let list=skladLog.slice().reverse();
   if(filterType) list=list.filter(r=>r.move_type===filterType);
   if(filterMat) list=list.filter(r=>(r.item_id||'').trim()===filterMat);
   if(from) list=list.filter(r=>{const d=new Date(r.move_date);return d>=from;});
   if(to) list=list.filter(r=>{const d=new Date(r.move_date);return d<=to;});
+  if(q) list=list.filter(r=>{
+    const name=matName(r.item_id||'').toLowerCase();
+    const orderNum=String(r.order_num||'').toLowerCase();
+    const comment=String(r.comment||'').toLowerCase();
+    const typeLabel=(MOVE_LABELS[r.move_type]||r.move_type||'').toLowerCase();
+    return name.includes(q)||
+      (r.item_id||'').toLowerCase().includes(q)||
+      orderNum.includes(q)||
+      comment.includes(q)||
+      typeLabel.includes(q);
+  });
   if(!list.length){$('sklad-log').innerHTML='<div class="empty-state">Движений нет</div>';return;}
   let h=`<table><thead><tr><th>Дата</th><th>Операция</th><th>Материал</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Заказ</th><th>Комментарий</th></tr></thead><tbody>`;
   list.forEach(r=>{
@@ -1741,7 +2098,8 @@ function renderSkladLog(){
     const sign=(t==='in'||t==='scrap_return')?'+':'−';
     const d=r.move_date?new Date(r.move_date).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
     const price=parseFloat(r.price)||0;
-    h+=`<tr><td style="color:var(--text3);font-size:11px;white-space:nowrap">${d}</td><td><span style="background:${MOVE_COLORS[t]+'22'||'#eee'};color:${color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">${lbl}</span></td><td style="font-size:12px">${r.item_id||'—'}</td><td style="font-weight:600;color:${color}">${sign}${qty}</td><td style="font-size:11px;color:var(--text3)">${r.unit||''}</td><td style="font-size:11px;color:var(--text2)">${price?price.toLocaleString('ru-RU')+' ₽':'—'}</td><td style="font-size:11px;color:var(--blue)">${r.order_num||'—'}</td><td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment||''}</td></tr>`;
+    const name=matName(r.item_id||'');
+    h+=`<tr><td style="color:var(--text3);font-size:11px;white-space:nowrap">${d}</td><td><span style="background:${MOVE_COLORS[t]+'22'||'#eee'};color:${color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">${lbl}</span></td><td style="font-size:12px">${name||'—'}</td><td style="font-weight:600;color:${color}">${sign}${qty}</td><td style="font-size:11px;color:var(--text3)">${r.unit||''}</td><td style="font-size:11px;color:var(--text2)">${price?price.toLocaleString('ru-RU')+' ₽':'—'}</td><td style="font-size:11px;color:var(--blue)">${r.order_num||'—'}</td><td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment||''}</td></tr>`;
   });
   h+='</tbody></table>';
   $('sklad-log').innerHTML=h;
@@ -1772,13 +2130,31 @@ function openSkladMove(type,matId=''){
   $('sm-qty').value=''; $('sm-price').value=''; $('sm-comment').value=''; $('sm-order').value='';
   $('sm-price-wrap').style.display=type==='in'?'':'none';
   $('sm-order-wrap').style.display=(type==='out'||type==='reserve')?'':'none';
-  const sel=$('sm-mat');
-  sel.innerHTML=skladItems.map(item=>`<option value="${item.item_id}" ${item.item_id===matId?'selected':''}>${item.name||item.item_id}</option>`).join('');
-  if(!skladItems.length) sel.innerHTML='<option>Сначала добавьте позицию</option>';
-  const item=skladItems.find(i=>i.item_id===matId);
-  if(item) $('sm-unit').value=item.unit||'шт';
+  // Заполняем datalist для поиска материала
+  const dl=$('sm-mat-list');
+  dl.innerHTML=skladItems.map(item=>`<option value="${item.item_id}">${item.name||item.item_id}</option>`).join('');
+  // Если передан matId — ставим его, иначе пусто
+  const inp=$('sm-mat');
+  if(matId){
+    inp.value=matId;
+    const item=skladItems.find(i=>i.item_id===matId);
+    if(item) $('sm-unit').value=item.unit||'шт';
+  } else {
+    inp.value='';
+  }
   $('m-sklad-move').classList.add('open');
+  if(!matId) setTimeout(()=>inp.focus(),100);
 }
+
+function onSmMatInput(){
+  const val=$('sm-mat').value.trim();
+  const item=skladItems.find(i=>i.item_id===val);
+  if(item){
+    $('sm-unit').value=item.unit||'шт';
+    if(item.buy_price && !$('sm-price').value) $('sm-price').value=item.buy_price;
+  }
+}
+
 function closeSkladMove(){ $('m-sklad-move').classList.remove('open') }
 
 async function saveSkladMove(){
@@ -1804,7 +2180,10 @@ async function saveSkladMove(){
     if(error) throw error;
     skladLog.push(row);
     closeSkladMove();
-    renderSkladCards(); renderSkladLog();
+    renderSkladCards();
+    renderSkladBase();
+    renderSkladLog();
+    fillSkladMatFilter();
     showToast(MOVE_LABELS[skladMoveType]+' сохранён');
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
@@ -1859,10 +2238,22 @@ async function saveSkladItem(){
 // ══════════════════════════════════════════════════════
 // INIT — Параллельная загрузка всего
 // ══════════════════════════════════════════════════════
+async function loadSkladSilent(){
+  // Тихая загрузка склада для КП (без рендера карточек)
+  try{
+    const [iRes,mRes]=await Promise.all([
+      sb.from('sklad_items').select('*').order('name'),
+      sb.from('sklad_moves').select('*').order('id')
+    ]);
+    if(iRes.data) skladItems=iRes.data;
+    if(mRes.data) skladLog=mRes.data;
+  }catch(e){}
+}
+
 async function init(){
   sync('loading','Загрузка...');
   try{
-    await Promise.all([loadCatalog(), loadOrders()]);
+    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent()]);
     sync('ok','Supabase ✓');
   }catch(e){
     sync('error','Ошибка загрузки');
