@@ -511,13 +511,25 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f"><label class="flabel">Сумма заказа (₽)</label><input class="finput" type="number" id="f-sum" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Предоплата (₽)</label><input class="finput" type="number" id="f-prepay" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Остаток (авто)</label><input class="finput" type="number" id="f-dopay" readonly style="background:var(--accent-light);color:var(--accent-text);font-weight:500"></div>
-        <div class="f"><label class="flabel">Спецификация</label>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input class="finput" id="f-spec" placeholder="Спец-001" style="flex:1">
-            <input type="hidden" id="f-spec-json">
-            <span id="f-spec-kp-badge" style="display:none;background:var(--blue-light);color:var(--blue);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:500;white-space:nowrap">КП attached</span>
+        <div class="f" style="display:none"><input type="hidden" id="f-spec"><input type="hidden" id="f-spec-json"></div>
+
+        <!-- Материалы заказа -->
+        <div class="f full" style="margin-top:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <label class="flabel" style="margin:0">Материалы заказа</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span id="f-spec-kp-badge" style="display:none;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500">из КП</span>
+              <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="addOrderMat()">+ материал</button>
+            </div>
+          </div>
+          <div id="f-mats-wrap" style="display:flex;flex-direction:column;gap:4px"></div>
+          <div id="f-mats-empty" style="font-size:12px;color:var(--text3);padding:8px 0">Нет материалов — нажмите "+ материал" или создайте через КП</div>
+          <div id="f-mats-total" style="display:none;margin-top:6px;background:var(--amber-light);border:1px solid rgba(133,79,11,0.15);border-radius:var(--rs);padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--amber);font-weight:500">📦 Себестоимость материалов</span>
+            <span id="f-mats-cost" style="font-size:15px;font-weight:600;color:var(--amber);font-family:'JetBrains Mono',monospace">0 ₽</span>
           </div>
         </div>
+
         <div class="f full"><label class="flabel">Комментарий</label><textarea class="ftextarea" id="f-comment"></textarea></div>
       </div>
     </div>
@@ -852,9 +864,15 @@ function updateStats(){
 async function loadOrders(){
   sync('loading','Загрузка...');
   try{
-    const {data,error} = await sb.from('orders').select('*').order('order_date',{ascending:false,nullsFirst:false});
+    const {data,error} = await sb.from('orders').select('*').order('id',{ascending:false});
     if(error) throw error;
-    orders = data || [];
+    // Сортируем: сначала по номеру заказа (З-XXX) по убыванию
+    orders = (data || []).sort((a,b)=>{
+      const na=parseInt((String(a.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
+      const nb=parseInt((String(b.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
+      if(na!==nb) return nb-na; // новые сверху
+      return (b.id||0)-(a.id||0); // по id как fallback
+    });
     fillDataLists();
     fillManagerFilter();
     setPeriod('month');
@@ -952,12 +970,16 @@ function render(){
     const specRaw=(o.specification||'').trim();
     let specCell='—';
     if(specRaw){
-      let isKp=false;
-      try{const sp=JSON.parse(specRaw);if(sp&&sp.kp)isKp=true;}catch(e){}
-      if(isKp){
+      let isKp=false, isDirect=false;
+      try{const sp=JSON.parse(specRaw);if(sp&&sp.kp){isKp=true;isDirect=!!sp.direct;}}catch(e){}
+      if(isKp&&!isDirect){
         specCell=`<span onclick="openSpecModal('${rid}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9,2 9,6 13,6"/></svg>
           Состав КП</span>`;
+      } else if(isKp&&isDirect){
+        specCell=`<span onclick="openSpecModal('${rid}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;background:var(--accent-light);color:var(--accent-text);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="5.5" x2="11" y2="5.5"/><line x1="5" y1="10.5" x2="9" y2="10.5"/></svg>
+          Материалы</span>`;
       } else {
         specCell=`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface2);padding:2px 5px;border-radius:3px">${specRaw}</span>`;
       }
@@ -1005,8 +1027,8 @@ function render(){
     const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
     const sum=parseFloat(o.order_sum)||0, prep=parseFloat(o.prepay)||0;
     const dop=Math.max(0,sum-prep);
-    let hasKp=false;
-    try{const sp=JSON.parse(o.specification||'');if(sp&&sp.kp)hasKp=true;}catch(e){}
+    let hasKp=false, hasDirect=false;
+    try{const sp=JSON.parse(o.specification||'');if(sp&&sp.kp){hasKp=true;hasDirect=!!sp.direct;}}catch(e){}
 
     mc+=`<div class="ocard${over?' overdue':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px" onclick='openEdit("${rid}")'>
@@ -1024,7 +1046,8 @@ function render(){
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
         <div style="display:flex;gap:6px;align-items:center">
-          ${hasKp?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Состав КП</button>`:''}
+          ${hasKp&&!hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Состав КП</button>`:''}
+          ${hasKp&&hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Материалы</button>`:''}
           <button onclick="event.stopPropagation();openPrepay('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">${prep?prep.toLocaleString('ru-RU')+' ₽ ±':'Оплата'}</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -1059,6 +1082,10 @@ function openAdd(){
   const badge=$('f-spec-kp-badge'); if(badge) badge.style.display='none';
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
   $('f-status').value='Новый'; $('f-src2').value='Авито';
+  // Сбрасываем материалы
+  $('f-mats-wrap').innerHTML='';
+  orderMatCounter=0;
+  updateOrderMatsEmpty();
   $('m-order').classList.add('open');
 }
 
@@ -1076,9 +1103,13 @@ function openEdit(rid){
 
   const specRaw=o.specification||'';
   let isKpSpec=false;
-  try{const sp=JSON.parse(specRaw);if(sp&&sp.kp){isKpSpec=true;$('f-spec').value='КП от '+(sp.date||'');$('f-spec-json').value=specRaw;}else{$('f-spec').value=specRaw;$('f-spec-json').value=''}}
-  catch(e){$('f-spec').value=specRaw;$('f-spec-json').value='';}
+  try{const sp=JSON.parse(specRaw);if(sp&&sp.kp){isKpSpec=true;$('f-spec-json').value=specRaw;}else{$('f-spec-json').value='';}}
+  catch(e){$('f-spec-json').value='';}
+  $('f-spec').value='';
   const badge=$('f-spec-kp-badge'); if(badge) badge.style.display=isKpSpec?'inline':'none';
+
+  // Заполняем материалы из спецификации
+  populateOrderMats(isKpSpec?specRaw:'');
 
   const sum=parseFloat(o.order_sum)||0, prep=parseFloat(o.prepay)||0;
   $('f-sum').value=sum||'';
@@ -1102,10 +1133,156 @@ function fillPhone(){
   if(match&&match.phone&&!$('f-phone').value) $('f-phone').value=match.phone;
 }
 
+// ── ORDER MATERIAL PICKER ─────────────────────────────
+let orderMatCounter=0;
+
+function addOrderMat(name='', qty=1, price=0){
+  const i=orderMatCounter++;
+  const allMats=getMatOptions();
+  const n=name||(allMats.length?allMats[0]:'');
+  const p=price||matPrice(n);
+  const stock=n?getMatStock(n):'—';
+  const matSum=p*qty;
+  const dlId='dl-omat-'+i;
+  const opts=allMats.map(m=>`<option value="${m}">`).join('');
+  const wrap=$('f-mats-wrap');
+  const row=document.createElement('div');
+  row.id='omat-'+i;
+  row.style.cssText='display:flex;gap:6px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 8px';
+  row.innerHTML=`
+    <datalist id="${dlId}">${opts}</datalist>
+    <input type="text" value="${n}" list="${dlId}" class="omat-name" placeholder="Материал..." autocomplete="off"
+      oninput="onOrderMatChange(this,${i})" onchange="onOrderMatChange(this,${i})" onfocus="this.select()"
+      style="flex:2;min-width:0;background:transparent;border:none;outline:none;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text)">
+    <input type="number" value="${qty}" class="omat-qty" min="0.5" step="0.5" placeholder="Кол-во"
+      oninput="calcOrderSum()" onchange="calcOrderSum()"
+      style="width:55px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;outline:none;text-align:center;font-family:'Geologica',sans-serif;color:var(--text)">
+    <input type="number" value="${p}" class="omat-price" min="0" placeholder="Цена"
+      oninput="calcOrderSum()" onchange="calcOrderSum()"
+      style="width:65px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;outline:none;text-align:right;font-family:'Geologica',sans-serif;color:var(--text2)">
+    <span class="omat-sum" id="omat-sum-${i}" style="font-size:11px;min-width:60px;text-align:right;font-weight:500;color:var(--accent-text)">${matSum?matSum.toLocaleString('ru-RU')+' ₽':'—'}</span>
+    <span class="omat-stock" id="omat-stock-${i}" style="font-size:10px;min-width:40px;text-align:center;color:var(--text3)">${stock!=='—'?(stock>0?'✓'+stock:'⚠0'):'—'}</span>
+    <button type="button" onclick="document.getElementById('omat-${i}').remove();updateOrderMatsEmpty();calcOrderSum()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 2px">×</button>`;
+  wrap.appendChild(row);
+  updateOrderMatsEmpty();
+  calcOrderSum();
+}
+
+function getMatStock(matName){
+  const si=skladItems.find(i=>(i.name||'').toLowerCase()===(matName||'').toLowerCase());
+  if(!si) return '—';
+  return skladStock(si.item_id);
+}
+
+function onOrderMatChange(input, idx){
+  const name=input.value.trim();
+  const p=matPrice(name);
+  const row=$('omat-'+idx);
+  if(!row) return;
+  const priceInput=row.querySelector('.omat-price');
+  if(priceInput&&p) priceInput.value=p;
+  // Обновляем остаток
+  const stockEl=$('omat-stock-'+idx);
+  if(stockEl){
+    const stock=getMatStock(name);
+    if(stock==='—') stockEl.innerHTML='—';
+    else if(stock>0) stockEl.innerHTML='<span style="color:var(--accent)">✓'+stock+'</span>';
+    else stockEl.innerHTML='<span style="color:var(--red)">⚠0</span>';
+  }
+  calcOrderSum();
+}
+
+function calcOrderSum(){
+  let total=0;
+  $('f-mats-wrap').querySelectorAll('[id^="omat-"]').forEach(row=>{
+    const qty=parseFloat(row.querySelector('.omat-qty')?.value)||0;
+    const price=parseFloat(row.querySelector('.omat-price')?.value)||0;
+    const rowSum=qty*price;
+    total+=rowSum;
+    const idx=row.id.replace('omat-','');
+    const sumEl=$('omat-sum-'+idx);
+    if(sumEl) sumEl.textContent=rowSum?rowSum.toLocaleString('ru-RU')+' ₽':'—';
+  });
+  // Показываем/скрываем блок себестоимости
+  const totalEl=$('f-mats-total');
+  const costEl=$('f-mats-cost');
+  if(totalEl){
+    totalEl.style.display=total>0?'flex':'none';
+  }
+  if(costEl){
+    costEl.textContent=total.toLocaleString('ru-RU')+' ₽';
+  }
+}
+
+function updateOrderMatsEmpty(){
+  const wrap=$('f-mats-wrap');
+  const empty=$('f-mats-empty');
+  if(empty) empty.style.display=wrap.children.length?'none':'';
+}
+
+function getOrderMatsFromForm(){
+  const mats=[];
+  $('f-mats-wrap').querySelectorAll('[id^="omat-"]').forEach(row=>{
+    const name=(row.querySelector('.omat-name')?.value||'').trim();
+    const qty=parseFloat(row.querySelector('.omat-qty')?.value)||0;
+    const price=parseFloat(row.querySelector('.omat-price')?.value)||0;
+    const rowSum=qty*price;
+    if(name&&qty>0) mats.push({name, qty, price, sum:rowSum?rowSum.toLocaleString('ru-RU')+' ₽':''});
+  });
+  return mats;
+}
+
+function buildSpecJson(){
+  const mats=getOrderMatsFromForm();
+  if(!mats.length) return '';
+  return JSON.stringify({
+    kp:true, direct:true,
+    date:$('f-date').value||new Date().toISOString().split('T')[0],
+    coef:1, disc:0, prepayPct:50,
+    mats:mats, works:[],
+    total:'', profit:'', margin:''
+  });
+}
+
+function populateOrderMats(specJson){
+  // Заполняет форму материалами из спецификации
+  const wrap=$('f-mats-wrap');
+  wrap.innerHTML='';
+  orderMatCounter=0;
+  if(!specJson) { updateOrderMatsEmpty(); return; }
+  try{
+    const sp=JSON.parse(specJson);
+    if(sp&&sp.kp&&sp.mats){
+      sp.mats.forEach(m=>addOrderMat(m.name, m.qty, m.price));
+    }
+  }catch(e){}
+  updateOrderMatsEmpty();
+}
+
 async function saveOrder(){
   const btn=$('save-btn'); btn.textContent='Сохраняю...'; btn.disabled=true;
   const sum=parseFloat($('f-sum').value)||0;
   const prep=parseFloat($('f-prepay').value)||0;
+  // Строим спецификацию из материалов формы (или берём существующий JSON из КП)
+  const formMats=getOrderMatsFromForm();
+  let specValue=$('f-spec-json').value||'';
+  if(formMats.length>0){
+    // Если есть существующий КП-JSON — обновляем в нём материалы
+    // Если нет — создаём новый
+    try{
+      const existing=specValue?JSON.parse(specValue):null;
+      if(existing&&existing.kp){
+        existing.mats=formMats;
+        specValue=JSON.stringify(existing);
+      } else {
+        specValue=buildSpecJson();
+      }
+    }catch(e){
+      specValue=buildSpecJson();
+    }
+  } else if(!specValue){
+    specValue='';
+  }
   const row={
     order_num: $('f-num').value.trim()||nextOrderNum(),
     order_date: $('f-date').value||null,
@@ -1119,7 +1296,7 @@ async function saveOrder(){
     order_sum: sum,
     dopay: sum>0?Math.max(0,sum-prep):0,
     source: $('f-src2').value||'',
-    specification: $('f-spec-json').value||$('f-spec').value||'',
+    specification: specValue,
     comment: $('f-comment').value||''
   };
   try{
@@ -1723,9 +1900,11 @@ function kpSaveAsOrder(){
     $('f-desc').value=desc; $('f-date').value=dateVal;
     $('f-sum').value=total; $('f-prepay').value=prepay;
     $('f-status').value='Отправлено КП';
-    $('f-spec').value='КП от '+dateVal;
+    $('f-spec').value='';
     $('f-spec-json').value=JSON.stringify(specData);
     const badge=$('f-spec-kp-badge'); if(badge) badge.style.display='inline';
+    // Заполняем материалы в форме заказа из КП
+    populateOrderMats(JSON.stringify(specData));
     calcDopay();
     showToast('КП перенесено в форму заказа');
   },200);
@@ -1785,20 +1964,37 @@ function openSpecModal(rid){
   if(sp.prepayPct) meta.push('Предоплата '+sp.prepayPct+'%');
   $('spec-meta').textContent=meta.join(' · ');
   let html='';
+  let matCostTotal=0, workCostTotal=0;
   if(sp.mats&&sp.mats.length){
     html+=`<div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Материалы</div>`;
-    html+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Наименование</th><th style="width:70px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:center">Кол-во</th><th style="width:100px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Сумма</th></tr></thead><tbody>`;
-    sp.mats.forEach(m=>{html+=`<tr><td style="padding:7px 8px;border:1px solid var(--border)">${m.name}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${m.qty} л.</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:500">${m.sum||'—'}</td></tr>`;});
-    html+='</tbody></table>';
+    html+=`<table style="width:100%;border-collapse:collapse;margin-bottom:4px;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Наименование</th><th style="width:70px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:center">Кол-во</th><th style="width:80px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Цена</th><th style="width:100px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Сумма</th></tr></thead><tbody>`;
+    sp.mats.forEach(m=>{
+      const price=parseFloat(m.price)||0;
+      const qty=parseFloat(m.qty)||0;
+      const rowSum=price*qty;
+      matCostTotal+=rowSum;
+      html+=`<tr><td style="padding:7px 8px;border:1px solid var(--border)">${m.name}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${qty}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;color:var(--text3)">${price?price.toLocaleString('ru-RU')+' ₽':'—'}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:500">${rowSum?rowSum.toLocaleString('ru-RU')+' ₽':(m.sum||'—')}</td></tr>`;
+    });
+    html+=`</tbody></table>`;
+    html+=`<div style="text-align:right;font-size:12px;margin-bottom:14px;padding:4px 8px"><span style="color:var(--text3)">Итого материалы:</span> <b style="color:var(--amber)">${matCostTotal.toLocaleString('ru-RU')} ₽</b></div>`;
   }
   if(sp.works&&sp.works.length){
     html+=`<div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Работы</div>`;
-    html+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Наименование</th><th style="width:80px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:center">Кол-во</th><th style="width:100px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Сумма</th></tr></thead><tbody>`;
-    sp.works.forEach(w=>{html+=`<tr><td style="padding:7px 8px;border:1px solid var(--border)">${w.name}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${w.qty} ${w.unit}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:500">${w.sum||'—'}</td></tr>`;});
-    html+='</tbody></table>';
+    html+=`<table style="width:100%;border-collapse:collapse;margin-bottom:4px;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Наименование</th><th style="width:80px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:center">Кол-во</th><th style="width:100px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Сумма</th></tr></thead><tbody>`;
+    sp.works.forEach(w=>{
+      const wSum=parseFloat(String(w.sum||'0').replace(/[^\d]/g,''))||0;
+      workCostTotal+=wSum;
+      html+=`<tr><td style="padding:7px 8px;border:1px solid var(--border)">${w.name}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${w.qty} ${w.unit}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:500">${w.sum||'—'}</td></tr>`;
+    });
+    html+=`</tbody></table>`;
+    if(workCostTotal) html+=`<div style="text-align:right;font-size:12px;margin-bottom:14px;padding:4px 8px"><span style="color:var(--text3)">Итого работы:</span> <b style="color:var(--amber)">${workCostTotal.toLocaleString('ru-RU')} ₽</b></div>`;
   }
-  if(sp.total||sp.margin){
-    html+=`<div style="background:var(--accent-light);border-radius:var(--rs);padding:12px 14px;display:flex;gap:20px;flex-wrap:wrap">`;
+
+  // Итоговый блок
+  const grandTotal=matCostTotal+workCostTotal;
+  if(grandTotal>0 || sp.total || sp.margin){
+    html+=`<div style="background:var(--accent-light);border-radius:var(--rs);padding:12px 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">`;
+    if(grandTotal>0) html+=`<div><div style="font-size:10px;color:var(--amber);margin-bottom:2px">Себестоимость</div><div style="font-size:16px;font-weight:600;color:var(--amber)">${grandTotal.toLocaleString('ru-RU')} ₽</div></div>`;
     if(sp.total) html+=`<div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Итого клиенту</div><div style="font-size:16px;font-weight:600;color:var(--accent-text)">${sp.total}</div></div>`;
     if(sp.profit) html+=`<div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Прибыль</div><div style="font-size:16px;font-weight:600;color:var(--accent-text)">${sp.profit}</div></div>`;
     if(sp.margin) html+=`<div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Маржа</div><div style="font-size:16px;font-weight:600;color:var(--accent-text)">${sp.margin}</div></div>`;
