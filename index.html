@@ -1246,6 +1246,8 @@ function render(){
     const dop=Math.max(0,sum-prep);
     let hasKp=false, hasDirect=false;
     try{const sp=JSON.parse(o.specification||'');if(sp&&sp.kp){hasKp=true;hasDirect=!!sp.direct;}}catch(e){}
+    const orderExp=getOrderExpTotal(rid);
+    const expCount=getOrderExpenses(rid).length;
 
     mc+=`<div class="ocard${over?' overdue':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px" onclick='openEdit("${rid}")'>
@@ -1262,13 +1264,15 @@ function render(){
         ${dop?`<span style="font-size:11px;color:var(--red)">долг ${dop.toLocaleString('ru-RU')} ₽</span>`:''}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-        <div style="display:flex;gap:6px;align-items:center">
-          ${hasKp&&!hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Состав КП</button>`:''}
-          ${hasKp&&hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Материалы</button>`:''}
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+          ${hasKp&&!hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">КП</button>`:''}
+          ${hasKp&&hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Мат.</button>`:''}
           <button onclick="event.stopPropagation();openPrepay('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">${prep?prep.toLocaleString('ru-RU')+' ₽ ±':'Оплата'}</button>
+          ${orderExp>0
+            ?`<button onclick="event.stopPropagation();showOrderExpenses('${rid}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">${orderExp.toLocaleString('ru-RU')} ₽ (${expCount})</button>`
+            :`<button onclick="event.stopPropagation();addExpenseForOrder('${rid}')" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border);border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">+ Расход</button>`}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:var(--text3)">${o.manager||''}</span>
           ${ddl?`<span style="font-size:11px" class="${over?'dl-over':''}">${over?'просрочен ':'до '}${ddl.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</span>`:''}
           <button onclick="openEdit('${rid}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--text2)">Изм.</button>
         </div>
