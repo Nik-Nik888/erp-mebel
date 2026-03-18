@@ -570,10 +570,11 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
 
       <!-- Карточки KPI -->
-      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
         <div class="stat"><div class="lbl">Выручка</div><div class="val" id="a-revenue">—</div><div class="hint">сумма закрытых</div></div>
         <div class="stat"><div class="lbl">Себестоимость</div><div class="val" id="a-cost" style="color:var(--amber)">—</div><div class="hint">материалы</div></div>
-        <div class="stat"><div class="lbl">Прибыль</div><div class="val green" id="a-profit">—</div><div class="hint">выручка − себест.</div></div>
+        <div class="stat"><div class="lbl">Расходы</div><div class="val red" id="a-expenses">—</div><div class="hint">все расходы</div></div>
+        <div class="stat"><div class="lbl">Чистая прибыль</div><div class="val green" id="a-profit">—</div><div class="hint">выручка − всё</div></div>
         <div class="stat"><div class="lbl">Средний чек</div><div class="val" id="a-avg">—</div><div class="hint">по закрытым</div></div>
         <div class="stat"><div class="lbl">Конверсия</div><div class="val" id="a-conv">—</div><div class="hint">КП → закрыт</div></div>
         <div class="stat"><div class="lbl">Отказы</div><div class="val red" id="a-refuse">—</div><div class="hint">за период</div></div>
@@ -1139,6 +1140,13 @@ function findO(numOrId){
   return orders.find(o=>String(o.order_num).trim()===s || String(o.id)===s);
 }
 
+function getOrderExpenses(orderNum){
+  return expenses.filter(e=>(e.order_num||'').trim()===orderNum);
+}
+function getOrderExpTotal(orderNum){
+  return getOrderExpenses(orderNum).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+}
+
 function render(){
   updateStats();
   const list=getFiltered();
@@ -1155,7 +1163,7 @@ function render(){
   let h=`<table><thead><tr>
     <th>#</th><th>Дата</th><th>Клиент</th><th>Описание</th><th>Дедлайн</th>
     <th>Статус</th><th>Менеджер</th><th>Предоплата</th><th>Сумма</th><th>Остаток</th>
-    <th>Источник</th><th>Спец.</th><th>Комментарий</th><th></th>
+    <th>Расходы</th><th>Источник</th><th>Спец.</th><th>Комментарий</th><th></th>
   </tr></thead><tbody>`;
 
   list.forEach(o=>{
@@ -1200,6 +1208,11 @@ function render(){
     const sum=parseFloat(o.order_sum)||0, prep=parseFloat(o.prepay)||0;
     const dop=Math.max(0,sum-prep);
     const ostatokHtml=dop>0?`<span style="color:var(--red);font-weight:500">${dop.toLocaleString('ru-RU')} ₽</span>`:'—';
+    const orderExp=getOrderExpTotal(rid);
+    const expCount=getOrderExpenses(rid).length;
+    const expCell=orderExp>0
+      ?`<span onclick="showOrderExpenses('${rid}')" style="cursor:pointer;color:var(--red);font-weight:500;font-size:12px" title="${expCount} расход(ов)">${orderExp.toLocaleString('ru-RU')} ₽ <span style="font-size:9px;opacity:0.6">(${expCount})</span></span>`
+      :`<span onclick="addExpenseForOrder('${rid}')" style="cursor:pointer;color:var(--text3);font-size:11px">+ расход</span>`;
 
     h+=`<tr class="${over?'overdue':''}">
       <td><span class="onum">${rid||'—'}</span></td>
@@ -1212,6 +1225,7 @@ function render(){
       <td>${prepayCell}</td>
       <td style="font-weight:500;font-size:12px">${m(o.order_sum)}</td>
       <td>${ostatokHtml}</td>
+      <td>${expCell}</td>
       <td style="color:var(--text3);font-size:11px">${o.source||'—'}</td>
       <td>${specCell}</td>
       <td style="max-width:110px">${cmtCell}</td>
@@ -2940,6 +2954,7 @@ async function saveExpense(){
     }
     closeExpense();
     await loadExpenses();
+    render(); // обновляем колонку расходов в заказах
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
 
@@ -2951,8 +2966,54 @@ async function deleteExpense(){
     if(error) throw error;
     closeExpense();
     await loadExpenses();
+    render(); // обновляем колонку расходов в заказах
     showToast('Расход удалён');
   }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
+function addExpenseForOrder(orderNum){
+  openExpense();
+  setTimeout(()=>{$('exp-order').value=orderNum},50);
+}
+
+function showOrderExpenses(orderNum){
+  const list=getOrderExpenses(orderNum);
+  if(!list.length){showToast('Нет расходов');return}
+  const total=list.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  let overlay=$('m-block');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.className='overlay';overlay.id='m-block';
+    overlay.innerHTML=`<div class="modal" style="max-width:520px"><div class="modal-hd"><div class="modal-title">Расходы</div><button class="modal-close" onclick="this.closest('.overlay').classList.remove('open')">×</button></div><div class="modal-body" id="m-block-body"></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  let html=`<div style="font-size:14px;font-weight:600;margin-bottom:14px">Расходы по заказу ${orderNum}</div>`;
+  html+=`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px"><thead><tr>
+    <th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Дата</th>
+    <th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Категория</th>
+    <th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Описание</th>
+    <th style="text-align:right;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Сумма</th>
+  </tr></thead><tbody>`;
+  list.forEach(e=>{
+    const ci=getCatInfo(e.category);
+    const d=e.expense_date?new Date(e.expense_date).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
+    html+=`<tr>
+      <td style="padding:7px 8px;border:1px solid var(--border);font-size:11px;color:var(--text3)">${d}</td>
+      <td style="padding:7px 8px;border:1px solid var(--border)"><span style="font-size:11px">${ci.icon} ${e.category}</span></td>
+      <td style="padding:7px 8px;border:1px solid var(--border)">${e.description||'—'}</td>
+      <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:600;color:var(--red)">${(parseFloat(e.amount)||0).toLocaleString('ru-RU')} ₽</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;background:var(--red-light);border-radius:var(--rs);padding:10px 14px">
+    <span style="font-size:13px;font-weight:500;color:var(--red)">Итого расходов</span>
+    <span style="font-size:18px;font-weight:600;color:var(--red)">${total.toLocaleString('ru-RU')} ₽</span>
+  </div>`;
+  html+=`<div style="display:flex;gap:8px;margin-top:14px">
+    <button class="btn btn-primary" onclick="document.getElementById('m-block').classList.remove('open');addExpenseForOrder('${orderNum}')" style="flex:1;justify-content:center">+ Добавить расход</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Закрыть</button>
+  </div>`;
+  $('m-block-body').innerHTML=html;
+  overlay.classList.add('open');
 }
 
 // ── EXPENSE CATEGORIES ─────────────────────────────
@@ -3040,7 +3101,6 @@ function renderAnalytics(){
   const ao=getAOrders();
   const closed=ao.filter(o=>(o.status||'').trim()==='Закрыт');
   const refused=ao.filter(o=>(o.status||'').trim()==='Отказались');
-  const allKp=ao.filter(o=>{try{const s=JSON.parse(o.specification||'');return s&&s.kp&&!s.direct}catch(e){return false}});
 
   // KPI
   const revenue=closed.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
@@ -3052,13 +3112,24 @@ function renderAnalytics(){
       if(sp&&sp.mats) sp.mats.forEach(m=>{totalCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
     }catch(e){}
   });
-  const profit=revenue-totalCost;
+  // Расходы за тот же период из таблицы expenses
+  const aFrom=$('a-from').value?new Date($('a-from').value):null;
+  const aTo=$('a-to').value?new Date($('a-to').value+'T23:59:59'):null;
+  const periodExpenses=expenses.filter(e=>{
+    const d=new Date(e.expense_date);
+    if(aFrom&&d<aFrom) return false;
+    if(aTo&&d>aTo) return false;
+    return true;
+  });
+  const totalExpenses=periodExpenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const profit=revenue-totalCost-totalExpenses;
   const avgCheck=closed.length?revenue/closed.length:0;
   const totalAll=ao.filter(o=>(o.status||'').trim()!=='Отправлено КП').length;
   const convRate=totalAll>0?(closed.length/totalAll*100):0;
 
   $('a-revenue').textContent=fmt(revenue);
   $('a-cost').textContent=fmt(totalCost);
+  $('a-expenses').textContent=fmt(totalExpenses);
   $('a-profit').textContent=fmt(profit);
   $('a-profit').style.color=profit>=0?'var(--accent)':'var(--red)';
   $('a-avg').textContent=fmt(avgCheck);
@@ -3074,22 +3145,29 @@ function renderAnalytics(){
 }
 
 function renderRevenueChart(ao){
-  // Группируем по месяцам
   const months={};
   ao.filter(o=>(o.status||'').trim()==='Закрыт').forEach(o=>{
     const d=pDate(o.order_date); if(!d) return;
     const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    if(!months[key]) months[key]={rev:0,cost:0};
+    if(!months[key]) months[key]={rev:0,cost:0,exp:0};
     months[key].rev+=(parseFloat(o.order_sum)||0);
     try{
       const sp=JSON.parse(o.specification||'');
       if(sp&&sp.mats) sp.mats.forEach(m=>{months[key].cost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
     }catch(e){}
   });
+  // Добавляем расходы из expenses по месяцам
+  expenses.forEach(e=>{
+    const d=new Date(e.expense_date); if(isNaN(d)) return;
+    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!months[key]) months[key]={rev:0,cost:0,exp:0};
+    months[key].exp+=(parseFloat(e.amount)||0);
+  });
   const labels=Object.keys(months).sort();
   const revData=labels.map(k=>months[k].rev);
   const costData=labels.map(k=>months[k].cost);
-  const profitData=labels.map(k=>months[k].rev-months[k].cost);
+  const expData=labels.map(k=>months[k].exp);
+  const profitData=labels.map(k=>months[k].rev-months[k].cost-months[k].exp);
   const monthNames=labels.map(k=>{const [y,m]=k.split('-');return['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'][parseInt(m)-1]+' '+y.slice(2)});
 
   if(aChartRevenue) aChartRevenue.destroy();
@@ -3100,6 +3178,7 @@ function renderRevenueChart(ao){
       datasets:[
         {label:'Выручка',data:revData,backgroundColor:'rgba(42,92,63,0.7)',borderRadius:4},
         {label:'Себестоимость',data:costData,backgroundColor:'rgba(133,79,11,0.5)',borderRadius:4},
+        {label:'Расходы',data:expData,backgroundColor:'rgba(163,45,45,0.5)',borderRadius:4},
         {label:'Прибыль',data:profitData,backgroundColor:'rgba(22,163,74,0.65)',borderRadius:4}
       ]
     },
@@ -3240,10 +3319,21 @@ async function loadSkladSilent(){
   }catch(e){}
 }
 
+async function loadExpensesSilent(){
+  try{
+    const [eRes,cRes]=await Promise.all([
+      sb.from('expenses').select('*').order('expense_date',{ascending:false}),
+      sb.from('expense_categories').select('*').order('id')
+    ]);
+    if(eRes.data) expenses=eRes.data;
+    if(cRes.data) expCategories=cRes.data;
+  }catch(e){}
+}
+
 async function init(){
   sync('loading','Загрузка...');
   try{
-    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent()]);
+    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent()]);
     sync('ok','Supabase ✓');
   }catch(e){
     sync('error','Ошибка загрузки');
