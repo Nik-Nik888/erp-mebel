@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ERP — Мебель</title>
+<title>K2 — ERP Мебель</title>
 <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -241,7 +241,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
 <body>
 <div class="app">
   <nav class="sidebar">
-    <div class="sidebar-logo"><div class="name">МебельPRO</div><div class="sub">Производство</div></div>
+    <div class="sidebar-logo"><div class="name" style="display:flex;align-items:center;gap:8px"><span style="background:#F5C518;color:#1c1b18;font-weight:600;font-size:14px;padding:4px 8px;border-radius:5px;font-family:'JetBrains Mono',monospace;letter-spacing:1px">K2</span><span>Мебель</span></div><div class="sub">Производство мебели</div></div>
     <div class="nav-sec">Основное</div>
     <div class="nav-item active" onclick="showPage('orders',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg><span>Заказы</span></div>
@@ -663,7 +663,6 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <label class="flabel" style="margin:0">Материалы заказа</label>
             <div style="display:flex;gap:5px;align-items:center">
-              <span id="f-spec-kp-badge" style="display:none;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500">из КП</span>
               <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="openSpecImport()">📎 Загрузить</button>
               <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="addOrderMat()">+ материал</button>
             </div>
@@ -864,17 +863,18 @@ tbody tr.overdue:hover td{background:#fff0f0}
 
 <!-- МОДАЛ: состав КП -->
 <div class="overlay" id="m-spec">
-  <div class="modal" style="max-width:500px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-hd">
       <div>
-        <div class="modal-title" id="spec-title">Состав КП</div>
+        <div class="modal-title" id="spec-title">Состав заказа</div>
         <div id="spec-meta" style="font-size:12px;color:var(--text3);margin-top:2px"></div>
       </div>
       <button class="modal-close" onclick="document.getElementById('m-spec').classList.remove('open')">×</button>
     </div>
     <div class="modal-body" id="spec-body"></div>
-    <div class="modal-ft">
+    <div class="modal-ft" style="justify-content:space-between">
       <button class="btn btn-ghost" onclick="document.getElementById('m-spec').classList.remove('open')">Закрыть</button>
+      <button class="btn btn-primary" id="spec-save-btn" onclick="saveSpecFromModal()">Сохранить изменения</button>
     </div>
   </div>
 </div>
@@ -1411,7 +1411,7 @@ function openAdd(){
   $('f-num').readOnly=false;
   ['f-date','f-client','f-phone','f-desc','f-ddl','f-manager','f-spec','f-comment'].forEach(f=>{const el=$(f);if(el)el.value=''});
   $('f-spec-json').value='';
-  const badge=$('f-spec-kp-badge'); if(badge) badge.style.display='none';
+  
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
   $('f-status').value='Новый'; $('f-src2').value='Авито';
   $('f-src-custom').value=''; $('f-src-custom').style.display='none';
@@ -1440,7 +1440,7 @@ function openEdit(rid){
   try{const sp=JSON.parse(specRaw);if(sp&&sp.kp){isKpSpec=true;$('f-spec-json').value=specRaw;}else{$('f-spec-json').value='';}}
   catch(e){$('f-spec-json').value='';}
   $('f-spec').value='';
-  const badge=$('f-spec-kp-badge'); if(badge) badge.style.display=isKpSpec?'inline':'none';
+  
 
   // Заполняем материалы из спецификации
   populateOrderMats(isKpSpec?specRaw:'');
@@ -2359,7 +2359,7 @@ function kpSaveAsOrder(){
     $('f-status').value='Отправлено КП';
     $('f-spec').value='';
     $('f-spec-json').value=JSON.stringify(specData);
-    const badge=$('f-spec-kp-badge'); if(badge) badge.style.display='inline';
+    
     // Заполняем материалы в форме заказа из КП
     populateOrderMats(JSON.stringify(specData));
     calcDopay();
@@ -2396,7 +2396,7 @@ function kpPrint(){
   const total=$('k-total').textContent, prepay=$('k-prepay').textContent, rest=$('k-rest').textContent, discSum=$('k-disc-sum').textContent;
   const html=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>КП — ${client}</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Arial',sans-serif;font-size:13px;color:#1a1a18;padding:32px;max-width:780px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #1a1a18}.logo{font-size:20px;font-weight:700}.logo-sub{font-size:11px;color:#888;margin-top:2px}.kp-title{font-size:22px;font-weight:700;margin-bottom:16px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:24px;background:#f7f6f2;padding:14px;border-radius:6px}.meta-item{font-size:12px}.meta-item span{color:#888}h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:8px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-bottom:4px}thead th{background:#f0efe8;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#666;border-bottom:1px solid #ddd}tbody td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}.result{background:#1a1a18;color:#fff;border-radius:8px;padding:16px 20px;margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center}.result-item .lbl{font-size:10px;opacity:0.6;margin-bottom:4px;text-transform:uppercase}.result-item .val{font-size:16px;font-weight:700}.result-item .val.green{color:#4ade80}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;text-align:center}@media print{body{padding:20px}button{display:none!important}}</style></head><body>
-  <div class="header"><div><div class="logo">МебельPRO</div><div class="logo-sub">Производство корпусной мебели</div></div><div style="text-align:right;font-size:12px;color:#888">${dateKp?`<div>Дата: ${new Date(dateKp).toLocaleDateString('ru-RU')}</div>`:''}${validTo?`<div>Действует до: ${new Date(validTo).toLocaleDateString('ru-RU')}</div>`:''}</div></div>
+  <div class="header"><div><div class="logo" style="display:flex;align-items:center;gap:8px"><span style="background:#F5C518;color:#1a1a18;padding:3px 7px;border-radius:4px;font-family:monospace;letter-spacing:1px">K2</span></div><div class="logo-sub">Производство корпусной мебели</div></div><div style="text-align:right;font-size:12px;color:#888">${dateKp?`<div>Дата: ${new Date(dateKp).toLocaleDateString('ru-RU')}</div>`:''}${validTo?`<div>Действует до: ${new Date(validTo).toLocaleDateString('ru-RU')}</div>`:''}</div></div>
   <div class="kp-title">Коммерческое предложение</div>
   <div class="meta"><div class="meta-item"><span>Клиент:</span> <b>${client}</b></div><div class="meta-item"><span>Изделие:</span> ${desc}</div>${disc>0?`<div class="meta-item"><span>Скидка:</span> ${disc}%</div>`:''}<div class="meta-item"><span>Предоплата:</span> ${prepayPct}%</div></div>
   ${matRows?`<h3>Материалы</h3><table><thead><tr><th>Наименование</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${matRows}</tbody></table>`:''}
@@ -2410,55 +2410,186 @@ function kpPrint(){
 }
 
 // ── SPEC MODAL ────────────────────────────────────────
+let specEditRid=null;
+let specMatCounter=0, specWorkCounter=0;
+
 function openSpecModal(rid){
   const o=findO(rid); if(!o) return;
   let sp; try{sp=JSON.parse(o.specification||'');}catch(e){return;}
   if(!sp||!sp.kp) return;
-  $('spec-title').textContent='Состав КП — '+rid;
+  specEditRid=rid;
+  specMatCounter=0; specWorkCounter=0;
+  $('spec-title').textContent='Состав — '+rid;
   const meta=[];
-  if(sp.coef) meta.push('Коэф. '+sp.coef);
+  if(sp.coef&&sp.coef>1) meta.push('Коэф. '+sp.coef);
   if(sp.disc) meta.push('Скидка '+sp.disc+'%');
-  if(sp.prepayPct) meta.push('Предоплата '+sp.prepayPct+'%');
   $('spec-meta').textContent=meta.join(' · ');
-  let html='';
-  let matCostTotal=0, workCostTotal=0;
-  if(sp.mats&&sp.mats.length){
-    html+=`<div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Материалы</div>`;
-    html+=`<table style="width:100%;border-collapse:collapse;margin-bottom:4px;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Наименование</th><th style="width:70px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:center">Кол-во</th><th style="width:80px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Цена</th><th style="width:100px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Сумма</th></tr></thead><tbody>`;
-    sp.mats.forEach(m=>{
-      const price=parseFloat(m.price)||0;
-      const qty=parseFloat(m.qty)||0;
-      const rowSum=price*qty;
-      matCostTotal+=rowSum;
-      html+=`<tr><td style="padding:7px 8px;border:1px solid var(--border)">${m.name}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${qty}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;color:var(--text3)">${price?price.toLocaleString('ru-RU')+' ₽':'—'}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:500">${rowSum?rowSum.toLocaleString('ru-RU')+' ₽':(m.sum||'—')}</td></tr>`;
-    });
-    html+=`</tbody></table>`;
-    html+=`<div style="text-align:right;font-size:12px;margin-bottom:14px;padding:4px 8px"><span style="color:var(--text3)">Итого материалы:</span> <b style="color:var(--amber)">${matCostTotal.toLocaleString('ru-RU')} ₽</b></div>`;
-  }
-  if(sp.works&&sp.works.length){
-    html+=`<div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Работы</div>`;
-    html+=`<table style="width:100%;border-collapse:collapse;margin-bottom:4px;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;background:var(--surface2);border:1px solid var(--border)">Наименование</th><th style="width:80px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:center">Кол-во</th><th style="width:100px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:right">Сумма</th></tr></thead><tbody>`;
-    sp.works.forEach(w=>{
-      const wSum=parseFloat(String(w.sum||'0').replace(/[^\d]/g,''))||0;
-      workCostTotal+=wSum;
-      html+=`<tr><td style="padding:7px 8px;border:1px solid var(--border)">${w.name}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:center">${w.qty} ${w.unit}</td><td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:500">${w.sum||'—'}</td></tr>`;
-    });
-    html+=`</tbody></table>`;
-    if(workCostTotal) html+=`<div style="text-align:right;font-size:12px;margin-bottom:14px;padding:4px 8px"><span style="color:var(--text3)">Итого работы:</span> <b style="color:var(--amber)">${workCostTotal.toLocaleString('ru-RU')} ₽</b></div>`;
-  }
 
-  // Итоговый блок
-  const grandTotal=matCostTotal+workCostTotal;
-  if(grandTotal>0 || sp.total || sp.margin){
-    html+=`<div style="background:var(--accent-light);border-radius:var(--rs);padding:12px 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">`;
-    if(grandTotal>0) html+=`<div><div style="font-size:10px;color:var(--amber);margin-bottom:2px">Себестоимость</div><div style="font-size:16px;font-weight:600;color:var(--amber)">${grandTotal.toLocaleString('ru-RU')} ₽</div></div>`;
-    if(sp.total) html+=`<div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Итого клиенту</div><div style="font-size:16px;font-weight:600;color:var(--accent-text)">${sp.total}</div></div>`;
-    if(sp.profit) html+=`<div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Прибыль</div><div style="font-size:16px;font-weight:600;color:var(--accent-text)">${sp.profit}</div></div>`;
-    if(sp.margin) html+=`<div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Маржа</div><div style="font-size:16px;font-weight:600;color:var(--accent-text)">${sp.margin}</div></div>`;
-    html+='</div>';
+  const allMats=getMatOptions();
+  const matDl=allMats.map(m=>`<option value="${m}">`).join('');
+  const workOpts=WORK_CATALOG.map(w=>`<option value="${w.name}">`).join('');
+
+  let html='';
+  // Материалы — редактируемые
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Материалы</div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="addSpecMat()">+ материал</button>
+  </div>`;
+  html+=`<div id="spec-mats" style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px">`;
+  if(sp.mats&&sp.mats.length){
+    sp.mats.forEach(m=>{
+      const i=specMatCounter++;
+      const p=parseFloat(m.price)||0;
+      const q=parseFloat(m.qty)||0;
+      html+=specMatRow(i, m.name, q, p, matDl);
+    });
   }
-  $('spec-body').innerHTML=html||'<div style="color:var(--text3)">Состав пуст</div>';
+  html+=`</div>`;
+
+  // Работы — редактируемые
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Работы</div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="addSpecWork()">+ работа</button>
+  </div>`;
+  html+=`<div id="spec-works" style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px">`;
+  if(sp.works&&sp.works.length){
+    sp.works.forEach(w=>{
+      const i=specWorkCounter++;
+      const p=parseFloat(w.price)||0;
+      const q=parseFloat(w.qty)||0;
+      html+=specWorkRow(i, w.name, q, w.unit||'шт.', p, workOpts);
+    });
+  }
+  html+=`</div>`;
+
+  // Итого — пересчитывается
+  html+=`<div id="spec-totals"></div>`;
+
+  $('spec-body').innerHTML=html;
+  recalcSpecTotals();
   $('m-spec').classList.add('open');
+}
+
+function specMatRow(i, name, qty, price, dlOpts){
+  const sum=qty*price;
+  return `<div id="spm-${i}" style="display:flex;gap:5px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px">
+    <datalist id="dl-spm-${i}">${dlOpts}</datalist>
+    <input type="text" value="${name}" list="dl-spm-${i}" class="spm-name" style="flex:2;min-width:0;background:transparent;border:none;outline:none;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text)" onchange="onSpecMatChange(this,${i})" onfocus="this.select()">
+    <input type="number" value="${qty}" class="spm-qty" min="0.5" step="0.5" oninput="recalcSpecTotals()" style="width:50px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:center;font-family:'Geologica',sans-serif">
+    <input type="number" value="${price}" class="spm-price" min="0" oninput="recalcSpecTotals()" style="width:60px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;font-family:'Geologica',sans-serif;color:var(--text2)">
+    <span class="spm-sum" style="font-size:11px;min-width:55px;text-align:right;font-weight:500;color:var(--accent-text)">${sum?sum.toLocaleString('ru-RU')+'₽':'—'}</span>
+    <button onclick="document.getElementById('spm-${i}').remove();recalcSpecTotals()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 2px">×</button>
+  </div>`;
+}
+
+function specWorkRow(i, name, qty, unit, price, dlOpts){
+  const sum=qty*price;
+  return `<div id="spw-${i}" style="display:flex;gap:5px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px">
+    <datalist id="dl-spw-${i}">${dlOpts}</datalist>
+    <input type="text" value="${name}" list="dl-spw-${i}" class="spw-name" style="flex:2;min-width:0;background:transparent;border:none;outline:none;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text)" onchange="onSpecWorkChange(this,${i})" onfocus="this.select()">
+    <input type="number" value="${qty}" class="spw-qty" min="0.5" step="0.5" oninput="recalcSpecTotals()" style="width:45px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:center;font-family:'Geologica',sans-serif">
+    <input type="text" value="${unit}" class="spw-unit" style="width:40px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:11px;outline:none;text-align:center;font-family:'Geologica',sans-serif;color:var(--text3)">
+    <input type="number" value="${price}" class="spw-price" min="0" oninput="recalcSpecTotals()" style="width:55px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:12px;outline:none;text-align:right;font-family:'Geologica',sans-serif;color:var(--text2)">
+    <span class="spw-sum" style="font-size:11px;min-width:55px;text-align:right;font-weight:500;color:var(--accent-text)">${sum?sum.toLocaleString('ru-RU')+'₽':'—'}</span>
+    <button onclick="document.getElementById('spw-${i}').remove();recalcSpecTotals()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 2px">×</button>
+  </div>`;
+}
+
+function addSpecMat(){
+  const allMats=getMatOptions();
+  const dlOpts=allMats.map(m=>`<option value="${m}">`).join('');
+  const i=specMatCounter++;
+  const name=allMats[0]||'';
+  const price=matPrice(name)||0;
+  $('spec-mats').insertAdjacentHTML('beforeend',specMatRow(i,name,1,price,dlOpts));
+  recalcSpecTotals();
+}
+
+function addSpecWork(){
+  const dlOpts=WORK_CATALOG.map(w=>`<option value="${w.name}">`).join('');
+  const i=specWorkCounter++;
+  const w=WORK_CATALOG[0]||{name:'',unit:'шт.',price:0};
+  $('spec-works').insertAdjacentHTML('beforeend',specWorkRow(i,w.name,1,w.unit,w.price,dlOpts));
+  recalcSpecTotals();
+}
+
+function onSpecMatChange(input,idx){
+  const row=$('spm-'+idx); if(!row) return;
+  const p=matPrice(input.value);
+  if(p){const pi=row.querySelector('.spm-price');if(pi)pi.value=p;}
+  recalcSpecTotals();
+}
+
+function onSpecWorkChange(input,idx){
+  const row=$('spw-'+idx); if(!row) return;
+  const [unit,price]=workDefaults(input.value);
+  if(price){
+    const u=row.querySelector('.spw-unit');if(u)u.value=unit;
+    const p=row.querySelector('.spw-price');if(p)p.value=price;
+  }
+  recalcSpecTotals();
+}
+
+function recalcSpecTotals(){
+  let matTotal=0, workTotal=0;
+  document.querySelectorAll('#spec-mats [id^="spm-"]').forEach(row=>{
+    const q=parseFloat(row.querySelector('.spm-qty')?.value)||0;
+    const p=parseFloat(row.querySelector('.spm-price')?.value)||0;
+    const s=q*p; matTotal+=s;
+    const se=row.querySelector('.spm-sum'); if(se) se.textContent=s?s.toLocaleString('ru-RU')+'₽':'—';
+  });
+  document.querySelectorAll('#spec-works [id^="spw-"]').forEach(row=>{
+    const q=parseFloat(row.querySelector('.spw-qty')?.value)||0;
+    const p=parseFloat(row.querySelector('.spw-price')?.value)||0;
+    const s=q*p; workTotal+=s;
+    const se=row.querySelector('.spw-sum'); if(se) se.textContent=s?s.toLocaleString('ru-RU')+'₽':'—';
+  });
+  const grand=matTotal+workTotal;
+  const el=$('spec-totals');
+  if(el) el.innerHTML=grand>0?`<div style="background:var(--accent-light);border-radius:var(--rs);padding:10px 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+    <div><div style="font-size:10px;color:var(--amber);margin-bottom:2px">Материалы</div><div style="font-size:15px;font-weight:600;color:var(--amber)">${matTotal.toLocaleString('ru-RU')} ₽</div></div>
+    ${workTotal?`<div><div style="font-size:10px;color:var(--amber);margin-bottom:2px">Работы</div><div style="font-size:15px;font-weight:600;color:var(--amber)">${workTotal.toLocaleString('ru-RU')} ₽</div></div>`:''}
+    <div><div style="font-size:10px;color:var(--accent-text);margin-bottom:2px">Итого себестоимость</div><div style="font-size:15px;font-weight:600;color:var(--accent-text)">${grand.toLocaleString('ru-RU')} ₽</div></div>
+  </div>`:'';
+}
+
+async function saveSpecFromModal(){
+  if(!specEditRid) return;
+  const o=findO(specEditRid); if(!o) return;
+  let sp; try{sp=JSON.parse(o.specification||'');}catch(e){sp={kp:true};}
+
+  // Собираем материалы
+  const mats=[];
+  document.querySelectorAll('#spec-mats [id^="spm-"]').forEach(row=>{
+    const name=(row.querySelector('.spm-name')?.value||'').trim();
+    const qty=parseFloat(row.querySelector('.spm-qty')?.value)||0;
+    const price=parseFloat(row.querySelector('.spm-price')?.value)||0;
+    if(name&&qty>0) mats.push({name,qty,price,sum:(qty*price).toLocaleString('ru-RU')+' ₽'});
+  });
+  // Собираем работы
+  const works=[];
+  document.querySelectorAll('#spec-works [id^="spw-"]').forEach(row=>{
+    const name=(row.querySelector('.spw-name')?.value||'').trim();
+    const qty=parseFloat(row.querySelector('.spw-qty')?.value)||0;
+    const unit=(row.querySelector('.spw-unit')?.value||'').trim();
+    const price=parseFloat(row.querySelector('.spw-price')?.value)||0;
+    if(name&&qty>0) works.push({name,qty,unit,price,sum:(qty*price).toLocaleString('ru-RU')+' ₽'});
+  });
+
+  sp.mats=mats;
+  sp.works=works;
+  const specJson=JSON.stringify(sp);
+
+  try{
+    const {error}=await sb.from('orders').update({specification:specJson}).eq('id',o.id);
+    if(error) throw error;
+    o.specification=specJson;
+    // Автодобавление новых материалов
+    if(mats.length) await suggestNewMaterials(mats);
+    $('m-spec').classList.remove('open');
+    render();
+    showToast('Состав обновлён');
+  }catch(e){ showToast('Ошибка: '+e.message) }
 }
 
 // ══════════════════════════════════════════════════════
