@@ -324,7 +324,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <select class="fsel" onchange="render()" id="f-mgr"><option value="">Все менеджеры</option></select>
           <select class="fsel" onchange="render()" id="f-src">
             <option value="">Все источники</option>
-            <option>Авито</option><option>Instagram</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option>
+            <option>Авито</option><option>Instagram</option><option>ВКонтакте</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option>
           </select>
         </div>
         <div id="tbl-body" class="desk-table"><div class="loading">Загрузка...</div></div>
@@ -650,7 +650,9 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <select class="fsel2" id="f-status"><option>Отправлено КП</option><option>Новый</option><option>В работе</option><option>Готов к выдаче</option><option>Отгружен</option><option>Закрыт</option><option>Приостановлен</option><option>Отказались</option></select></div>
         <div class="f"><label class="flabel">Менеджер</label><input class="finput" id="f-manager" list="mgr-list"><datalist id="mgr-list"></datalist></div>
         <div class="f"><label class="flabel">Источник</label>
-          <select class="fsel2" id="f-src2"><option>Авито</option><option>Instagram</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option><option>Другое</option></select></div>
+          <select class="fsel2" id="f-src2" onchange="toggleCustomSource()"><option>Авито</option><option>Instagram</option><option>ВКонтакте</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option><option value="__other">Другое...</option></select>
+          <input class="finput" id="f-src-custom" placeholder="Укажите источник..." style="display:none;margin-top:4px">
+        </div>
         <div class="f"><label class="flabel">Сумма заказа (₽)</label><input class="finput" type="number" id="f-sum" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Предоплата (₽)</label><input class="finput" type="number" id="f-prepay" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Остаток (авто)</label><input class="finput" type="number" id="f-dopay" readonly style="background:var(--accent-light);color:var(--accent-text);font-weight:500"></div>
@@ -660,13 +662,14 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f full" style="margin-top:4px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <label class="flabel" style="margin:0">Материалы заказа</label>
-            <div style="display:flex;gap:6px;align-items:center">
+            <div style="display:flex;gap:5px;align-items:center">
               <span id="f-spec-kp-badge" style="display:none;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500">из КП</span>
+              <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="openSpecImport()">📎 Загрузить</button>
               <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="addOrderMat()">+ материал</button>
             </div>
           </div>
           <div id="f-mats-wrap" style="display:flex;flex-direction:column;gap:4px"></div>
-          <div id="f-mats-empty" style="font-size:12px;color:var(--text3);padding:8px 0">Нет материалов — нажмите "+ материал" или создайте через КП</div>
+          <div id="f-mats-empty" style="font-size:12px;color:var(--text3);padding:8px 0">Нет материалов — нажмите "+ материал", "📎 Загрузить" или создайте через КП</div>
           <div id="f-mats-total" style="display:none;margin-top:6px;background:var(--amber-light);border:1px solid rgba(133,79,11,0.15);border-radius:var(--rs);padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
             <span style="font-size:12px;color:var(--amber);font-weight:500">📦 Себестоимость материалов</span>
             <span id="f-mats-cost" style="font-size:15px;font-weight:600;color:var(--amber);font-family:'JetBrains Mono',monospace">0 ₽</span>
@@ -818,9 +821,12 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f full"><label class="flabel">Начальный остаток</label><input class="finput" type="number" id="si-stock" min="0" placeholder="0"></div>
       </div>
     </div>
-    <div class="modal-ft">
-      <button class="btn btn-ghost" onclick="closeSkladItem()">Отмена</button>
-      <button class="btn btn-primary" onclick="saveSkladItem()">Сохранить</button>
+    <div class="modal-ft" style="justify-content:space-between">
+      <button class="btn btn-ghost" id="si-del-btn" onclick="deleteSkladItem()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Удалить</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-ghost" onclick="closeSkladItem()">Отмена</button>
+        <button class="btn btn-primary" onclick="saveSkladItem()">Сохранить</button>
+      </div>
     </div>
   </div>
 </div>
@@ -923,6 +929,110 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
     </div>
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeExpCategories()">Закрыть</button></div>
+  </div>
+</div>
+
+<!-- МОДАЛ: импорт из К3 -->
+<div class="overlay" id="m-k3import">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-hd">
+      <div class="modal-title">📄 Загрузить спецификацию из К3</div>
+      <button class="modal-close" onclick="closeK3Import()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Табы способа ввода -->
+      <div class="tabs" style="margin-bottom:14px">
+        <div class="tab active" id="k3tab-file" onclick="setK3Tab('file',this)">📷 Фото / PDF</div>
+        <div class="tab" id="k3tab-text" onclick="setK3Tab('text',this)">📋 Вставить текст</div>
+      </div>
+
+      <!-- Вкладка: Фото/PDF -->
+      <div id="k3-tab-file">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Загрузите скриншот или PDF спецификации из К3-Мебель. AI распознает таблицу и заполнит материалы.</div>
+        <div id="k3-dropzone" style="border:2px dashed var(--border2);border-radius:var(--r);padding:32px;text-align:center;cursor:pointer;transition:all 0.15s" onclick="$('k3-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--accent-light)'" ondragleave="this.style.borderColor='var(--border2)';this.style.background=''" ondrop="event.preventDefault();this.style.borderColor='var(--border2)';this.style.background='';handleK3File(event.dataTransfer.files[0])">
+          <div style="font-size:28px;margin-bottom:8px">📄</div>
+          <div style="font-size:13px;color:var(--text2);font-weight:500">Перетащите файл сюда</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">или нажмите для выбора · JPG, PNG, PDF</div>
+        </div>
+        <input type="file" id="k3-file-input" accept="image/*,.pdf" style="display:none" onchange="handleK3File(this.files[0])">
+        <div id="k3-file-preview" style="display:none;margin-top:10px">
+          <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:var(--rs);padding:8px 12px">
+            <span style="font-size:16px">✅</span>
+            <span id="k3-file-name" style="flex:1;font-size:12px;color:var(--text)"></span>
+            <button onclick="clearK3File()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Вкладка: Вставить текст -->
+      <div id="k3-tab-text" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Скопируйте таблицу материалов из К3-Мебель и вставьте сюда. Формат: каждая строка — название, количество, цена (через табуляцию или точку с запятой).</div>
+        <textarea class="ftextarea" id="k3-text" style="min-height:140px;font-size:12px;font-family:'JetBrains Mono',monospace" placeholder="ЛДСП Белый 16мм	3	1600
+ЛДСП Дуб Сонома 16мм	2	1800
+Кромка ПВХ 2мм	15	65
+Петля накладная	8	120"></textarea>
+      </div>
+
+      <!-- Статус распознавания -->
+      <div id="k3-status" style="display:none;margin-top:12px;padding:10px 14px;border-radius:var(--rs);font-size:13px">
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeK3Import()">Отмена</button>
+      <button class="btn btn-primary" id="k3-import-btn" onclick="processK3Import()">Распознать и загрузить</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛ: импорт спецификации -->
+<div class="overlay" id="m-spec-import">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd">
+      <div class="modal-title">Загрузить спецификацию</div>
+      <button class="modal-close" onclick="closeSpecImport()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Вкладки -->
+      <div class="tabs" style="margin-bottom:14px">
+        <div class="tab active" id="imp-tab-file" onclick="setImportTab('file',this)">📷 Фото / PDF</div>
+        <div class="tab" id="imp-tab-text" onclick="setImportTab('text',this)">📋 Вставить текст</div>
+      </div>
+
+      <!-- Файл -->
+      <div id="imp-file-section">
+        <div id="imp-drop-zone" style="border:2px dashed var(--border2);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2)" onclick="$('imp-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--accent-light)'" ondragleave="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'" ondrop="event.preventDefault();this.style.borderColor='var(--border2)';this.style.background='var(--surface2)';handleImportFile(event.dataTransfer.files[0])">
+          <div style="font-size:28px;margin-bottom:8px">📄</div>
+          <div style="font-size:13px;color:var(--text2);font-weight:500">Перетащите фото или PDF сюда</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">или нажмите чтобы выбрать файл</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:8px">JPG, PNG, PDF — скриншот спецификации из К3-Мебель</div>
+        </div>
+        <input type="file" id="imp-file-input" accept="image/*,.pdf" style="display:none" onchange="handleImportFile(this.files[0])">
+        <div id="imp-file-preview" style="display:none;margin-top:10px">
+          <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);padding:8px 12px;border-radius:var(--rs);border:1px solid var(--border)">
+            <span style="font-size:16px">✅</span>
+            <span id="imp-file-name" style="font-size:12px;flex:1;color:var(--text)"></span>
+            <button onclick="clearImportFile()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Текст -->
+      <div id="imp-text-section" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Скопируйте таблицу материалов из К3-Мебель или Excel и вставьте сюда:</div>
+        <textarea id="imp-text" class="ftextarea" style="min-height:140px;font-family:'JetBrains Mono',monospace;font-size:11px" placeholder="Название          Кол-во    Ед.    Цена
+ЛДСП Белый 16мм    3        лист   1800
+Кромка ПВХ 2мм     12       пог.м  65
+..."></textarea>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Формат: через Tab, пробелы или точку с запятой. Строки — по одному материалу.</div>
+      </div>
+
+      <!-- Статус обработки -->
+      <div id="imp-status" style="display:none;margin-top:12px;padding:10px 14px;border-radius:var(--rs);font-size:12px"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeSpecImport()">Отмена</button>
+      <button class="btn btn-primary" id="imp-go-btn" onclick="processImport()">🔍 Распознать</button>
+    </div>
   </div>
 </div>
 
@@ -1304,6 +1414,7 @@ function openAdd(){
   const badge=$('f-spec-kp-badge'); if(badge) badge.style.display='none';
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
   $('f-status').value='Новый'; $('f-src2').value='Авито';
+  $('f-src-custom').value=''; $('f-src-custom').style.display='none';
   // Сбрасываем материалы
   $('f-mats-wrap').innerHTML='';
   orderMatCounter=0;
@@ -1341,7 +1452,7 @@ function openEdit(rid){
   const ddl=pDate(o.deadline); $('f-ddl').value=ddl?ddl.toISOString().split('T')[0]:'';
   const dt=pDate(o.order_date); $('f-date').value=dt?dt.toISOString().split('T')[0]:'';
   $('f-status').value=(o.status||'').trim()||'Новый';
-  $('f-src2').value=o.source||'Авито';
+  setSourceValue(o.source||'Авито');
   $('m-order').classList.add('open');
 }
 
@@ -1354,6 +1465,60 @@ function fillPhone(){
   const v=$('f-client').value.trim();
   const match=orders.find(o=>(o.client||'').trim()===v);
   if(match&&match.phone&&!$('f-phone').value) $('f-phone').value=match.phone;
+}
+
+// ── SOURCE HELPERS ────────────────────────────────────
+const KNOWN_SOURCES=['Авито','Instagram','ВКонтакте','Телеграм','Обзвон','Рекомендация','Повторный'];
+
+function toggleCustomSource(){
+  const sel=$('f-src2');
+  const inp=$('f-src-custom');
+  inp.style.display=sel.value==='__other'?'':'none';
+  if(sel.value==='__other') setTimeout(()=>inp.focus(),50);
+}
+
+function getSourceValue(){
+  const sel=$('f-src2').value;
+  if(sel==='__other') return $('f-src-custom').value.trim()||'Другое';
+  return sel;
+}
+
+function setSourceValue(val){
+  const sel=$('f-src2');
+  const inp=$('f-src-custom');
+  if(KNOWN_SOURCES.includes(val)){
+    sel.value=val; inp.style.display='none'; inp.value='';
+  } else {
+    sel.value='__other'; inp.style.display=''; inp.value=val;
+  }
+}
+
+// ── AUTO-SUGGEST NEW MATERIALS TO SKLAD ───────────────
+async function suggestNewMaterials(mats){
+  // Проверяем какие материалы из заказа отсутствуют в базе склада
+  const newMats=[];
+  for(const mat of mats){
+    const exists=skladItems.find(i=>(i.name||'').toLowerCase()===(mat.name||'').toLowerCase());
+    if(!exists && mat.name) newMats.push(mat);
+  }
+  if(!newMats.length) return;
+
+  // Создаём записи-черновики в sklad_items с пометкой pending
+  for(const mat of newMats){
+    const item={
+      item_id:'pending_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      name:mat.name,
+      type:'лист',
+      unit:'шт',
+      min_stock:0,
+      buy_price:mat.price||0
+    };
+    try{
+      const {error}=await sb.from('sklad_items').insert(item);
+      if(!error) skladItems.push(item);
+    }catch(e){}
+  }
+  showToast('⚡ '+newMats.length+' новых материал(ов) добавлено в базу склада — проверьте и оформите');
 }
 
 // ── ORDER MATERIAL PICKER ─────────────────────────────
@@ -1518,7 +1683,7 @@ async function saveOrder(){
     prepay: prep,
     order_sum: sum,
     dopay: sum>0?Math.max(0,sum-prep):0,
-    source: $('f-src2').value||'',
+    source: getSourceValue(),
     specification: specValue,
     comment: $('f-comment').value||''
   };
@@ -1560,6 +1725,9 @@ async function saveOrder(){
         showToast('Заказ добавлен');
       }
     }
+    // Автодобавление новых материалов в базу склада
+    const formMatsForSuggest=getOrderMatsFromForm();
+    if(formMatsForSuggest.length) await suggestNewMaterials(formMatsForSuggest);
     closeOrder();
     await loadOrders();
   }catch(e){ showToast('Ошибка: '+e.message) }
@@ -2513,29 +2681,55 @@ function renderSkladBase(){
   const container=$('sklad-base-tree'); if(!container) return;
   const q=($('sklad-base-search')?.value||'').toLowerCase().trim();
   const typeFilter=$('sklad-base-filter')?.value||'';
-  let items=skladItems.filter(i=>(i.name||'').trim()).filter(i=>!q||(i.name||'').toLowerCase().includes(q)).filter(i=>!typeFilter||(i.type||'').toLowerCase()===typeFilter).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ru'));
+  // Сортируем: pending сверху, потом по алфавиту
+  let items=skladItems.filter(i=>(i.name||'').trim()).filter(i=>!q||(i.name||'').toLowerCase().includes(q)).filter(i=>!typeFilter||(i.type||'').toLowerCase()===typeFilter).sort((a,b)=>{
+    const ap=String(a.item_id||'').startsWith('pending_')?0:1;
+    const bp=String(b.item_id||'').startsWith('pending_')?0:1;
+    if(ap!==bp) return ap-bp;
+    return(a.name||'').localeCompare(b.name||'','ru');
+  });
   if(!items.length){container.innerHTML='<div class="empty-state">Позиций не найдено</div>';return;}
+
+  // Считаем pending
+  const pendingCount=items.filter(i=>String(i.item_id||'').startsWith('pending_')).length;
+  let html='';
+  if(pendingCount){
+    html+=`<div style="background:var(--amber-light);border:1px solid rgba(133,79,11,0.2);border-radius:var(--r);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">⏳</span>
+      <span style="font-size:12px;color:var(--amber);font-weight:500">${pendingCount} новых материал(ов) ожидают подтверждения — нажмите "Изм." чтобы оформить</span>
+    </div>`;
+  }
+
   const GROUP_LABELS={'лист':'🪵 Листовые материалы','кромка':'📏 Кромка','фурнитура':'🔩 Фурнитура'};
   const GROUP_ORDER=['лист','кромка','фурнитура'];
   const tree={};
   items.forEach(item=>{const g=(item.type||'прочее').toLowerCase().trim();if(!tree[g])tree[g]=[];tree[g].push(item);});
   const allGroups=[...GROUP_ORDER,...Object.keys(tree).filter(g=>!GROUP_ORDER.includes(g))];
-  let html='';
   allGroups.forEach(g=>{
     if(!tree[g]) return;
     const gLabel=GROUP_LABELS[g]||('📦 '+g.charAt(0).toUpperCase()+g.slice(1));
     const gKey='base_g_'+g;
     if(!(gKey in treeOpen.groups)) treeOpen.groups[gKey]=true;
     const gOpen=treeOpen.groups[gKey];
-    html+=`<div class="tree-group"><div class="tree-group-hd${gOpen?' open':''}" onclick="toggleTree('group','${gKey}',this)"><span class="tree-arrow">▶</span><span style="font-size:13px;font-weight:600;flex:1">${gLabel}</span><span style="font-size:11px;color:var(--text3)">${tree[g].length} поз.</span></div><div class="tree-group-body${gOpen?' open':''}">`;
+    const pendingInGroup=tree[g].filter(i=>String(i.item_id||'').startsWith('pending_')).length;
+    html+=`<div class="tree-group"><div class="tree-group-hd${gOpen?' open':''}" onclick="toggleTree('group','${gKey}',this)"><span class="tree-arrow">▶</span><span style="font-size:13px;font-weight:600;flex:1">${gLabel}</span><span style="font-size:11px;color:var(--text3)">${tree[g].length} поз.</span>${pendingInGroup?`<span style="background:var(--amber-light);color:var(--amber);padding:1px 7px;border-radius:10px;font-size:11px;font-weight:500">${pendingInGroup} ⏳</span>`:''}</div><div class="tree-group-body${gOpen?' open':''}">`;
     tree[g].forEach(item=>{
       const iid=item.item_id||'';
+      const isPending=iid.startsWith('pending_');
       const stock=skladStock(iid);
       const min=parseFloat(item.min_stock)||0;
       const isEmpty=stock<=0, isLow=!isEmpty&&min>0&&stock<=min;
       const color=isEmpty?'var(--red)':isLow?'var(--amber)':'var(--text3)';
       const price=parseFloat(item.buy_price)||0;
-      html+=`<div class="tree-item" style="padding-left:24px;${isEmpty?'background:var(--red-light);':''}"><span class="tree-item-name" style="font-size:12px${isEmpty?';color:var(--red);font-weight:500':''}">${item.name||'—'}</span><span style="font-size:11px;color:var(--text3);margin-right:8px">${item.unit||'шт'}</span>${price?`<span style="font-size:11px;color:var(--text2);margin-right:8px">${price.toLocaleString('ru-RU')} ₽</span>`:''}<span style="font-size:12px;font-weight:700;color:${color};margin-right:8px">${isEmpty?'0 — нет':stock}</span><button onclick='openSkladItem(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--text2)">Изм.</button></div>`;
+      const bg=isPending?'background:var(--amber-light);':isEmpty?'background:var(--red-light);':'';
+      html+=`<div class="tree-item" style="padding-left:24px;${bg}">
+        ${isPending?'<span style="font-size:12px;margin-right:4px" title="Ожидает подтверждения">⏳</span>':''}
+        <span class="tree-item-name" style="font-size:12px${isEmpty?';color:var(--red);font-weight:500':''}">${item.name||'—'}</span>
+        <span style="font-size:11px;color:var(--text3);margin-right:8px">${item.unit||'шт'}</span>
+        ${price?`<span style="font-size:11px;color:var(--text2);margin-right:8px">${price.toLocaleString('ru-RU')} ₽</span>`:''}
+        <span style="font-size:12px;font-weight:700;color:${color};margin-right:8px">${isEmpty?'0 — нет':stock}</span>
+        <button onclick='openSkladItem(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="background:${isPending?'var(--amber-light)':'var(--surface2)'};border:1px solid ${isPending?'var(--amber)':'var(--border)'};border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:${isPending?'var(--amber)':'var(--text2)'};font-weight:${isPending?'600':'400'}">${isPending?'✓ Оформить':'Изм.'}</button>
+      </div>`;
     });
     html+=`</div></div>`;
   });
@@ -2676,22 +2870,82 @@ async function saveSkladMove(){
 // ── SKLAD ITEM MODAL ──────────────────────────────────
 function openSkladItem(item=null){
   editSkladId=item?item.id:null;
-  $('sklad-item-title').textContent=item?'Редактировать позицию':'Новая позиция';
+  const isPending=item&&String(item.item_id||'').startsWith('pending_');
+  $('sklad-item-title').textContent=item?(isPending?'Оформить материал':'Редактировать позицию'):'Новая позиция';
   $('si-name').value=item?item.name||'':'';
   $('si-type').value=item?item.type||'лист':'лист';
   $('si-unit').value=item?item.unit||'шт':'шт';
   $('si-min').value=item?item.min_stock||'':'';
   $('si-price').value=item?item.buy_price||'':'';
   $('si-stock').value='';
+  $('si-del-btn').style.display=item?'inline-flex':'none';
   $('m-sklad-item').classList.add('open');
 }
 function closeSkladItem(){ $('m-sklad-item').classList.remove('open'); editSkladId=null }
 
+async function deleteSkladItem(){
+  if(!editSkladId) return;
+  const item=skladItems.find(i=>i.id===editSkladId);
+  const name=item?item.name:'';
+  const iid=item?item.item_id:'';
+  const stock=iid?skladStock(iid):0;
+
+  if(stock>0){
+    showToast('⚠ На складе есть остаток ('+stock+') — сначала спишите');
+    return;
+  }
+
+  // Считаем движения с заказами и без
+  const movesWithOrder=skladLog.filter(r=>r.item_id===iid&&(r.order_num||'').trim());
+  const movesWithout=skladLog.filter(r=>r.item_id===iid&&!(r.order_num||'').trim());
+
+  let msg='Удалить материал "'+name+'" из базы?';
+  if(movesWithOrder.length){
+    msg+='\n\n'+movesWithOrder.length+' записей в журнале привязаны к заказам — они сохранятся для истории.';
+  }
+  if(movesWithout.length){
+    msg+='\n'+movesWithout.length+' записей без привязки к заказам — будут удалены.';
+  }
+
+  if(!confirm(msg)) return;
+
+  try{
+    // Удаляем только движения БЕЗ привязки к заказам
+    if(iid&&movesWithout.length){
+      const {error:mErr}=await sb.from('sklad_moves').delete()
+        .eq('item_id',iid)
+        .or('order_num.is.null,order_num.eq.');
+      // Fallback: удаляем поштучно если or не сработал
+      if(mErr){
+        for(const m of movesWithout){
+          if(m.id) await sb.from('sklad_moves').delete().eq('id',m.id);
+        }
+      }
+      skladLog=skladLog.filter(r=>!(r.item_id===iid&&!(r.order_num||'').trim()));
+    }
+    // Удаляем позицию
+    const {error}=await sb.from('sklad_items').delete().eq('id',editSkladId);
+    if(error) throw error;
+    closeSkladItem();
+    await loadSklad();
+    showToast('Материал "'+name+'" удалён'+(movesWithOrder.length?' (история заказов сохранена)':''));
+  }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
 async function saveSkladItem(){
   const name=$('si-name').value.trim();
   if(!name){showToast('Укажите название');return;}
+  // При редактировании pending-записи — заменяем item_id на нормальный
+  let oldItemId=null;
+  if(editSkladId){
+    const existing=skladItems.find(i=>i.id===editSkladId);
+    oldItemId=existing?.item_id||'';
+  }
+  const isPending=oldItemId&&oldItemId.startsWith('pending_');
+  const newItemId=isPending?name:(editSkladId?oldItemId:name);
+  
   const item={
-    item_id: editSkladId?skladItems.find(i=>i.id===editSkladId)?.item_id||name:name,
+    item_id: newItemId,
     name: name,
     type: $('si-type').value,
     unit: $('si-unit').value,
@@ -2703,6 +2957,11 @@ async function saveSkladItem(){
     if(editSkladId){
       const {error}=await sb.from('sklad_items').update(item).eq('id',editSkladId);
       if(error) throw error;
+      // Если был pending — обновляем item_id в движениях склада
+      if(isPending&&oldItemId){
+        await sb.from('sklad_moves').update({item_id:newItemId}).eq('item_id',oldItemId);
+        skladLog.forEach(r=>{if(r.item_id===oldItemId) r.item_id=newItemId});
+      }
     } else {
       const {error}=await sb.from('sklad_items').insert(item);
       if(error) throw error;
@@ -2716,8 +2975,374 @@ async function saveSkladItem(){
     }
     closeSkladItem();
     await loadSklad();
-    showToast(editSkladId?'Позиция обновлена':'Позиция добавлена');
+    showToast(isPending?'Материал подтверждён ✓':'Позиция '+(editSkladId?'обновлена':'добавлена'));
   }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
+// ══════════════════════════════════════════════════════
+// ИМПОРТ ИЗ К3-МЕБЕЛЬ
+// ══════════════════════════════════════════════════════
+let k3CurrentTab='file', k3FileData=null;
+
+function openK3Import(){
+  k3FileData=null;
+  $('k3-file-input').value='';
+  $('k3-file-preview').style.display='none';
+  $('k3-text').value='';
+  $('k3-status').style.display='none';
+  $('k3-import-btn').textContent='Распознать и загрузить';
+  $('k3-import-btn').disabled=false;
+  setK3Tab('file',$('k3tab-file'));
+  $('m-k3import').classList.add('open');
+}
+function closeK3Import(){ $('m-k3import').classList.remove('open'); k3FileData=null; }
+
+function setK3Tab(tab,el){
+  k3CurrentTab=tab;
+  document.querySelectorAll('#m-k3import .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  $('k3-tab-file').style.display=tab==='file'?'':'none';
+  $('k3-tab-text').style.display=tab==='text'?'':'none';
+}
+
+function handleK3File(file){
+  if(!file) return;
+  const validTypes=['image/jpeg','image/png','image/webp','image/gif','application/pdf'];
+  if(!validTypes.includes(file.type)){showToast('Поддерживаются: JPG, PNG, PDF');return}
+  if(file.size>10*1024*1024){showToast('Файл слишком большой (макс. 10МБ)');return}
+  k3FileData=file;
+  $('k3-file-name').textContent=file.name+' ('+Math.round(file.size/1024)+' КБ)';
+  $('k3-file-preview').style.display='';
+  $('k3-dropzone').style.borderColor='var(--accent)';
+}
+function clearK3File(){
+  k3FileData=null;
+  $('k3-file-input').value='';
+  $('k3-file-preview').style.display='none';
+  $('k3-dropzone').style.borderColor='var(--border2)';
+}
+
+function showK3Status(type,msg){
+  const el=$('k3-status');
+  el.style.display='';
+  if(type==='loading'){el.style.background='var(--amber-light)';el.style.color='var(--amber)';el.innerHTML='⏳ '+msg}
+  else if(type==='ok'){el.style.background='var(--accent-light)';el.style.color='var(--accent-text)';el.innerHTML='✅ '+msg}
+  else{el.style.background='var(--red-light)';el.style.color='var(--red)';el.innerHTML='❌ '+msg}
+}
+
+async function processK3Import(){
+  const btn=$('k3-import-btn');
+  btn.textContent='Распознаю...'; btn.disabled=true;
+
+  try{
+    let mats=[];
+
+    if(k3CurrentTab==='text'){
+      // Парсинг текста
+      const text=$('k3-text').value.trim();
+      if(!text){showToast('Вставьте текст спецификации');btn.textContent='Распознать и загрузить';btn.disabled=false;return}
+      mats=parseK3Text(text);
+      if(!mats.length){
+        // Если простой парсинг не сработал — отправляем в AI
+        showK3Status('loading','AI анализирует текст...');
+        mats=await recognizeWithAI(null,text);
+      }
+    } else {
+      // Фото/PDF
+      if(!k3FileData){showToast('Загрузите файл');btn.textContent='Распознать и загрузить';btn.disabled=false;return}
+      showK3Status('loading','AI распознаёт изображение...');
+      const base64=await fileToBase64(k3FileData);
+      mats=await recognizeWithAI(base64,null);
+    }
+
+    if(mats.length){
+      // Очищаем текущие материалы и заполняем новые
+      $('f-mats-wrap').innerHTML='';
+      orderMatCounter=0;
+      mats.forEach(m=>addOrderMat(m.name, m.qty, m.price));
+      updateOrderMatsEmpty();
+      calcOrderSum();
+      showK3Status('ok','Загружено '+mats.length+' материалов');
+      setTimeout(()=>closeK3Import(),1200);
+    } else {
+      showK3Status('error','Не удалось распознать материалы. Проверьте файл или введите вручную.');
+    }
+  }catch(e){
+    showK3Status('error','Ошибка: '+e.message);
+  }
+  btn.textContent='Распознать и загрузить'; btn.disabled=false;
+}
+
+function parseK3Text(text){
+  // Пробуем распарсить текст — табуляция, точка с запятой или несколько пробелов
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const mats=[];
+  for(const line of lines){
+    // Пропускаем заголовки
+    if(/^(название|наименование|материал|#|№)/i.test(line)) continue;
+    // Разделители: таб, ;, |
+    let parts=line.split('\t');
+    if(parts.length<2) parts=line.split(';');
+    if(parts.length<2) parts=line.split('|');
+    if(parts.length<2){
+      // Пробуем через множественные пробелы
+      parts=line.split(/\s{2,}/);
+    }
+    if(parts.length>=2){
+      const name=parts[0].trim();
+      // Ищем число — количество
+      let qty=0, price=0;
+      for(let i=1;i<parts.length;i++){
+        const v=parseFloat(parts[i].replace(/[^\d.,]/g,'').replace(',','.'));
+        if(!isNaN(v)&&v>0){
+          if(!qty) qty=v;
+          else if(!price) price=v;
+        }
+      }
+      if(name&&qty>0){
+        // Если цены нет — ищем в складе
+        if(!price) price=matPrice(name);
+        mats.push({name,qty,price});
+      }
+    }
+  }
+  return mats;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=()=>reject(new Error('Не удалось прочитать файл'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function recognizeWithAI(base64Image, textContent){
+  const messages=[];
+  const content=[];
+
+  if(base64Image){
+    const mediaType=k3FileData.type==='application/pdf'?'application/pdf':k3FileData.type;
+    if(mediaType==='application/pdf'){
+      content.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:base64Image}});
+    } else {
+      content.push({type:'image',source:{type:'base64',media_type:mediaType,data:base64Image}});
+    }
+  }
+  content.push({type:'text',text:`Извлеки список материалов из ${base64Image?'этого изображения/документа':'этого текста'}.
+${textContent?'Текст:\n'+textContent:''}
+
+Верни ТОЛЬКО JSON массив без markdown и пояснений. Формат:
+[{"name":"ЛДСП Белый 16мм","qty":3,"price":1600},{"name":"Кромка ПВХ 2мм","qty":15,"price":65}]
+
+Правила:
+- name: полное название материала
+- qty: количество (число)
+- price: цена за единицу (число, если есть, иначе 0)
+- Игнорируй заголовки таблицы
+- Если цены нет, ставь 0`});
+
+  messages.push({role:'user',content});
+
+  const response=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1000,
+      messages:messages
+    })
+  });
+
+  if(!response.ok){
+    const err=await response.text();
+    throw new Error('AI ошибка: '+response.status);
+  }
+
+  const data=await response.json();
+  const text=data.content.map(c=>c.text||'').join('');
+  // Парсим JSON
+  try{
+    const clean=text.replace(/```json|```/g,'').trim();
+    const arr=JSON.parse(clean);
+    if(Array.isArray(arr)){
+      return arr.map(m=>({
+        name:String(m.name||'').trim(),
+        qty:parseFloat(m.qty)||0,
+        price:parseFloat(m.price)||matPrice(String(m.name||'')),
+      })).filter(m=>m.name&&m.qty>0);
+    }
+  }catch(e){}
+  return [];
+}
+
+// ══════════════════════════════════════════════════════
+// ИМПОРТ СПЕЦИФИКАЦИИ (фото/PDF/текст)
+// ══════════════════════════════════════════════════════
+let importFile=null;
+let importTab='file';
+
+function openSpecImport(){
+  importFile=null; importTab='file';
+  $('imp-file-input').value='';
+  $('imp-file-preview').style.display='none';
+  $('imp-text').value='';
+  $('imp-status').style.display='none';
+  $('imp-file-section').style.display='';
+  $('imp-text-section').style.display='none';
+  $('imp-go-btn').textContent='🔍 Распознать';
+  $('imp-go-btn').disabled=false;
+  $('m-spec-import').classList.add('open');
+}
+function closeSpecImport(){ $('m-spec-import').classList.remove('open'); importFile=null; }
+
+function setImportTab(tab,el){
+  importTab=tab;
+  document.querySelectorAll('#m-spec-import .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  $('imp-file-section').style.display=tab==='file'?'':'none';
+  $('imp-text-section').style.display=tab==='text'?'':'none';
+  $('imp-go-btn').textContent=tab==='file'?'🔍 Распознать':'📋 Разобрать текст';
+}
+
+function handleImportFile(file){
+  if(!file) return;
+  importFile=file;
+  $('imp-file-name').textContent=file.name+' ('+Math.round(file.size/1024)+' КБ)';
+  $('imp-file-preview').style.display='';
+  $('imp-drop-zone').style.display='none';
+}
+function clearImportFile(){
+  importFile=null;
+  $('imp-file-input').value='';
+  $('imp-file-preview').style.display='none';
+  $('imp-drop-zone').style.display='';
+}
+
+function setImportStatus(msg,type){
+  const el=$('imp-status');
+  el.style.display='';
+  el.style.background=type==='loading'?'var(--amber-light)':type==='ok'?'var(--accent-light)':'var(--red-light)';
+  el.style.color=type==='loading'?'var(--amber)':type==='ok'?'var(--accent-text)':'var(--red)';
+  el.innerHTML=msg;
+}
+
+async function processImport(){
+  if(importTab==='text'){
+    processTextImport();
+    return;
+  }
+  // Файл — отправляем в Claude API для распознавания
+  if(!importFile){showToast('Выберите файл');return;}
+  const btn=$('imp-go-btn');
+  btn.textContent='⏳ Распознаю...'; btn.disabled=true;
+  setImportStatus('🔄 Отправляю изображение на распознавание...','loading');
+
+  try{
+    const base64=await fileToBase64(importFile);
+    const mediaType=importFile.type||'image/jpeg';
+    const isPdf=mediaType.includes('pdf');
+
+    const content=[
+      {type:isPdf?'document':'image', source:{type:'base64',media_type:mediaType,data:base64}},
+      {type:'text', text:`Это спецификация материалов для мебельного производства из программы К3-Мебель.
+Извлеки ВСЕ материалы из таблицы. Для каждого материала определи:
+- name: название материала (ЛДСП, МДФ, кромка, фурнитура и т.д.)
+- qty: количество (число)
+- unit: единица измерения (лист, шт, пог.м, кв.м)
+- price: цена за единицу если указана (число), если нет — 0
+
+Ответь ТОЛЬКО JSON-массивом без пояснений:
+[{"name":"ЛДСП Белый 16мм","qty":3,"unit":"лист","price":1800},...]`}
+    ];
+
+    const response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:2000,
+        messages:[{role:'user',content}]
+      })
+    });
+    const data=await response.json();
+    const text=data.content?.map(c=>c.text||'').join('')||'';
+    
+    // Парсим JSON из ответа
+    const jsonMatch=text.match(/\[[\s\S]*\]/);
+    if(!jsonMatch) throw new Error('Не удалось распознать материалы');
+    const mats=JSON.parse(jsonMatch[0]);
+    
+    if(!mats.length) throw new Error('Материалов не найдено');
+
+    // Добавляем в форму
+    mats.forEach(m=>{
+      const p=m.price||matPrice(m.name)||0;
+      addOrderMat(m.name, m.qty||1, p);
+    });
+    calcOrderSum();
+    setImportStatus(`✅ Распознано ${mats.length} материал(ов). Проверьте и скорректируйте при необходимости.`,'ok');
+    setTimeout(()=>closeSpecImport(),1500);
+    showToast('Загружено '+mats.length+' материалов');
+  }catch(e){
+    setImportStatus('❌ Ошибка: '+e.message,'error');
+  }
+  btn.textContent='🔍 Распознать'; btn.disabled=false;
+}
+
+function processTextImport(){
+  const text=$('imp-text').value.trim();
+  if(!text){showToast('Вставьте текст');return;}
+  setImportStatus('🔄 Разбираю текст...','loading');
+  
+  try{
+    const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+    let count=0;
+    
+    lines.forEach(line=>{
+      // Пропускаем заголовки
+      if(line.match(/^(название|материал|наименование|#|№)/i)) return;
+      
+      // Разбиваем по Tab, ; или множественным пробелам
+      const parts=line.split(/\t|;|\s{2,}/).map(p=>p.trim()).filter(Boolean);
+      if(parts.length<2) return;
+      
+      const name=parts[0];
+      // Ищем число — это количество
+      let qty=1, price=0, unit='шт';
+      for(let i=1;i<parts.length;i++){
+        const num=parseFloat(parts[i].replace(',','.'));
+        if(!isNaN(num)&&num>0){
+          if(qty===1&&!parts[i].match(/[₽р]/i)){ qty=num; }
+          else if(parts[i].match(/[₽р]/i)||num>10){ price=num; }
+          else if(num>qty){ price=num; } // большее число — вероятно цена
+        }
+        if(parts[i].match(/^(лист|шт|пог|кв|м²|м\.|п\.м)/i)) unit=parts[i];
+      }
+      
+      const p=price||matPrice(name)||0;
+      addOrderMat(name, qty, p);
+      count++;
+    });
+    
+    if(count===0) throw new Error('Не удалось разобрать строки');
+    calcOrderSum();
+    setImportStatus(`✅ Загружено ${count} материал(ов). Проверьте цены и количество.`,'ok');
+    setTimeout(()=>closeSpecImport(),1500);
+    showToast('Загружено '+count+' материалов');
+  }catch(e){
+    setImportStatus('❌ '+e.message,'error');
+  }
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=()=>reject(new Error('Ошибка чтения файла'));
+    reader.readAsDataURL(file);
+  });
 }
 
 // ══════════════════════════════════════════════════════
