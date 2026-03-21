@@ -21,7 +21,18 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.app{display:flex;min-height:100vh}
+.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:32px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.08)}
+.login-logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:24px}
+.login-error{background:var(--red-light);color:var(--red);padding:8px 12px;border-radius:var(--rs);font-size:12px;margin-bottom:12px;display:none}
+.app{display:none;min-height:100vh}
+.app.visible{display:flex}
+.user-bar{margin-top:auto;padding:12px 20px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:8px}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:12px;color:#fff;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-role{font-size:10px;color:rgba(255,255,255,0.4)}
+.nav-hidden{display:none!important}
 
 /* SIDEBAR */
 .sidebar{width:220px;background:var(--text);padding:24px 0;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
@@ -239,21 +250,54 @@ tbody tr.overdue:hover td{background:#fff0f0}
 </style>
 </head>
 <body>
-<div class="app">
+<!-- ЭКРАН ВХОДА -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <span style="background:#F5C518;color:#1c1b18;font-weight:600;font-size:22px;padding:6px 14px;border-radius:6px;font-family:'JetBrains Mono',monospace;letter-spacing:2px">K2</span>
+      <span style="font-size:22px;font-weight:600;color:var(--text)">Мебель</span>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="f" style="margin-bottom:12px">
+      <label class="flabel">Email</label>
+      <input class="finput" type="email" id="login-email" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="f" style="margin-bottom:18px">
+      <label class="flabel">Пароль</label>
+      <input class="finput" type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%;justify-content:center;padding:10px;font-size:14px" id="login-btn">Войти</button>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--text3)">Система управления производством</div>
+  </div>
+</div>
+
+<div class="app" id="app">
   <nav class="sidebar">
     <div class="sidebar-logo"><div class="name" style="display:flex;align-items:center;gap:8px"><span style="background:#F5C518;color:#1c1b18;font-weight:600;font-size:14px;padding:4px 8px;border-radius:5px;font-family:'JetBrains Mono',monospace;letter-spacing:1px">K2</span><span>Мебель</span></div><div class="sub">Производство мебели</div></div>
     <div class="nav-sec">Основное</div>
-    <div class="nav-item active" onclick="showPage('orders',this)">
+    <div class="nav-item active" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg><span>Заказы</span></div>
-    <div class="nav-item" onclick="showPage('kp',this)">
+    <div class="nav-item" data-roles="admin,manager" onclick="showPage('kp',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9,2 9,6 13,6"/><line x1="5" y1="9" x2="11" y2="9"/></svg><span>КП / Расчёт</span></div>
-    <div class="nav-item" onclick="showPage('sklad',this)">
+    <div class="nav-item" data-roles="admin,production,manager" onclick="showPage('sklad',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="6" width="14" height="9" rx="1"/><path d="M5 6V4a3 3 0 016 0v2"/></svg><span>Склад</span></div>
-    <div class="nav-item" onclick="showPage('expenses',this)">
+    <div class="nav-item" data-roles="admin,accounting" onclick="showPage('expenses',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><text x="8" y="11" text-anchor="middle" font-size="9" font-weight="600" fill="currentColor">₽</text></svg><span>Расходы</span></div>
     <div class="nav-sec">Отчёты</div>
-    <div class="nav-item" onclick="showPage('analytics',this)">
+    <div class="nav-item" data-roles="admin,accounting,manager" onclick="showPage('analytics',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg><span>Аналитика</span></div>
+    <div class="nav-sec nav-admin-sec" data-roles="admin">Админ</div>
+    <div class="nav-item nav-admin-item" data-roles="admin" onclick="showPage('users',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5"/></svg><span>Пользователи</span></div>
+    <!-- Профиль внизу -->
+    <div class="user-bar" id="user-bar">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">—</div>
+        <div class="user-role" id="user-role-label">—</div>
+      </div>
+      <button onclick="doLogout()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);font-size:14px;padding:4px" title="Выйти">⏻</button>
+    </div>
   </nav>
 
   <main class="main">
@@ -617,20 +661,34 @@ tbody tr.overdue:hover td{background:#fff0f0}
         </div>
       </div>
     </div>
+
+    <!-- ПОЛЬЗОВАТЕЛИ (Админ) -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <div><div class="page-title">Пользователи</div><div class="page-sub">Управление доступом</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="loadUsers()">↻</button>
+          <button class="btn btn-primary" onclick="openAddUser()">+ Пользователь</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div id="users-body"><div class="loading">Загрузка...</div></div>
+      </div>
+    </div>
   </main>
 </div>
 
 <!-- Мобильная навигация -->
 <nav class="mob-nav">
-  <button class="mnav-btn active" id="mn-orders" onclick="showPage('orders',this);syncMobNav('orders')">
+  <button class="mnav-btn active" id="mn-orders" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this);syncMobNav('orders')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg>Заказы</button>
-  <button class="mnav-btn" id="mn-kp" onclick="showPage('kp',this);syncMobNav('kp')">
+  <button class="mnav-btn" id="mn-kp" data-roles="admin,manager" onclick="showPage('kp',this);syncMobNav('kp')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><line x1="5" y1="9" x2="11" y2="9"/></svg>КП</button>
-  <button class="mnav-btn" id="mn-sklad" onclick="showPage('sklad',this);syncMobNav('sklad')">
+  <button class="mnav-btn" id="mn-sklad" data-roles="admin,production,manager" onclick="showPage('sklad',this);syncMobNav('sklad')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="6" width="14" height="9" rx="1"/><path d="M5 6V4a3 3 0 016 0v2"/></svg>Склад</button>
-  <button class="mnav-btn" id="mn-expenses" onclick="showPage('expenses',this);syncMobNav('expenses')">
+  <button class="mnav-btn" id="mn-expenses" data-roles="admin,accounting" onclick="showPage('expenses',this);syncMobNav('expenses')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><text x="8" y="11" text-anchor="middle" font-size="9" font-weight="600" fill="currentColor">₽</text></svg>Расходы</button>
-  <button class="mnav-btn" id="mn-analytics" onclick="showPage('analytics',this);syncMobNav('analytics')">
+  <button class="mnav-btn" id="mn-analytics" data-roles="admin,accounting,manager" onclick="showPage('analytics',this);syncMobNav('analytics')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg>Отчёты</button>
 </nav>
 
@@ -984,6 +1042,38 @@ tbody tr.overdue:hover td{background:#fff0f0}
   </div>
 </div>
 
+<!-- МОДАЛ: добавить пользователя -->
+<div class="overlay" id="m-add-user">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd"><div class="modal-title">Новый пользователь</div><button class="modal-close" onclick="$('m-add-user').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <div class="fg">
+        <div class="f full"><label class="flabel">Имя</label><input class="finput" id="nu-name" placeholder="Иван Петров"></div>
+        <div class="f"><label class="flabel">Email</label><input class="finput" type="email" id="nu-email" placeholder="ivan@example.com"></div>
+        <div class="f"><label class="flabel">Пароль</label><input class="finput" type="text" id="nu-pass" placeholder="мин. 6 символов"></div>
+        <div class="f full"><label class="flabel">Роль</label>
+          <select class="fsel2" id="nu-role">
+            <option value="manager">Менеджер</option>
+            <option value="production">Производство</option>
+            <option value="accounting">Бухгалтерия</option>
+            <option value="admin">Администратор</option>
+          </select>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">
+            <b>Менеджер</b> — заказы, КП, склад<br>
+            <b>Производство</b> — заказы, склад<br>
+            <b>Бухгалтерия</b> — расходы, оплаты, аналитика<br>
+            <b>Админ</b> — полный доступ
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="$('m-add-user').classList.remove('open')">Отмена</button>
+      <button class="btn btn-primary" onclick="createUser()">Создать</button>
+    </div>
+  </div>
+</div>
+
 <!-- МОДАЛ: импорт спецификации -->
 <div class="overlay" id="m-spec-import">
   <div class="modal" style="max-width:520px">
@@ -1087,6 +1177,7 @@ function showPage(p, el){
     if(!analyticsInited){ setAPeriod('year'); analyticsInited=true; }
     else renderAnalytics();
   }
+  if(p==='users') loadUsers();
 }
 function syncMobNav(p){
   document.querySelectorAll('.mnav-btn').forEach(x=>x.classList.remove('active'));
@@ -4090,16 +4181,183 @@ async function loadExpensesSilent(){
   }catch(e){}
 }
 
-async function init(){
+// ══════════════════════════════════════════════════════
+// AUTH & INIT
+// ══════════════════════════════════════════════════════
+let currentUser=null, currentProfile=null;
+const ROLE_LABELS={admin:'Администратор',manager:'Менеджер',production:'Производство',accounting:'Бухгалтерия'};
+
+async function doLogin(){
+  const email=$('login-email').value.trim();
+  const pass=$('login-pass').value;
+  const err=$('login-error');
+  const btn=$('login-btn');
+  if(!email||!pass){err.textContent='Введите email и пароль';err.style.display='';return}
+  btn.textContent='Вхожу...'; btn.disabled=true;
+  err.style.display='none';
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error) throw error;
+    await initApp(data.user);
+  }catch(e){
+    err.textContent='Ошибка: '+(e.message==='Invalid login credentials'?'Неверный email или пароль':e.message);
+    err.style.display='';
+  }
+  btn.textContent='Войти'; btn.disabled=false;
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  currentUser=null; currentProfile=null;
+  $('app').classList.remove('visible');
+  $('login-screen').style.display='flex';
+  $('login-pass').value='';
+}
+
+async function checkAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&session.user){
+    $('login-screen').style.display='none';
+    await initApp(session.user);
+  }
+}
+
+async function initApp(user){
+  currentUser=user;
+  $('login-screen').style.display='none';
+  $('app').classList.add('visible');
+  
+  // Загружаем профиль
+  const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  currentProfile=profile||{role:'manager',full_name:user.email};
+  
+  // Обновляем UI профиля
+  const initials=(currentProfile.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  $('user-avatar').textContent=initials;
+  $('user-name').textContent=currentProfile.full_name;
+  $('user-role-label').textContent=ROLE_LABELS[currentProfile.role]||currentProfile.role;
+  
+  // Скрываем/показываем меню по роли
+  applyRoleVisibility();
+  
+  // Загружаем данные
   sync('loading','Загрузка...');
   try{
     await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent()]);
-    sync('ok','Supabase ✓');
+    sync('ok','K2 ✓');
   }catch(e){
     sync('error','Ошибка загрузки');
   }
 }
-init();
+
+function applyRoleVisibility(){
+  const role=currentProfile?.role||'manager';
+  // Сайдбар
+  document.querySelectorAll('.sidebar [data-roles]').forEach(el=>{
+    const roles=el.dataset.roles.split(',');
+    el.classList.toggle('nav-hidden',!roles.includes(role));
+  });
+  // Мобильная навигация
+  document.querySelectorAll('.mob-nav [data-roles]').forEach(el=>{
+    const roles=el.dataset.roles.split(',');
+    el.style.display=roles.includes(role)?'':'none';
+  });
+  // Кнопки удаления — только для админа
+  const delBtns=document.querySelectorAll('#del-btn');
+  delBtns.forEach(b=>{if(role!=='admin')b.style.display='none'});
+}
+
+function hasRole(...roles){return roles.includes(currentProfile?.role)}
+
+// ── USERS MANAGEMENT (Admin) ──────────────────────────
+let allProfiles=[];
+
+async function loadUsers(){
+  const {data}=await sb.from('profiles').select('*').order('created_at');
+  allProfiles=data||[];
+  renderUsers();
+}
+
+function renderUsers(){
+  if(!allProfiles.length){$('users-body').innerHTML='<div class="empty-state">Нет пользователей</div>';return}
+  let h=`<table><thead><tr><th>Имя</th><th>Email</th><th>Роль</th><th>Статус</th><th></th></tr></thead><tbody>`;
+  allProfiles.forEach(p=>{
+    const isMe=p.id===currentUser?.id;
+    const roleBadge={admin:'b-kp',manager:'b-new',production:'b-work',accounting:'b-ship'}[p.role]||'b-done';
+    h+=`<tr>
+      <td style="font-weight:500">${p.full_name||'—'} ${isMe?'<span style="font-size:10px;color:var(--accent)">(вы)</span>':''}</td>
+      <td style="font-size:12px;color:var(--text2)">${p.email}</td>
+      <td><select class="inline-status ${roleBadge}" onchange="changeUserRole('${p.id}',this.value)" ${isMe?'disabled':''}>
+        <option value="admin" ${p.role==='admin'?'selected':''}>Админ</option>
+        <option value="manager" ${p.role==='manager'?'selected':''}>Менеджер</option>
+        <option value="production" ${p.role==='production'?'selected':''}>Производство</option>
+        <option value="accounting" ${p.role==='accounting'?'selected':''}>Бухгалтерия</option>
+      </select></td>
+      <td><span class="badge ${p.is_active?'b-ready':'b-pause'}">${p.is_active?'Активен':'Отключён'}</span></td>
+      <td>${!isMe?`<button class="btn btn-ghost" style="padding:2px 8px;font-size:11px" onclick="toggleUserActive('${p.id}',${!p.is_active})">${p.is_active?'Откл.':'Вкл.'}</button>`:''}</td>
+    </tr>`;
+  });
+  h+='</tbody></table>';
+  $('users-body').innerHTML=h;
+}
+
+async function changeUserRole(uid,newRole){
+  try{
+    const {error}=await sb.from('profiles').update({role:newRole}).eq('id',uid);
+    if(error) throw error;
+    const p=allProfiles.find(x=>x.id===uid);if(p)p.role=newRole;
+    renderUsers();
+    showToast('Роль изменена');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function toggleUserActive(uid,active){
+  try{
+    const {error}=await sb.from('profiles').update({is_active:active}).eq('id',uid);
+    if(error) throw error;
+    const p=allProfiles.find(x=>x.id===uid);if(p)p.is_active=active;
+    renderUsers();
+    showToast(active?'Пользователь активирован':'Пользователь отключён');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+function openAddUser(){
+  $('nu-name').value=''; $('nu-email').value=''; $('nu-pass').value=''; $('nu-role').value='manager';
+  $('m-add-user').classList.add('open');
+}
+
+async function createUser(){
+  const name=$('nu-name').value.trim();
+  const email=$('nu-email').value.trim();
+  const pass=$('nu-pass').value;
+  const role=$('nu-role').value;
+  if(!name||!email||!pass){showToast('Заполните все поля');return}
+  if(pass.length<6){showToast('Пароль минимум 6 символов');return}
+  try{
+    // Создаём через Supabase Auth Admin API (используем service_role если есть,
+    // или через обычный signUp + потом обновляем)
+    const {data,error}=await sb.auth.signUp({
+      email,password:pass,
+      options:{data:{full_name:name,role:role}}
+    });
+    if(error) throw error;
+    // Обновляем роль в профиле
+    if(data.user){
+      await sb.from('profiles').update({role,full_name:name}).eq('id',data.user.id);
+    }
+    $('m-add-user').classList.remove('open');
+    await loadUsers();
+    showToast('Пользователь '+name+' создан');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// Добавляем обработку страницы users в showPage
+const origShowPage=showPage;
+
+// ══════════════════════════════════════════════════════
+// ЗАПУСК
+// ══════════════════════════════════════════════════════
+checkAuth();
 </script>
 </body>
 </html>
