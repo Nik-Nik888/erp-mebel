@@ -349,6 +349,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
 
       <div class="tabs">
         <div class="tab active" onclick="setTab('all',this)">Все <span class="tab-count" id="tc-all">0</span></div>
+        <div class="tab" onclick="setTab('overdue',this)" style="color:var(--red)">Просрочено <span class="tab-count" id="tc-over2">0</span></div>
         <div class="tab" onclick="setTab('Отправлено КП',this)">КП <span class="tab-count" id="tc-kp">0</span></div>
         <div class="tab" onclick="setTab('Новый',this)">Новые <span class="tab-count" id="tc-new">0</span></div>
         <div class="tab" onclick="setTab('В работе',this)">В работе <span class="tab-count" id="tc-work">0</span></div>
@@ -462,6 +463,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div style="display:flex;gap:8px;flex-wrap:wrap" id="sklad-header-btns">
           <button class="btn btn-ghost" onclick="loadSklad()">↻</button>
           <button class="btn btn-ghost" id="btn-sklad-add-item" onclick="openSkladItem()" style="display:none">+ Позиция</button>
+          <button class="btn btn-ghost" id="btn-sklad-add-group" onclick="openMatTypes()" style="display:none">+ Группа</button>
           <button class="btn btn-primary" id="btn-sklad-prikhod" onclick="openSkladMove('in')">+ Приход</button>
         </div>
       </div>
@@ -497,7 +499,6 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <select class="fsel" id="sklad-base-filter" onchange="renderSkladBase()">
             <option value="">Все типы</option>
           </select>
-          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="openMatTypes()">⚙ Группы</button>
         </div>
         <div id="sklad-base-tree"></div>
       </div>
@@ -1270,6 +1271,7 @@ function updateStats(){
   });
   const tc=$('tc-all'); if(tc)tc.textContent=pAll;
   const td=$('tc-done'); if(td)td.textContent=pDone;
+  const to2=$('tc-over2'); if(to2)to2.textContent=over.length;
   ['kp','new','work','ready','ship','pause','refuse'].forEach(k=>{const el=$('tc-'+k);if(el)el.textContent=cnt[k]});
 }
 
@@ -1320,9 +1322,13 @@ function getFiltered(){
   const src=$('f-src').value;
   const from=$('p-from').value?new Date($('p-from').value):null;
   const to=$('p-to').value?new Date($('p-to').value+'T23:59:59'):null;
+  const today=new Date(); today.setHours(0,0,0,0);
   return orders.filter(o=>{
     const s=(o.status||'').trim();
-    if(tab!=='all'&&s!==tab) return false;
+    if(tab==='overdue'){
+      const ddl=pDate(o.deadline); if(!ddl) return false; ddl.setHours(0,0,0,0);
+      if(!(ddl<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались')) return false;
+    } else if(tab!=='all'&&s!==tab) return false;
     if(mgr&&(o.manager||'').trim()!==mgr) return false;
     if(src&&(o.source||'').trim()!==src) return false;
     if(q){
@@ -2836,6 +2842,8 @@ function setSkladTab(tab,el){
   $('sklad-tab-log').style.display=tab==='log'?'':'none';
   const addBtn=$('btn-sklad-add-item');
   if(addBtn) addBtn.style.display=tab==='base'?'':'none';
+  const grpBtn=$('btn-sklad-add-group');
+  if(grpBtn) grpBtn.style.display=tab==='base'?'':'none';
   if(tab==='base') renderSkladBase();
   if(tab==='log') renderSkladLog();
 }
