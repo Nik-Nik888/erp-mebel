@@ -4228,7 +4228,9 @@ async function initApp(user){
   $('app').classList.add('visible');
   
   // Загружаем профиль
-  const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  const {data:profile,error:profErr}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
+  if(profErr) console.error('Profile load error:',profErr);
+  console.log('Profile loaded:',profile);
   currentProfile=profile||{role:'manager',full_name:user.email};
   
   // Обновляем UI профиля
