@@ -478,9 +478,6 @@ tbody tr.overdue:hover td{background:#fff0f0}
           </div>
           <select class="fsel" id="sklad-filter-group" onchange="renderSkladCards()">
             <option value="">Все типы</option>
-            <option value="лист">Листы</option>
-            <option value="кромка">Кромка</option>
-            <option value="фурнитура">Фурнитура</option>
           </select>
           <select class="fsel" id="sklad-sort" onchange="renderSkladCards()">
             <option value="alert">Сначала заканчивается</option>
@@ -499,10 +496,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
           </div>
           <select class="fsel" id="sklad-base-filter" onchange="renderSkladBase()">
             <option value="">Все типы</option>
-            <option value="лист">Листы</option>
-            <option value="кромка">Кромка</option>
-            <option value="фурнитура">Фурнитура</option>
           </select>
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="openMatTypes()">⚙ Группы</button>
         </div>
         <div id="sklad-base-tree"></div>
       </div>
@@ -861,9 +856,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f">
           <label class="flabel">Тип</label>
           <select class="fsel2" id="si-type">
-            <option value="лист">Лист (ЛДСП/МДФ/ДВП)</option>
-            <option value="кромка">Кромка (пог.м)</option>
-            <option value="фурнитура">Фурнитура (шт)</option>
+            <option value="лист">Лист</option>
           </select>
         </div>
         <div class="f"><label class="flabel">Ед. учёта</label>
@@ -1039,6 +1032,23 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <button class="btn btn-ghost" onclick="closeK3Import()">Отмена</button>
       <button class="btn btn-primary" id="k3-import-btn" onclick="processK3Import()">Распознать и загрузить</button>
     </div>
+  </div>
+</div>
+
+<!-- МОДАЛ: группы материалов -->
+<div class="overlay" id="m-mat-types">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hd"><div class="modal-title">Группы материалов</div><button class="modal-close" onclick="$('m-mat-types').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <div id="mat-types-list"></div>
+      <div style="margin-top:12px;display:flex;gap:6px">
+        <input class="finput" id="mt-new-icon" placeholder="📦" style="width:44px;text-align:center;font-size:18px">
+        <input class="finput" id="mt-new-name" placeholder="Название группы..." style="flex:1">
+        <button class="btn btn-primary" onclick="addMatType()" style="padding:6px 14px">+</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">Иконку можно вставить эмодзи: 🪵 📏 🔩 🧲 🪛 🎨 🧴 📦 🔧 ⚙️</div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="$('m-mat-types').classList.remove('open')">Закрыть</button></div>
   </div>
 </div>
 
@@ -2772,6 +2782,7 @@ async function saveCatalog(){
 // СКЛАД (Supabase)
 // ══════════════════════════════════════════════════════
 let skladItems=[], skladLog=[], skladMoveType='in', editSkladId=null;
+let matTypes=[];
 const MOVE_LABELS={in:'Приход',out:'Расход',reserve:'Резерв',scrap:'Обрезок'};
 const MOVE_COLORS={in:'var(--accent)',out:'var(--red)',reserve:'var(--amber)',scrap:'var(--text3)'};
 const treeOpen={groups:{},subs:{}};
@@ -2780,14 +2791,17 @@ let currentSkladTab='stock';
 async function loadSklad(){
   $('sklad-cards').innerHTML='<div class="loading">Загрузка...</div>';
   try{
-    const [iRes,mRes]=await Promise.all([
+    const [iRes,mRes,tRes]=await Promise.all([
       sb.from('sklad_items').select('*').order('name'),
-      sb.from('sklad_moves').select('*').order('id')
+      sb.from('sklad_moves').select('*').order('id'),
+      sb.from('material_types').select('*').order('sort_order')
     ]);
     if(iRes.error) throw iRes.error;
     if(mRes.error) throw mRes.error;
     skladItems=iRes.data||[];
     skladLog=mRes.data||[];
+    matTypes=tRes.data||[];
+    fillMatTypeSelects();
     renderSkladCards();
     renderSkladBase();
     renderSkladLog();
@@ -2853,8 +2867,7 @@ function renderSkladCards(){
     return 0;
   });
 
-  const GROUP_LABELS={'лист':'🪵 Листовые материалы','кромка':'📏 Кромка','фурнитура':'🔩 Фурнитура'};
-  const GROUP_ORDER=['лист','кромка','фурнитура'];
+  const GROUP_ORDER=matTypes.map(t=>t.name);
   const tree={};
   items.forEach(item=>{
     const g=(item.type||'прочее').toLowerCase().trim();
@@ -2871,7 +2884,7 @@ function renderSkladCards(){
     const subs=tree[g];
     const allItems=Object.values(subs).flat();
     const alerts=allItems.filter(i=>i._isEmpty||i._isLow).length;
-    const gLabel=GROUP_LABELS[g]||('📦 '+g.charAt(0).toUpperCase()+g.slice(1));
+    const gLabel=getTypeLabel(g);
     const gKey='g_'+g;
     if(!(gKey in treeOpen.groups)) treeOpen.groups[gKey]=true;
     const gOpen=treeOpen.groups[gKey];
@@ -2922,14 +2935,13 @@ function renderSkladBase(){
     </div>`;
   }
 
-  const GROUP_LABELS={'лист':'🪵 Листовые материалы','кромка':'📏 Кромка','фурнитура':'🔩 Фурнитура'};
-  const GROUP_ORDER=['лист','кромка','фурнитура'];
+  const GROUP_ORDER=matTypes.map(t=>t.name);
   const tree={};
   items.forEach(item=>{const g=(item.type||'прочее').toLowerCase().trim();if(!tree[g])tree[g]=[];tree[g].push(item);});
   const allGroups=[...GROUP_ORDER,...Object.keys(tree).filter(g=>!GROUP_ORDER.includes(g))];
   allGroups.forEach(g=>{
     if(!tree[g]) return;
-    const gLabel=GROUP_LABELS[g]||('📦 '+g.charAt(0).toUpperCase()+g.slice(1));
+    const gLabel=getTypeLabel(g);
     const gKey='base_g_'+g;
     if(!(gKey in treeOpen.groups)) treeOpen.groups[gKey]=true;
     const gOpen=treeOpen.groups[gKey];
@@ -3021,6 +3033,101 @@ function fillSkladMatFilter(){
 function fillOrdersDatalist(){
   const dl=$('cl-orders'); if(!dl) return;
   dl.innerHTML=orders.map(o=>`<option value="${o.order_num||''}">${o.order_num||''}${o.client?' — '+o.client:''}</option>`).join('');
+}
+
+// ── MATERIAL TYPES (группы) ───────────────────────────
+function getTypeLabel(typeName){
+  const t=matTypes.find(t=>t.name===typeName);
+  return t?(t.icon+' '+t.name.charAt(0).toUpperCase()+t.name.slice(1)):('📦 '+typeName);
+}
+
+function getTypeIcon(typeName){
+  const t=matTypes.find(t=>t.name===typeName);
+  return t?t.icon:'📦';
+}
+
+function fillMatTypeSelects(){
+  // Заполняем все select-ы типов динамически
+  const opts=matTypes.map(t=>`<option value="${t.name}">${t.icon} ${t.name}</option>`).join('');
+  // Фильтр на вкладке "В наличии"
+  const fg=$('sklad-filter-group');
+  if(fg){const cur=fg.value;fg.innerHTML='<option value="">Все типы</option>'+opts;fg.value=cur}
+  // Фильтр на вкладке "База"
+  const bf=$('sklad-base-filter');
+  if(bf){const cur=bf.value;bf.innerHTML='<option value="">Все типы</option>'+opts;bf.value=cur}
+  // Select в модалке позиции
+  const si=$('si-type');
+  if(si){const cur=si.value;si.innerHTML=opts||'<option value="лист">Лист</option>';if(cur)si.value=cur}
+}
+
+function openMatTypes(){
+  renderMatTypesList();
+  $('m-mat-types').classList.add('open');
+}
+
+function renderMatTypesList(){
+  const el=$('mat-types-list');
+  if(!matTypes.length){el.innerHTML='<div style="color:var(--text3);font-size:13px">Нет групп</div>';return}
+  el.innerHTML=matTypes.map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+    <span style="font-size:18px;width:28px;text-align:center">${t.icon}</span>
+    <span style="flex:1;font-size:13px;font-weight:500">${t.name}</span>
+    <span style="font-size:11px;color:var(--text3)">${skladItems.filter(si=>(si.type||'')==t.name).length} поз.</span>
+    <button onclick="moveMatType(${t.id},-1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:var(--text3)">↑</button>
+    <button onclick="moveMatType(${t.id},1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:var(--text3)">↓</button>
+    <button onclick="removeMatType(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px">×</button>
+  </div>`).join('');
+}
+
+async function addMatType(){
+  const name=$('mt-new-name').value.trim().toLowerCase();
+  const icon=$('mt-new-icon').value.trim()||'📦';
+  if(!name){showToast('Укажите название');return}
+  if(matTypes.find(t=>t.name===name)){showToast('Такая группа уже есть');return}
+  const sortOrder=matTypes.length?Math.max(...matTypes.map(t=>t.sort_order||0))+1:1;
+  try{
+    const {data,error}=await sb.from('material_types').insert({name,icon,sort_order:sortOrder}).select();
+    if(error) throw error;
+    if(data&&data[0]) matTypes.push(data[0]);
+    $('mt-new-name').value=''; $('mt-new-icon').value='';
+    fillMatTypeSelects();
+    renderMatTypesList();
+    renderSkladBase(); renderSkladCards();
+    showToast('Группа "'+name+'" добавлена');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function removeMatType(id){
+  const t=matTypes.find(x=>x.id===id);
+  if(!t) return;
+  const count=skladItems.filter(si=>(si.type||'')==t.name).length;
+  if(count>0){showToast('В группе "'+t.name+'" есть '+count+' позиций — сначала переместите их');return}
+  if(!confirm('Удалить группу "'+t.name+'"?')) return;
+  try{
+    await sb.from('material_types').delete().eq('id',id);
+    matTypes=matTypes.filter(x=>x.id!==id);
+    fillMatTypeSelects();
+    renderMatTypesList();
+    showToast('Группа удалена');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function moveMatType(id,dir){
+  const idx=matTypes.findIndex(x=>x.id===id);
+  if(idx<0) return;
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=matTypes.length) return;
+  // Меняем местами sort_order
+  const a=matTypes[idx], b=matTypes[newIdx];
+  const tmpSort=a.sort_order; a.sort_order=b.sort_order; b.sort_order=tmpSort;
+  [matTypes[idx],matTypes[newIdx]]=[matTypes[newIdx],matTypes[idx]];
+  try{
+    await Promise.all([
+      sb.from('material_types').update({sort_order:a.sort_order}).eq('id',a.id),
+      sb.from('material_types').update({sort_order:b.sort_order}).eq('id',b.id)
+    ]);
+    renderMatTypesList();
+    renderSkladBase(); renderSkladCards();
+  }catch(e){}
 }
 
 // ── SKLAD MOVE MODAL ──────────────────────────────────
@@ -4159,14 +4266,15 @@ function renderMatLow(){
 // INIT — Параллельная загрузка всего
 // ══════════════════════════════════════════════════════
 async function loadSkladSilent(){
-  // Тихая загрузка склада для КП (без рендера карточек)
   try{
-    const [iRes,mRes]=await Promise.all([
+    const [iRes,mRes,tRes]=await Promise.all([
       sb.from('sklad_items').select('*').order('name'),
-      sb.from('sklad_moves').select('*').order('id')
+      sb.from('sklad_moves').select('*').order('id'),
+      sb.from('material_types').select('*').order('sort_order')
     ]);
     if(iRes.data) skladItems=iRes.data;
     if(mRes.data) skladLog=mRes.data;
+    if(tRes.data) matTypes=tRes.data;
   }catch(e){}
 }
 
