@@ -352,11 +352,13 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="tab" onclick="setTab('overdue',this)" style="color:var(--red)">Просрочено <span class="tab-count" id="tc-over2">0</span></div>
         <div class="tab" onclick="setTab('Отправлено КП',this)">КП <span class="tab-count" id="tc-kp">0</span></div>
         <div class="tab" onclick="setTab('Новый',this)">Новые <span class="tab-count" id="tc-new">0</span></div>
+        <div class="tab" onclick="setTab('Материал заказан',this)">Мат. заказан <span class="tab-count" id="tc-matorder">0</span></div>
         <div class="tab" onclick="setTab('В работе',this)">В работе <span class="tab-count" id="tc-work">0</span></div>
         <div class="tab" onclick="setTab('Готов к выдаче',this)">Готовы <span class="tab-count" id="tc-ready">0</span></div>
         <div class="tab" onclick="setTab('Отгружен',this)">Отгружены <span class="tab-count" id="tc-ship">0</span></div>
         <div class="tab" onclick="setTab('Закрыт',this)">Закрыт <span class="tab-count" id="tc-done">0</span></div>
         <div class="tab" onclick="setTab('Приостановлен',this)">Пауза <span class="tab-count" id="tc-pause">0</span></div>
+        <div class="tab" onclick="setTab('Рекламация',this)">Рекламация <span class="tab-count" id="tc-reclam">0</span></div>
         <div class="tab" onclick="setTab('Отказались',this)">Отказ <span class="tab-count" id="tc-refuse">0</span></div>
       </div>
 
@@ -701,7 +703,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f full"><label class="flabel">Описание</label><input class="finput" id="f-desc"></div>
         <div class="f"><label class="flabel">Дедлайн</label><input class="finput" type="date" id="f-ddl"></div>
         <div class="f"><label class="flabel">Статус</label>
-          <select class="fsel2" id="f-status"><option>Отправлено КП</option><option>Новый</option><option>В работе</option><option>Готов к выдаче</option><option>Отгружен</option><option>Закрыт</option><option>Приостановлен</option><option>Отказались</option></select></div>
+          <select class="fsel2" id="f-status"><option>Отправлено КП</option><option>Новый</option><option>Материал заказан</option><option>В работе</option><option>Готов к выдаче</option><option>Отгружен</option><option>Закрыт</option><option>Приостановлен</option><option>Рекламация</option><option>Отказались</option></select></div>
         <div class="f"><label class="flabel">Менеджер</label><input class="finput" id="f-manager" list="mgr-list"><datalist id="mgr-list"></datalist></div>
         <div class="f"><label class="flabel">Источник</label>
           <select class="fsel2" id="f-src2" onchange="toggleCustomSource()"><option>Авито</option><option>Instagram</option><option>ВКонтакте</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option><option value="__other">Другое...</option></select>
@@ -811,13 +813,13 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <datalist id="sm-mat-list"></datalist>
         </div>
         <div class="f">
-          <label class="flabel" id="sm-qty-label">Количество (листов)</label>
+          <label class="flabel" id="sm-qty-label">Количество</label>
           <input class="finput" type="number" id="sm-qty" min="0" step="0.5" placeholder="0">
         </div>
         <div class="f">
           <label class="flabel">Единица</label>
           <select class="fsel2" id="sm-unit">
-            <option value="шт">шт (листов)</option>
+            <option value="шт">шт</option>
             <option value="кв.м">кв.м</option>
             <option value="пог.м">пог.м</option>
           </select>
@@ -862,7 +864,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         </div>
         <div class="f"><label class="flabel">Ед. учёта</label>
           <select class="fsel2" id="si-unit">
-            <option value="шт">шт (листов)</option>
+            <option value="шт">шт</option>
             <option value="кв.м">кв.м</option>
             <option value="пог.м">пог.м</option>
           </select>
@@ -1156,7 +1158,7 @@ function $(x){ return document.getElementById(x) }
 function fmt(n){ return Math.round(n).toLocaleString('ru-RU')+' ₽' }
 function fmtK(n){ return n>=1000?Math.round(n/1000)+'к ₽':Math.round(n)+' ₽' }
 function pDate(v){ if(!v)return null; const d=new Date(v); return isNaN(d)?null:d }
-function badgeClass(st){ return{'Отправлено КП':'b-kp',Новый:'b-new','В работе':'b-work','Готов к выдаче':'b-ready',Отгружен:'b-ship',Закрыт:'b-done',Приостановлен:'b-pause',Отказались:'b-refuse'}[st]||'b-done' }
+function badgeClass(st){ return{'Отправлено КП':'b-kp',Новый:'b-new','Материал заказан':'b-kp','В работе':'b-work','Готов к выдаче':'b-ready',Отгружен:'b-ship',Закрыт:'b-done',Приостановлен:'b-pause',Рекламация:'b-refuse',Отказались:'b-refuse'}[st]||'b-done' }
 function showToast(msg){ const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500) }
 function sync(state,txt){
   const saw=$('saw-loader'), stxt=$('stxt');
@@ -1258,21 +1260,23 @@ function updateStats(){
 
   const pAll=getFilteredByPeriod().length;
   const pDone=getFilteredByPeriod().filter(o=>(o.status||'').trim()==='Закрыт').length;
-  const cnt={kp:0,new:0,work:0,ready:0,ship:0,pause:0,refuse:0};
+  const cnt={kp:0,new:0,matorder:0,work:0,ready:0,ship:0,pause:0,reclam:0,refuse:0};
   orders.forEach(o=>{
     const s=(o.status||'').trim();
     if(s==='Отправлено КП')cnt.kp++;
     else if(s==='Новый')cnt.new++;
+    else if(s==='Материал заказан')cnt.matorder++;
     else if(s==='В работе')cnt.work++;
     else if(s==='Готов к выдаче')cnt.ready++;
     else if(s==='Отгружен')cnt.ship++;
     else if(s==='Приостановлен')cnt.pause++;
+    else if(s==='Рекламация')cnt.reclam++;
     else if(s==='Отказались')cnt.refuse++;
   });
   const tc=$('tc-all'); if(tc)tc.textContent=pAll;
   const td=$('tc-done'); if(td)td.textContent=pDone;
   const to2=$('tc-over2'); if(to2)to2.textContent=over.length;
-  ['kp','new','work','ready','ship','pause','refuse'].forEach(k=>{const el=$('tc-'+k);if(el)el.textContent=cnt[k]});
+  ['kp','new','matorder','work','ready','ship','pause','reclam','refuse'].forEach(k=>{const el=$('tc-'+k);if(el)el.textContent=cnt[k]});
 }
 
 // ══════════════════════════════════════════════════════
@@ -1369,7 +1373,7 @@ function render(){
   const list=getFiltered();
   const today=new Date(); today.setHours(0,0,0,0);
   const m=v=>v&&parseFloat(v)?Number(v).toLocaleString('ru-RU')+' ₽':'—';
-  const STATUS=['Отправлено КП','Новый','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Отказались'];
+  const STATUS=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
 
   if(!list.length){
     $('tbl-body').innerHTML='<div class="empty-state">Заказов не найдено</div>';
@@ -1910,7 +1914,7 @@ async function confirmDeleteOrder(){
 // ── QUICK STATUS with material logic ──────────────────
 const KP_STATUS = 'Отправлено КП';
 const RESERVE_STATUSES = [KP_STATUS]; // статусы где материал в резерве
-const WRITEOFF_STATUSES = ['Новый','В работе','Готов к выдаче','Отгружен','Закрыт']; // материал списан
+const WRITEOFF_STATUSES = ['Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Рекламация']; // материал списан
 const RELEASE_STATUSES = ['Отказались']; // снять резерв
 
 function getSpecMats(o){
@@ -2934,18 +2938,33 @@ function renderSkladBase(){
   if(!items.length){container.innerHTML='<div class="empty-state">Позиций не найдено</div>';return;}
 
   // Считаем pending
-  const pendingCount=items.filter(i=>String(i.item_id||'').startsWith('pending_')).length;
+  const pendingItems=items.filter(i=>String(i.item_id||'').startsWith('pending_'));
+  const normalItems=items.filter(i=>!String(i.item_id||'').startsWith('pending_'));
   let html='';
-  if(pendingCount){
-    html+=`<div style="background:var(--amber-light);border:1px solid rgba(133,79,11,0.2);border-radius:var(--r);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:16px">⏳</span>
-      <span style="font-size:12px;color:var(--amber);font-weight:500">${pendingCount} новых материал(ов) ожидают подтверждения — нажмите "Изм." чтобы оформить</span>
-    </div>`;
+
+  // Секция pending — отдельно сверху
+  if(pendingItems.length){
+    html+=`<div style="background:var(--amber-light);border:2px solid rgba(133,79,11,0.25);border-radius:var(--r);padding:14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:18px">⏳</span>
+        <span style="font-size:13px;color:var(--amber);font-weight:600">Ожидают оформления (${pendingItems.length})</span>
+      </div>`;
+    pendingItems.forEach(item=>{
+      const price=parseFloat(item.buy_price)||0;
+      html+=`<div style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.6);border:1px solid rgba(133,79,11,0.15);border-radius:var(--rs);padding:6px 10px;margin-bottom:4px">
+        <span style="font-size:12px;flex:1;font-weight:500;color:var(--text)">${item.name||'—'}</span>
+        <span style="font-size:11px;color:var(--text3)">${item.type||'—'}</span>
+        ${price?`<span style="font-size:11px;color:var(--text2)">${price.toLocaleString('ru-RU')} ₽</span>`:''}
+        <button onclick='openSkladItem(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="background:var(--amber);color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;font-weight:500">✓ Оформить</button>
+      </div>`;
+    });
+    html+=`</div>`;
   }
 
+  // Обычные группы — только нормальные позиции
   const GROUP_ORDER=matTypes.map(t=>t.name);
   const tree={};
-  items.forEach(item=>{const g=(item.type||'прочее').toLowerCase().trim();if(!tree[g])tree[g]=[];tree[g].push(item);});
+  normalItems.forEach(item=>{const g=(item.type||'прочее').toLowerCase().trim();if(!tree[g])tree[g]=[];tree[g].push(item);});
   const allGroups=[...GROUP_ORDER,...Object.keys(tree).filter(g=>!GROUP_ORDER.includes(g))];
   allGroups.forEach(g=>{
     if(!tree[g]) return;
@@ -3570,62 +3589,119 @@ async function processImport(){
     processTextImport();
     return;
   }
-  // Файл — отправляем в Claude API для распознавания
   if(!importFile){showToast('Выберите файл');return;}
   const btn=$('imp-go-btn');
-  btn.textContent='⏳ Распознаю...'; btn.disabled=true;
-  setImportStatus('🔄 Отправляю изображение на распознавание...','loading');
+  btn.textContent='⏳ Обработка...'; btn.disabled=true;
+  setImportStatus('🔄 Читаю файл...','loading');
 
   try{
-    const base64=await fileToBase64(importFile);
-    const mediaType=importFile.type||'image/jpeg';
-    const isPdf=mediaType.includes('pdf');
+    const mediaType=importFile.type||'';
+    const isPdf=mediaType.includes('pdf')||importFile.name.endsWith('.pdf');
 
-    const content=[
-      {type:isPdf?'document':'image', source:{type:'base64',media_type:mediaType,data:base64}},
-      {type:'text', text:`Это спецификация материалов для мебельного производства из программы К3-Мебель.
-Извлеки ВСЕ материалы из таблицы. Для каждого материала определи:
-- name: название материала (ЛДСП, МДФ, кромка, фурнитура и т.д.)
-- qty: количество (число)
-- unit: единица измерения (лист, шт, пог.м, кв.м)
-- price: цена за единицу если указана (число), если нет — 0
-
-Ответь ТОЛЬКО JSON-массивом без пояснений:
-[{"name":"ЛДСП Белый 16мм","qty":3,"unit":"лист","price":1800},...]`}
-    ];
-
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:2000,
-        messages:[{role:'user',content}]
-      })
-    });
-    const data=await response.json();
-    const text=data.content?.map(c=>c.text||'').join('')||'';
-    
-    // Парсим JSON из ответа
-    const jsonMatch=text.match(/\[[\s\S]*\]/);
-    if(!jsonMatch) throw new Error('Не удалось распознать материалы');
-    const mats=JSON.parse(jsonMatch[0]);
-    
-    if(!mats.length) throw new Error('Материалов не найдено');
-
-    // Добавляем в форму
-    mats.forEach(m=>{
-      const p=m.price||matPrice(m.name)||0;
-      addOrderMat(m.name, m.qty||1, p);
-    });
-    calcOrderSum();
-    setImportStatus(`✅ Распознано ${mats.length} материал(ов). Проверьте и скорректируйте при необходимости.`,'ok');
-    setTimeout(()=>closeSpecImport(),1500);
-    showToast('Загружено '+mats.length+' материалов');
+    if(isPdf){
+      // PDF — извлекаем текст через pdf.js
+      setImportStatus('🔄 Извлекаю текст из PDF...','loading');
+      const arrayBuf=await importFile.arrayBuffer();
+      if(typeof pdfjsLib==='undefined'){
+        // Загружаем pdf.js динамически
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+      const pdf=await pdfjsLib.getDocument({data:arrayBuf}).promise;
+      let fullText='';
+      for(let i=1;i<=pdf.numPages;i++){
+        const page=await pdf.getPage(i);
+        const tc=await page.getTextContent();
+        const pageText=tc.items.map(item=>item.str).join(' ');
+        fullText+=pageText+'\n';
+      }
+      // Парсим текст из К3
+      const mats=parseK3Text(fullText);
+      if(!mats.length) throw new Error('Не удалось найти материалы в PDF');
+      mats.forEach(m=>addOrderMat(m.name,m.qty,m.price));
+      calcOrderSum();
+      setImportStatus(`✅ Из PDF загружено ${mats.length} материал(ов)`,'ok');
+      setTimeout(()=>closeSpecImport(),1500);
+      showToast('Загружено '+mats.length+' материалов из PDF');
+    } else {
+      // Изображение — пробуем через Claude API (может не работать без VPN)
+      setImportStatus('🔄 Отправляю на распознавание...','loading');
+      const base64=await fileToBase64(importFile);
+      const content=[
+        {type:'image', source:{type:'base64',media_type:mediaType||'image/jpeg',data:base64}},
+        {type:'text', text:`Это спецификация из К3-Мебель. Извлеки материалы. Ответь ТОЛЬКО JSON: [{"name":"...","qty":1,"unit":"шт","price":0},...]`}
+      ];
+      const response=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content}]})
+      });
+      if(!response.ok) throw new Error('API недоступен (нужен VPN). Скопируйте текст из PDF и вставьте во вкладку "Вставить текст"');
+      const data=await response.json();
+      const text=data.content?.map(c=>c.text||'').join('')||'';
+      const jsonMatch=text.match(/\[[\s\S]*\]/);
+      if(!jsonMatch) throw new Error('Не удалось распознать');
+      const mats=JSON.parse(jsonMatch[0]);
+      if(!mats.length) throw new Error('Материалов не найдено');
+      mats.forEach(m=>addOrderMat(m.name,m.qty||1,m.price||matPrice(m.name)||0));
+      calcOrderSum();
+      setImportStatus(`✅ Распознано ${mats.length} материал(ов)`,'ok');
+      setTimeout(()=>closeSpecImport(),1500);
+      showToast('Загружено '+mats.length+' материалов');
+    }
   }catch(e){
-    setImportStatus('❌ Ошибка: '+e.message,'error');
+    setImportStatus('❌ '+e.message,'error');
   }
   btn.textContent='🔍 Распознать'; btn.disabled=false;
+}
+
+function loadScript(url){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');s.src=url;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
+  });
+}
+
+function parseK3Text(text){
+  // Парсер для формата К3-Мебель PDF
+  const mats=[];
+  // Разбиваем на строки, убираем лишние пробелы
+  const lines=text.replace(/\s+/g,' ').split(/(?=\d+\s+[А-ЯA-Z])/);
+  
+  // Ищем паттерны из К3: номер, название, ед.изм, кол-во, цена, стоимость
+  // Пример: "1 ЛДСП Увадрев 16 мм Олива U1604 PE кв.м 10.36687 2 0.00 0.00"
+  // Пример: "1 Петля 4-х шарнирная накладная 90/110, Артикул: H95087A шт 12 18.08 216.96"
+  
+  const regex=/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|м\.?\s*п|лист)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/gi;
+  let match;
+  const fullText=text.replace(/\n/g,' ');
+  
+  while((match=regex.exec(fullText))!==null){
+    const name=match[2].replace(/\s*,?\s*Артикул:?\s*\S+/i,'').replace(/\s+/g,' ').trim();
+    const unit=match[3].trim();
+    const qty=parseFloat(match[4].replace(',','.'))||0;
+    const price=parseFloat(match[5].replace(',','.'))||0;
+    if(name&&qty>0){
+      // Пропускаем строки-заголовки
+      if(name.match(/^(Наименование|Итого|Материалы|Панели|Комплектующие|Кромки)/i)) continue;
+      mats.push({name,qty,unit,price});
+    }
+  }
+  
+  // Если regex не нашёл — пробуем построчный парсинг
+  if(!mats.length){
+    const lines2=fullText.split(/(?:Итого:|Панели|Комплектующие|Кромки)/i);
+    lines2.forEach(section=>{
+      const lineMatches=[...section.matchAll(/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м?|п[\/.]\s*м|пог\.?\s*м)\s+([\d.,]+)/gi)];
+      lineMatches.forEach(m=>{
+        const name=m[2].replace(/\s*,?\s*Артикул:?\s*\S+/i,'').trim();
+        const qty=parseFloat(m[4].replace(',','.'))||0;
+        if(name&&qty>0&&!name.match(/^(Наименование|Ед|Кол|Цена|Стоимость)/i)){
+          mats.push({name,qty,unit:m[3].trim(),price:0});
+        }
+      });
+    });
+  }
+  
+  return mats;
 }
 
 function processTextImport(){
@@ -3634,28 +3710,37 @@ function processTextImport(){
   setImportStatus('🔄 Разбираю текст...','loading');
   
   try{
+    // Сначала пробуем K3 формат
+    const k3mats=parseK3Text(text);
+    if(k3mats.length){
+      k3mats.forEach(m=>{
+        const p=m.price||matPrice(m.name)||0;
+        addOrderMat(m.name,m.qty,p);
+      });
+      calcOrderSum();
+      setImportStatus(`✅ Загружено ${k3mats.length} материал(ов) (формат К3)`,'ok');
+      setTimeout(()=>closeSpecImport(),1500);
+      showToast('Загружено '+k3mats.length+' материалов');
+      return;
+    }
+    
+    // Обычный табличный формат
     const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
     let count=0;
     
     lines.forEach(line=>{
-      // Пропускаем заголовки
-      if(line.match(/^(название|материал|наименование|#|№)/i)) return;
-      
-      // Разбиваем по Tab, ; или множественным пробелам
+      if(line.match(/^(название|материал|наименование|#|№|итого|п\.?п|ед|кол|цена|стоимость)/i)) return;
       const parts=line.split(/\t|;|\s{2,}/).map(p=>p.trim()).filter(Boolean);
       if(parts.length<2) return;
       
       const name=parts[0];
-      // Ищем число — это количество
-      let qty=1, price=0, unit='шт';
+      let qty=1, price=0;
       for(let i=1;i<parts.length;i++){
         const num=parseFloat(parts[i].replace(',','.'));
         if(!isNaN(num)&&num>0){
           if(qty===1&&!parts[i].match(/[₽р]/i)){ qty=num; }
-          else if(parts[i].match(/[₽р]/i)||num>10){ price=num; }
-          else if(num>qty){ price=num; } // большее число — вероятно цена
+          else { price=num; }
         }
-        if(parts[i].match(/^(лист|шт|пог|кв|м²|м\.|п\.м)/i)) unit=parts[i];
       }
       
       const p=price||matPrice(name)||0;
@@ -3663,9 +3748,9 @@ function processTextImport(){
       count++;
     });
     
-    if(count===0) throw new Error('Не удалось разобрать строки');
+    if(count===0) throw new Error('Не удалось разобрать строки. Проверьте формат.');
     calcOrderSum();
-    setImportStatus(`✅ Загружено ${count} материал(ов). Проверьте цены и количество.`,'ok');
+    setImportStatus(`✅ Загружено ${count} материал(ов)`,'ok');
     setTimeout(()=>closeSpecImport(),1500);
     showToast('Загружено '+count+' материалов');
   }catch(e){
