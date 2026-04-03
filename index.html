@@ -3670,7 +3670,7 @@ function parseK3Text(text){
   const mats=[];
   const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
   
-  const UNITS_RX=/^(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м|лист|м\.?\s*п|м2|м²|компл|упак|рул)$/i;
+  const UNITS_RX=/^(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м|компл\.?|упак\.?|рул\.?|лист|м\.?\s*п|м2|м²)$/i;
   const SKIP_LINES=/^(Заказ|Дата|Наименование|Материалы заказа|№|п\.?п\.?|Ед\.?|изм|Кол-во|Цена|Стоимость)$/i;
   const SECTION_RX=/^(Панели|Комплектующие|Кромки)$/i;
   const ITOGO_RX=/^Итого/i;
@@ -3684,7 +3684,7 @@ function parseK3Text(text){
     if(SECTION_RX.test(line)) continue;
     if(ITOGO_RX.test(line)) continue;
     
-    const inlineMatch=line.match(/^(\d{1,3})\s{2,}(.+?)\s{2,}(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м)\s{2,}([\d.,\s]+)$/i);
+    const inlineMatch=line.match(/^(\d{1,3})\s{2,}(.+?)\s{2,}(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м|компл\.?|упак\.?|рул\.?|лист)\s{2,}([\d.,\s]+)$/i);
     if(inlineMatch){
       if(currentBlock) blocks.push(currentBlock);
       blocks.push({lines:[line], type:'inline'});
@@ -3709,7 +3709,7 @@ function parseK3Text(text){
     if(!bl.length) return;
     
     if(block.type==='inline'){
-      const m=bl[0].match(/^(\d{1,3})\s{2,}(.+?)\s{2,}(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м)\s{2,}([\d.,\s]+)$/i);
+      const m=bl[0].match(/^(\d{1,3})\s{2,}(.+?)\s{2,}(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м|компл\.?|упак\.?|рул\.?|лист)\s{2,}([\d.,\s]+)$/i);
       if(!m) return;
       const name=m[2].replace(/\s*,?\s*Артикул:?\s*.*/gi,'').trim();
       const unit=m[3].replace(/\s/g,'');
@@ -3725,7 +3725,7 @@ function parseK3Text(text){
     for(let i=0;i<bl.length;i++){
       const l=bl[i];
       
-      const unitLine=l.match(/^(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м)\s+([\d.,\s]+)$/i);
+      const unitLine=l.match(/^(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|п\/м|компл\.?|упак\.?|рул\.?|лист)\s+([\d.,\s]+)$/i);
       if(unitLine){
         unit=unitLine[1].replace(/\s/g,'');
         nums=unitLine[2].split(/\s+/).map(n=>parseFloat(n.replace(',','.'))).filter(n=>!isNaN(n)&&n>=0);
