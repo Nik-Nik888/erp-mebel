@@ -35,7 +35,19 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .nav-hidden{display:none!important}
 
 /* SIDEBAR */
-.sidebar{width:220px;background:var(--text);padding:24px 0;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
+.sidebar{width:220px;background:var(--text);padding:24px 0;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;transition:width 0.25s ease;overflow:hidden}
+.sidebar.collapsed{width:56px}
+.sidebar.collapsed .sidebar-logo .name span:last-child,.sidebar.collapsed .sidebar-logo .sub,.sidebar.collapsed .nav-item span,.sidebar.collapsed .nav-sec,.sidebar.collapsed .user-info,.sidebar.collapsed .user-bar button,.sidebar.collapsed .toggle-label{display:none}
+.sidebar.collapsed .sidebar-logo{padding:0 0 16px;text-align:center}
+.sidebar.collapsed .sidebar-logo .name{justify-content:center}
+.sidebar.collapsed .nav-item{padding:10px 0;justify-content:center;border-left:none}
+.sidebar.collapsed .nav-item.active{border-left:none;border-bottom:2px solid #4ade80}
+.sidebar.collapsed .user-bar{padding:8px 0;justify-content:center}
+.sidebar.collapsed .sidebar-toggle-bar{justify-content:center;padding:8px 0}
+.sidebar-toggle-bar{display:flex;align-items:center;gap:10px;padding:8px 20px;cursor:pointer;color:rgba(255,255,255,0.4);margin-bottom:4px;transition:all 0.15s}
+.sidebar-toggle-bar:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.04)}
+.sidebar-toggle-bar:hover svg line{stroke:rgba(255,255,255,0.7)}
+.toggle-label{font-size:11px;color:rgba(255,255,255,0.35)}
 .sidebar-logo{padding:0 20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
 .sidebar-logo .name{font-size:15px;font-weight:600;color:#fff}
 .sidebar-logo .sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
@@ -272,8 +284,12 @@ tbody tr.overdue:hover td{background:#fff0f0}
 </div>
 
 <div class="app" id="app">
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo"><div class="name" style="display:flex;align-items:center;gap:8px"><span style="background:#F5C518;color:#1c1b18;font-weight:600;font-size:14px;padding:4px 8px;border-radius:5px;font-family:'JetBrains Mono',monospace;letter-spacing:1px">K2</span><span>Мебель</span></div><div class="sub">Производство мебели</div></div>
+    <div class="sidebar-toggle-bar" onclick="toggleSidebar()">
+      <svg width="18" height="12" viewBox="0 0 18 12"><line x1="0" y1="1" x2="18" y2="1" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/><line x1="0" y1="6" x2="14" y2="6" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/><line x1="0" y1="11" x2="10" y2="11" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/></svg>
+      <span class="toggle-label">Свернуть</span>
+    </div>
     <div class="nav-sec">Основное</div>
     <div class="nav-item active" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg><span>Заказы</span></div>
@@ -628,13 +644,14 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
 
       <!-- Карточки KPI -->
-      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-        <div class="stat"><div class="lbl">Выручка</div><div class="val" id="a-revenue">—</div><div class="hint">сумма закрытых</div></div>
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+        <div class="stat"><div class="lbl">Договоров</div><div class="val" id="a-contracts">—</div><div class="hint">сумма заказов</div></div>
+        <div class="stat"><div class="lbl">Получено</div><div class="val green" id="a-received">—</div><div class="hint">все оплаты</div></div>
         <div class="stat"><div class="lbl">Себестоимость</div><div class="val" id="a-cost" style="color:var(--amber)">—</div><div class="hint">материалы</div></div>
         <div class="stat"><div class="lbl">Расходы</div><div class="val red" id="a-expenses">—</div><div class="hint">все расходы</div></div>
-        <div class="stat"><div class="lbl">Чистая прибыль</div><div class="val green" id="a-profit">—</div><div class="hint">выручка − всё</div></div>
+        <div class="stat"><div class="lbl">Прибыль</div><div class="val green" id="a-profit">—</div><div class="hint">получено − себест. − расх.</div></div>
         <div class="stat"><div class="lbl">Средний чек</div><div class="val" id="a-avg">—</div><div class="hint">по закрытым</div></div>
-        <div class="stat"><div class="lbl">Конверсия</div><div class="val" id="a-conv">—</div><div class="hint">КП → закрыт</div></div>
+        <div class="stat"><div class="lbl">Конверсия</div><div class="val" id="a-conv">—</div><div class="hint">заказы → закрыт</div></div>
         <div class="stat"><div class="lbl">Отказы</div><div class="val red" id="a-refuse">—</div><div class="hint">за период</div></div>
       </div>
 
@@ -664,7 +681,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
 
       <!-- Склад -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
           <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px">📦 Расход материалов за период</div>
           <div id="a-mat-usage"></div>
@@ -673,6 +690,15 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px">⚠ Заканчивается на складе</div>
           <div id="a-mat-low"></div>
         </div>
+      </div>
+
+      <!-- Время в статусах -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">🕐 Среднее время в статусах</div>
+          <div style="font-size:10px;color:var(--text3)">по всем заказам</div>
+        </div>
+        <div id="a-status-timing"></div>
       </div>
     </div>
 
@@ -1165,6 +1191,72 @@ const SUPABASE_URL = 'https://vrqjjpcaisgbxhwvhezo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZycWpqcGNhaXNnYnhod3ZoZXpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTgyMjQsImV4cCI6MjA4OTI3NDIyNH0.U3gMK5cUczd9nIG9s5c7oZZg5OjFuB2AGxxVbMvKmvY';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── TELEGRAM NOTIFICATIONS ────────────────────────────
+const TG_BOT_TOKEN='8375207009:AAHT2F6tIkG1IbYwbWl1ig-490cDy61P9mM';
+const TG_CHAT_ID='352840452';
+
+async function tgSend(text){
+  try{
+    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:TG_CHAT_ID,text,parse_mode:'HTML',disable_web_page_preview:true})
+    });
+  }catch(e){console.log('TG error:',e)}
+}
+
+function tgNotify(type,data){
+  const who=currentProfile?.full_name||'Система';
+  let msg='';
+  switch(type){
+    case 'new_order':
+      msg=`📋 <b>Новый заказ</b>\n${data.order_num} — ${data.client||'—'}\n${data.description||''}\n👤 ${who}`;
+      break;
+    case 'new_kp':
+      msg=`📄 <b>Новое КП</b>\n${data.order_num} — ${data.client||'—'}\nСумма: ${data.sum||'—'}\n👤 ${who}`;
+      break;
+    case 'status_change':
+      msg=`🔄 <b>Статус изменён</b>\n${data.order_num} — ${data.client||'—'}\n${data.oldStatus} → <b>${data.newStatus}</b>\n👤 ${who}`;
+      break;
+    case 'payment':
+      msg=`💰 <b>Оплата</b>\n${data.order_num} — ${data.client||'—'}\n+${data.amount} ₽ (всего ${data.total} ₽ из ${data.sum} ₽)\n👤 ${who}`;
+      break;
+    case 'overdue':
+      msg=`⚠️ <b>Просрочка!</b>\n${data.order_num} — ${data.client||'—'}\nДедлайн: ${data.deadline}\nСтатус: ${data.status}`;
+      break;
+    case 'low_stock':
+      msg=`📦 <b>Мало на складе</b>\n${data.name}: осталось ${data.stock} (мин. ${data.min})\nНужно заказать!`;
+      break;
+  }
+  if(msg) tgSend(msg);
+}
+
+// ── STATUS LOG ────────────────────────────────────────
+async function logStatusChange(orderNum, oldStatus, newStatus){
+  const who=currentProfile?.full_name||currentProfile?.email||'—';
+  try{
+    await sb.from('order_status_log').insert({
+      order_num:orderNum, old_status:oldStatus||'', new_status:newStatus, changed_by:who
+    });
+  }catch(e){}
+}
+
+async function getStatusLog(orderNum){
+  try{
+    const {data}=await sb.from('order_status_log').select('*').eq('order_num',orderNum).order('changed_at',{ascending:true});
+    return data||[];
+  }catch(e){return[]}
+}
+
+function formatDuration(ms){
+  if(ms<0) ms=0;
+  const mins=Math.floor(ms/60000);
+  const hrs=Math.floor(mins/60);
+  const days=Math.floor(hrs/24);
+  if(days>0) return days+'д '+(hrs%24)+'ч';
+  if(hrs>0) return hrs+'ч '+(mins%60)+'м';
+  return mins+'м';
+}
+
 let orders = [], tab = 'all', editId = null, commentId = null, prepayId = null;
 let kpMats = 0, kpWorks = 0, kpInited = false;
 let MAT_CATALOG = [], WORK_CATALOG = [];
@@ -1190,6 +1282,16 @@ function sync(state,txt){
 }
 
 // ── NAV ───────────────────────────────────────────────
+function toggleSidebar(){
+  const sb2=$('sidebar');
+  sb2.classList.toggle('collapsed');
+  localStorage.setItem('k2_sidebar_collapsed',sb2.classList.contains('collapsed')?'1':'0');
+}
+// Восстанавливаем состояние из localStorage
+if(localStorage.getItem('k2_sidebar_collapsed')==='1'){
+  document.addEventListener('DOMContentLoaded',()=>{const s=$('sidebar');if(s)s.classList.add('collapsed')});
+}
+
 function showPage(p, el){
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-item,.mnav-btn').forEach(x=>x.classList.remove('active'));
@@ -1684,7 +1786,10 @@ function addOrderMat(name='', qty=1, price=0){
 }
 
 function getMatStock(matName){
-  const si=skladItems.find(i=>(i.name||'').toLowerCase()===(matName||'').toLowerCase());
+  if(!matName) return '—';
+  const n=(matName||'').toLowerCase().replace(/\s*\([\d.,]+\s*кв\.?м\s*→.*\)/i,'').trim();
+  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
+  if(!si) si=skladItems.find(i=>{const sn=(i.name||'').toLowerCase();return sn&&(n.includes(sn)||sn.includes(n))});
   if(!si) return '—';
   return skladStock(si.item_id);
 }
@@ -1823,6 +1928,13 @@ async function saveOrder(){
       const {error,data:inserted}=await sb.from('orders').insert(row).select();
       if(error) throw error;
       const newId=inserted&&inserted[0]?inserted[0].id:null;
+      // Логируем создание + TG уведомление
+      await logStatusChange(row.order_num, '', row.status);
+      if(row.status==='Отправлено КП'){
+        tgNotify('new_kp',{order_num:row.order_num,client:row.client,sum:row.order_sum?row.order_sum.toLocaleString('ru-RU')+' ₽':'—'});
+      } else {
+        tgNotify('new_order',{order_num:row.order_num,client:row.client,description:row.description});
+      }
       // При новом заказе со статусом "Отправлено КП" — резервируем материалы
       if(row.status==='Отправлено КП' && row.specification){
         try{
@@ -2167,6 +2279,10 @@ async function quickStatus(rid,newSt){
     if(error) throw error;
     o.status=newSt;
 
+    // Логируем смену статуса + TG уведомление
+    await logStatusChange(rid, oldSt, newSt);
+    tgNotify('status_change',{order_num:rid,client:o.client,oldStatus:oldSt,newStatus:newSt});
+
     // Логика материалов по КП
     if(mats.length>0){
       const wasReserve=RESERVE_STATUSES.includes(oldSt);
@@ -2303,6 +2419,9 @@ async function savePrepay(){
     const {error}=await sb.from('orders').update({prepay:newPrepay,dopay:newDopay}).eq('id',o.id);
     if(error) throw error;
     o.prepay=newPrepay; o.dopay=newDopay;
+    if(prepayMode==='add'){
+      tgNotify('payment',{order_num:o.order_num,client:o.client,amount:delta.toLocaleString('ru-RU'),total:newPrepay.toLocaleString('ru-RU'),sum:sum?sum.toLocaleString('ru-RU'):'—'});
+    }
     closePrepay(); render(); updateStats(); showToast('Оплата обновлена');
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
@@ -2320,11 +2439,26 @@ function initKp(){
 }
 
 function matPrice(name){
-  // Сначала ищем в складе (актуальная цена закупки)
-  const si=skladItems.find(i=>(i.name||'').toLowerCase()===name.toLowerCase());
+  if(!name) return 0;
+  const n=name.toLowerCase().replace(/\s*\([\d.,]+\s*кв\.?м\s*→.*\)/i,'').trim();
+  // Точное совпадение в складе
+  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
   if(si&&si.buy_price) return parseFloat(si.buy_price);
-  // Затем в каталоге
-  const r=MAT_CATALOG.find(m=>m.name===name); return r?r.price:0;
+  // Поиск по вхождению (имя из склада содержится в названии или наоборот)
+  si=skladItems.find(i=>{
+    const sn=(i.name||'').toLowerCase();
+    return sn&&(n.includes(sn)||sn.includes(n));
+  });
+  if(si&&si.buy_price) return parseFloat(si.buy_price);
+  // Каталог — точное
+  const r=MAT_CATALOG.find(m=>(m.name||'').toLowerCase()===n);
+  if(r&&r.price) return r.price;
+  // Каталог — вхождение
+  const r2=MAT_CATALOG.find(m=>{
+    const mn=(m.name||'').toLowerCase();
+    return mn&&(n.includes(mn)||mn.includes(n));
+  });
+  return r2?r2.price:0;
 }
 function workDefaults(name){
   const r=WORK_CATALOG.find(w=>w.name===name); return r?[r.unit,r.price]:['шт.',0];
@@ -2543,6 +2677,97 @@ function kpPrint(){
 // ── SPEC MODAL ────────────────────────────────────────
 let specEditRid=null;
 let specMatCounter=0, specWorkCounter=0;
+
+async function openStatusHistory(rid){
+  const o=findO(rid); if(!o) return;
+  const log=await getStatusLog(rid);
+  
+  let overlay=$('m-history');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.className='overlay';overlay.id='m-history';
+    overlay.innerHTML=`<div class="modal" style="max-width:520px"><div class="modal-hd"><div class="modal-title" id="m-history-title">История</div><button class="modal-close" onclick="document.getElementById('m-history').classList.remove('open')">×</button></div><div class="modal-body" id="m-history-body" style="max-height:70vh;overflow-y:auto"></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  
+  let html=`<div style="font-size:14px;font-weight:600;margin-bottom:14px">🕐 История статусов — ${rid}</div>`;
+  
+  if(!log.length){
+    html+=`<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">История пока пуста. Статусы начнут записываться при следующем изменении.</div>`;
+  } else {
+    // Таймлайн
+    html+=`<div style="position:relative;padding-left:24px">`;
+    // Вертикальная линия
+    html+=`<div style="position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--border2)"></div>`;
+    
+    for(let i=0;i<log.length;i++){
+      const entry=log[i];
+      const next=log[i+1];
+      const dt=new Date(entry.changed_at);
+      const dateStr=dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});
+      const timeStr=dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+      
+      // Длительность в этом статусе
+      let duration='';
+      if(next){
+        const nextDt=new Date(next.changed_at);
+        duration=formatDuration(nextDt-dt);
+      } else {
+        // Текущий статус — время с момента установки
+        duration=formatDuration(Date.now()-dt);
+        duration+=' (сейчас)';
+      }
+      
+      const isLast=i===log.length-1;
+      const bc=badgeClass(entry.new_status);
+      
+      html+=`<div style="position:relative;margin-bottom:${isLast?0:16}px">
+        <div style="position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;background:${isLast?'var(--accent)':'var(--border2)'};border:2px solid var(--surface)"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div>
+            <span class="badge ${bc}" style="font-size:11px">${entry.new_status}</span>
+            ${entry.old_status?`<span style="font-size:10px;color:var(--text3);margin-left:4px">← ${entry.old_status}</span>`:'<span style="font-size:10px;color:var(--text3);margin-left:4px">создан</span>'}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;color:var(--text2)">${dateStr} ${timeStr}</div>
+            <div style="font-size:11px;font-weight:600;color:${isLast?'var(--accent)':'var(--amber)'}">${duration}</div>
+          </div>
+        </div>
+        ${entry.changed_by?`<div style="font-size:10px;color:var(--text3);margin-top:2px">👤 ${entry.changed_by}</div>`:''}
+      </div>`;
+    }
+    html+=`</div>`;
+    
+    // Сводка по статусам
+    const summary={};
+    for(let i=0;i<log.length;i++){
+      const entry=log[i];
+      const next=log[i+1];
+      const dur=next?new Date(next.changed_at)-new Date(entry.changed_at):Date.now()-new Date(entry.changed_at);
+      summary[entry.new_status]=(summary[entry.new_status]||0)+dur;
+    }
+    
+    const totalDur=Object.values(summary).reduce((s,v)=>s+v,0);
+    html+=`<div style="margin-top:16px;background:var(--surface2);border-radius:var(--r);padding:12px 14px">
+      <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:8px">Время в статусах</div>`;
+    Object.entries(summary).sort((a,b)=>b[1]-a[1]).forEach(([status,dur])=>{
+      const pct=totalDur>0?dur/totalDur*100:0;
+      const bc2=badgeClass(status);
+      html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="badge ${bc2}" style="font-size:10px;min-width:100px">${status}</span>
+        <div style="flex:1;background:var(--border);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px"></div></div>
+        <span style="font-size:11px;font-weight:600;min-width:60px;text-align:right">${formatDuration(dur)}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  
+  html+=`<div style="display:flex;gap:8px;margin-top:14px">
+    <button class="btn btn-ghost" onclick="document.getElementById('m-history').classList.remove('open')" style="flex:1;justify-content:center">Закрыть</button>
+  </div>`;
+  
+  $('m-history-body').innerHTML=html;
+  overlay.classList.add('open');
+}
 
 function openSpecModal(rid){
   const o=findO(rid); if(!o) return;
@@ -2909,6 +3134,7 @@ function renderSkladCards(){
     tree[g][sub].push(item);
   });
 
+  const GROUP_COLORS={'лист':'#854F0B','кромка':'#185FA5','фурнитура':'#534AB7'};
   const allGroups=[...GROUP_ORDER,...Object.keys(tree).filter(g=>!GROUP_ORDER.includes(g))];
   let html='';
   allGroups.forEach(g=>{
@@ -2917,10 +3143,22 @@ function renderSkladCards(){
     const allItems=Object.values(subs).flat();
     const alerts=allItems.filter(i=>i._isEmpty||i._isLow).length;
     const gLabel=getTypeLabel(g);
+    const gIcon=getTypeIcon(g);
+    const gColor=GROUP_COLORS[g]||matTypes.find(t=>t.name===g)?.color||'#6b6a64';
     const gKey='g_'+g;
     if(!(gKey in treeOpen.groups)) treeOpen.groups[gKey]=true;
     const gOpen=treeOpen.groups[gKey];
-    html+=`<div class="tree-group"><div class="tree-group-hd${gOpen?' open':''}" onclick="toggleTree('group','${gKey}',this)"><span class="tree-arrow">▶</span><span style="font-size:13px;font-weight:600;flex:1">${gLabel}</span><span style="font-size:11px;color:var(--text3)">${allItems.length} поз.</span>${alerts?`<span style="background:var(--red-light);color:var(--red);padding:1px 7px;border-radius:10px;font-size:11px;font-weight:500">${alerts} ⚠</span>`:''}</div><div class="tree-group-body${gOpen?' open':''}">`;
+
+    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleTree('group','${gKey}',this)" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:${gColor}10;border-bottom:${gOpen?'1px solid var(--border)':'none'};transition:all 0.15s">
+        <span style="font-size:20px">${gIcon}</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${gLabel.replace(gIcon,'').trim()}</div>
+          <div style="font-size:11px;color:var(--text3)">${allItems.length} в наличии${alerts?' · <span style="color:var(--red)">'+alerts+' заканчивается</span>':''}</div>
+        </div>
+        <span class="tree-arrow" style="font-size:12px;color:var(--text3);transition:transform 0.2s;${gOpen?'transform:rotate(90deg)':''}">▶</span>
+      </div>
+      <div class="tree-group-body${gOpen?' open':''}" style="padding:${gOpen?'4px 8px 8px':'0 8px'}">`;
     const subKeys=Object.keys(subs);
     subKeys.forEach((sub,si)=>{
       const subItems=subs[sub];
@@ -2929,13 +3167,21 @@ function renderSkladCards(){
       const sOpen=treeOpen.subs[sKey];
       const useSubGroup=subKeys.length>1||subItems.length>3;
       if(useSubGroup){
-        html+=`<div class="tree-sub"><div class="tree-sub-hd${sOpen?' open':''}" onclick="toggleTree('sub','${sKey}',this)"><span class="tree-arrow">▶</span><span style="font-size:12px;font-weight:500;flex:1;color:var(--text2)">${sub}</span><span style="font-size:11px;color:var(--text3)">${subItems.length}</span></div><div class="tree-sub-body${sOpen?' open':''}">`;
-      } else { html+=`<div class="tree-sub"><div class="tree-sub-body open">`; }
+        html+=`<div style="margin-top:6px"><div onclick="toggleTree('sub','${sKey}',this)" style="display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;border-radius:var(--rs);background:var(--surface2)"><span class="tree-arrow" style="font-size:10px;color:var(--text3);transition:transform 0.2s;${sOpen?'transform:rotate(90deg)':''}">▶</span><span style="font-size:12px;font-weight:500;flex:1;color:var(--text2)">${sub}</span><span style="font-size:11px;color:var(--text3)">${subItems.length}</span></div><div class="tree-sub-body${sOpen?' open':''}">`;
+      } else { html+=`<div><div class="tree-sub-body open">`; }
       subItems.forEach(item=>{
         const iid=(item.item_id||'').replace(/'/g,"\\'");
         const color=item._isEmpty?'var(--red)':item._isLow?'var(--amber)':'var(--accent-text)';
-        const dot=item._isEmpty||item._isLow?`<span style="width:7px;height:7px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>`:'';
-        html+=`<div class="tree-item">${dot||'<span style="width:7px;flex-shrink:0"></span>'}<span class="tree-item-name">${item.name||'—'}</span><span class="tree-item-stock" style="color:${color}">${item._stock}</span><span class="tree-item-unit">${item.unit||'шт'}</span><div class="tree-item-btns"><button class="tree-btn tree-btn-in" onclick="openSkladMove('in','${iid}')">+</button><button class="tree-btn tree-btn-out" onclick="openSkladMove('out','${iid}')">−</button></div></div>`;
+        const bg=item._isEmpty?'background:var(--red-light);':item._isLow?'background:var(--amber-light);':'background:var(--surface);';
+        const price=parseFloat(item.buy_price)||0;
+        html+=`<div style="display:flex;gap:6px;align-items:center;${bg}border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;margin-top:4px">
+          ${item._isEmpty||item._isLow?`<span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>`:''}
+          <span style="font-size:12px;flex:1;color:var(--text)">${item.name||'—'}</span>
+          <span style="font-size:12px;font-weight:700;color:${color};min-width:35px;text-align:right">${item._stock}</span>
+          <span style="font-size:10px;color:var(--text3)">${item.unit||'шт'}</span>
+          <button onclick="openSkladMove('in','${iid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;font-weight:600;font-family:'Geologica',sans-serif">+</button>
+          <button onclick="openSkladMove('out','${iid}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;font-weight:600;font-family:'Geologica',sans-serif">−</button>
+        </div>`;
       });
       html+=`</div></div>`;
     });
@@ -2985,15 +3231,29 @@ function renderSkladBase(){
   const GROUP_ORDER=matTypes.map(t=>t.name);
   const tree={};
   normalItems.forEach(item=>{const g=(item.type||'прочее').toLowerCase().trim();if(!tree[g])tree[g]=[];tree[g].push(item);});
+  const GROUP_COLORS={'лист':'#854F0B','кромка':'#185FA5','фурнитура':'#534AB7'};
   const allGroups=[...GROUP_ORDER,...Object.keys(tree).filter(g=>!GROUP_ORDER.includes(g))];
   allGroups.forEach(g=>{
     if(!tree[g]) return;
     const gLabel=getTypeLabel(g);
+    const gIcon=getTypeIcon(g);
+    const gColor=GROUP_COLORS[g]||matTypes.find(t=>t.name===g)?.color||'#6b6a64';
     const gKey='base_g_'+g;
     if(!(gKey in treeOpen.groups)) treeOpen.groups[gKey]=true;
     const gOpen=treeOpen.groups[gKey];
-    const pendingInGroup=tree[g].filter(i=>String(i.item_id||'').startsWith('pending_')).length;
-    html+=`<div class="tree-group"><div class="tree-group-hd${gOpen?' open':''}" onclick="toggleTree('group','${gKey}',this)"><span class="tree-arrow">▶</span><span style="font-size:13px;font-weight:600;flex:1">${gLabel}</span><span style="font-size:11px;color:var(--text3)">${tree[g].length} поз.</span>${pendingInGroup?`<span style="background:var(--amber-light);color:var(--amber);padding:1px 7px;border-radius:10px;font-size:11px;font-weight:500">${pendingInGroup} ⏳</span>`:''}</div><div class="tree-group-body${gOpen?' open':''}">`;
+    const count=tree[g].length;
+    const lowCount=tree[g].filter(i=>{const s=skladStock(i.item_id);const m=parseFloat(i.min_stock)||0;return m>0&&s<=m}).length;
+
+    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleTree('group','${gKey}',this)" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:${gColor}10;border-bottom:${gOpen?'1px solid var(--border)':'none'};transition:all 0.15s">
+        <span style="font-size:20px">${gIcon}</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${gLabel.replace(gIcon,'').trim()}</div>
+          <div style="font-size:11px;color:var(--text3)">${count} позиций${lowCount?' · <span style="color:var(--red)">'+lowCount+' заканчивается</span>':''}</div>
+        </div>
+        <span class="tree-arrow" style="font-size:12px;color:var(--text3);transition:transform 0.2s;${gOpen?'transform:rotate(90deg)':''}">▶</span>
+      </div>
+      <div class="tree-group-body${gOpen?' open':''}" style="padding:${gOpen?'4px 8px 8px':'0 8px'}">`;
     tree[g].forEach(item=>{
       const iid=item.item_id||'';
       const isPending=iid.startsWith('pending_');
@@ -3002,14 +3262,14 @@ function renderSkladBase(){
       const isEmpty=stock<=0, isLow=!isEmpty&&min>0&&stock<=min;
       const color=isEmpty?'var(--red)':isLow?'var(--amber)':'var(--text3)';
       const price=parseFloat(item.buy_price)||0;
-      const bg=isPending?'background:var(--amber-light);':isEmpty?'background:var(--red-light);':'';
-      html+=`<div class="tree-item" style="padding-left:24px;${bg}">
-        ${isPending?'<span style="font-size:12px;margin-right:4px" title="Ожидает подтверждения">⏳</span>':''}
-        <span class="tree-item-name" style="font-size:12px${isEmpty?';color:var(--red);font-weight:500':''}">${item.name||'—'}</span>
-        <span style="font-size:11px;color:var(--text3);margin-right:8px">${item.unit||'шт'}</span>
-        ${price?`<span style="font-size:11px;color:var(--text2);margin-right:8px">${price.toLocaleString('ru-RU')} ₽</span>`:''}
-        <span style="font-size:12px;font-weight:700;color:${color};margin-right:8px">${isEmpty?'0 — нет':stock}</span>
-        <button onclick='openSkladItem(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="background:${isPending?'var(--amber-light)':'var(--surface2)'};border:1px solid ${isPending?'var(--amber)':'var(--border)'};border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:${isPending?'var(--amber)':'var(--text2)'};font-weight:${isPending?'600':'400'}">${isPending?'✓ Оформить':'Изм.'}</button>
+      const bg=isPending?'background:var(--amber-light);':isEmpty?'background:var(--red-light);':'background:var(--surface);';
+      html+=`<div style="display:flex;gap:6px;align-items:center;${bg}border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;margin-top:4px">
+        ${isPending?'<span style="font-size:12px" title="Ожидает подтверждения">⏳</span>':''}
+        <span style="font-size:12px;flex:1;font-weight:${isEmpty||isPending?'500':'400'};color:${isEmpty?'var(--red)':'var(--text)'}">${item.name||'—'}</span>
+        <span style="font-size:10px;color:var(--text3)">${item.unit||'шт'}</span>
+        ${price?`<span style="font-size:10px;color:var(--text2)">${price.toLocaleString('ru-RU')}₽</span>`:''}
+        <span style="font-size:12px;font-weight:700;color:${color};min-width:40px;text-align:right">${isEmpty?'0':stock}</span>
+        <button onclick='openSkladItem(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="background:${isPending?'var(--amber)':'var(--surface2)'};color:${isPending?'#fff':'var(--text2)'};border:1px solid ${isPending?'var(--amber)':'var(--border)'};border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;font-weight:${isPending?'600':'400'}">${isPending?'✓ Оформить':'Изм.'}</button>
       </div>`;
     });
     html+=`</div></div>`;
@@ -3755,6 +4015,18 @@ function parseK3Text(text){
     if(qty>0) mats.push({name,unit:unit||'шт',qty,price});
   });
   
+  // Пост-обработка: конвертация кв.м → листы (1 лист ≈ 4.5 кв.м, округление вверх)
+  const SHEET_AREA=4.5;
+  mats.forEach(m=>{
+    if(m.unit&&m.unit.match(/^кв\.?м$/i)){
+      m.qtyOriginal=m.qty;
+      m.unitOriginal=m.unit;
+      m.qty=Math.ceil(m.qty/SHEET_AREA);
+      m.unit='шт';
+      m.name+=' ('+m.qtyOriginal.toFixed(2)+' кв.м → '+m.qty+' лист.)';
+    }
+  });
+  
   return mats;
 }
 
@@ -4282,18 +4554,21 @@ function renderAnalytics(){
   const ao=getAOrders();
   const closed=ao.filter(o=>(o.status||'').trim()==='Закрыт');
   const refused=ao.filter(o=>(o.status||'').trim()==='Отказались');
+  const working=ao.filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
 
-  // KPI
-  const revenue=closed.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
-  // Себестоимость из спецификаций
+  // Договоров — сумма всех заказов (кроме КП и отказов)
+  const contracts=working.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
+  // Получено — все предоплаты по всем заказам за период
+  const received=ao.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  // Себестоимость из спецификаций (по всем заказам у кого есть спец, кроме КП и отказов)
   let totalCost=0;
-  closed.forEach(o=>{
+  working.forEach(o=>{
     try{
       const sp=JSON.parse(o.specification||'');
       if(sp&&sp.mats) sp.mats.forEach(m=>{totalCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
     }catch(e){}
   });
-  // Расходы за тот же период из таблицы expenses
+  // Расходы за период
   const aFrom=$('a-from').value?new Date($('a-from').value):null;
   const aTo=$('a-to').value?new Date($('a-to').value+'T23:59:59'):null;
   const periodExpenses=expenses.filter(e=>{
@@ -4303,12 +4578,14 @@ function renderAnalytics(){
     return true;
   });
   const totalExpenses=periodExpenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
-  const profit=revenue-totalCost-totalExpenses;
-  const avgCheck=closed.length?revenue/closed.length:0;
-  const totalAll=ao.filter(o=>(o.status||'').trim()!=='Отправлено КП').length;
+  // Прибыль = полученные деньги − себестоимость − расходы
+  const profit=received-totalCost-totalExpenses;
+  const avgCheck=closed.length?closed.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0)/closed.length:0;
+  const totalAll=ao.filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'}).length;
   const convRate=totalAll>0?(closed.length/totalAll*100):0;
 
-  $('a-revenue').textContent=fmt(revenue);
+  $('a-contracts').textContent=fmt(contracts);
+  $('a-received').textContent=fmt(received);
   $('a-cost').textContent=fmt(totalCost);
   $('a-expenses').textContent=fmt(totalExpenses);
   $('a-profit').textContent=fmt(profit);
@@ -4323,15 +4600,18 @@ function renderAnalytics(){
   renderManagersTable(ao);
   renderMatUsage();
   renderMatLow();
+  renderStatusTiming();
 }
 
 function renderRevenueChart(ao){
   const months={};
-  ao.filter(o=>(o.status||'').trim()==='Закрыт').forEach(o=>{
+  // Получено — по всем заказам за период
+  const working=ao.filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
+  working.forEach(o=>{
     const d=pDate(o.order_date); if(!d) return;
     const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     if(!months[key]) months[key]={rev:0,cost:0,exp:0};
-    months[key].rev+=(parseFloat(o.order_sum)||0);
+    months[key].rev+=(parseFloat(o.prepay)||0);
     try{
       const sp=JSON.parse(o.specification||'');
       if(sp&&sp.mats) sp.mats.forEach(m=>{months[key].cost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
@@ -4357,7 +4637,7 @@ function renderRevenueChart(ao){
     data:{
       labels:monthNames,
       datasets:[
-        {label:'Выручка',data:revData,backgroundColor:'rgba(42,92,63,0.7)',borderRadius:4},
+        {label:'Получено',data:revData,backgroundColor:'rgba(42,92,63,0.7)',borderRadius:4},
         {label:'Себестоимость',data:costData,backgroundColor:'rgba(133,79,11,0.5)',borderRadius:4},
         {label:'Расходы',data:expData,backgroundColor:'rgba(163,45,45,0.5)',borderRadius:4},
         {label:'Прибыль',data:profitData,backgroundColor:'rgba(22,163,74,0.65)',borderRadius:4}
@@ -4485,6 +4765,106 @@ function renderMatLow(){
   $('a-mat-low').innerHTML=h;
 }
 
+async function renderStatusTiming(){
+  const el=$('a-status-timing');
+  if(!el) return;
+  el.innerHTML='<div style="color:var(--text3);font-size:12px">Загрузка данных...</div>';
+  
+  try{
+    // Загружаем всю историю статусов
+    const {data:allLogs}=await sb.from('order_status_log').select('*').order('changed_at',{ascending:true});
+    if(!allLogs||!allLogs.length){
+      el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0">Нет данных. Статусы начнут записываться при изменениях заказов.</div>';
+      return;
+    }
+    
+    // Группируем по заказам
+    const byOrder={};
+    allLogs.forEach(log=>{
+      if(!byOrder[log.order_num]) byOrder[log.order_num]=[];
+      byOrder[log.order_num].push(log);
+    });
+    
+    // Считаем среднее время в каждом статусе
+    const statusDurations={};
+    const statusCounts={};
+    
+    Object.values(byOrder).forEach(logs=>{
+      for(let i=0;i<logs.length;i++){
+        const entry=logs[i];
+        const next=logs[i+1];
+        const dur=next?new Date(next.changed_at)-new Date(entry.changed_at):Date.now()-new Date(entry.changed_at);
+        const st=entry.new_status;
+        statusDurations[st]=(statusDurations[st]||0)+dur;
+        statusCounts[st]=(statusCounts[st]||0)+1;
+      }
+    });
+    
+    // Считаем средние
+    const avgData=Object.entries(statusDurations).map(([status,totalMs])=>{
+      const count=statusCounts[status]||1;
+      return {status, avgMs:totalMs/count, count, totalMs};
+    }).sort((a,b)=>{
+      // Сортируем в порядке жизненного цикла
+      const ORDER=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
+      return ORDER.indexOf(a.status)-ORDER.indexOf(b.status);
+    });
+    
+    const maxAvg=Math.max(...avgData.map(d=>d.avgMs),1);
+    
+    let h=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">`;
+    
+    // Левая часть — средние по статусам
+    h+=`<div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Среднее время нахождения</div>`;
+    avgData.forEach(d=>{
+      const pct=maxAvg>0?d.avgMs/maxAvg*100:0;
+      const bc=badgeClass(d.status);
+      h+=`<div style="margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+          <span class="badge ${bc}" style="font-size:10px">${d.status}</span>
+          <span style="font-size:12px;font-weight:600">${formatDuration(d.avgMs)}</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;transition:width 0.5s"></div></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${d.count} заказ(ов)</div>
+      </div>`;
+    });
+    h+=`</div>`;
+    
+    // Правая часть — топ долгих заказов
+    h+=`<div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Самые долгие заказы (общее время)</div>`;
+    const orderTotals=Object.entries(byOrder).map(([orderNum,logs])=>{
+      const first=new Date(logs[0].changed_at);
+      const lastStatus=logs[logs.length-1].new_status;
+      const totalMs=(lastStatus==='Закрыт'||lastStatus==='Отказались')?
+        new Date(logs[logs.length-1].changed_at)-first : Date.now()-first;
+      return {orderNum,totalMs,lastStatus,client:''};
+    }).sort((a,b)=>b.totalMs-a.totalMs).slice(0,7);
+    
+    // Дополняем именами клиентов
+    orderTotals.forEach(ot=>{
+      const o=findO(ot.orderNum);
+      if(o) ot.client=o.client||'';
+    });
+    
+    orderTotals.forEach(ot=>{
+      const bc=badgeClass(ot.lastStatus);
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;font-weight:500;color:var(--text);min-width:50px">${ot.orderNum}</span>
+        <span style="font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ot.client}</span>
+        <span class="badge ${bc}" style="font-size:9px">${ot.lastStatus}</span>
+        <span style="font-size:11px;font-weight:600;min-width:55px;text-align:right">${formatDuration(ot.totalMs)}</span>
+      </div>`;
+    });
+    
+    h+=`</div></div>`;
+    el.innerHTML=h;
+  }catch(e){
+    el.innerHTML='<div style="color:var(--red);font-size:12px">Ошибка: '+e.message+'</div>';
+  }
+}
+
 // ══════════════════════════════════════════════════════
 // INIT — Параллельная загрузка всего
 // ══════════════════════════════════════════════════════
@@ -4510,6 +4890,43 @@ async function loadExpensesSilent(){
     if(eRes.data) expenses=eRes.data;
     if(cRes.data) expCategories=cRes.data;
   }catch(e){}
+}
+
+// ── OVERDUE & LOW STOCK NOTIFICATIONS ──────────────────
+function checkOverdueNotify(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const key='k2_overdue_notified_'+today.toISOString().split('T')[0];
+  if(localStorage.getItem(key)) return; // уже уведомляли сегодня
+  const overdue=orders.filter(o=>{
+    const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
+    const s=(o.status||'').trim();
+    return d<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
+  });
+  if(overdue.length){
+    overdue.slice(0,5).forEach(o=>{
+      const d=pDate(o.deadline);
+      tgNotify('overdue',{order_num:o.order_num,client:o.client,deadline:d?d.toLocaleDateString('ru-RU'):'—',status:o.status});
+    });
+    if(overdue.length>5) tgSend('⚠️ ...и ещё '+(overdue.length-5)+' просроченных заказов');
+    localStorage.setItem(key,'1');
+  }
+}
+
+function checkLowStockNotify(){
+  const key='k2_lowstock_notified_'+new Date().toISOString().split('T')[0];
+  if(localStorage.getItem(key)) return;
+  const low=skladItems.filter(item=>{
+    const stock=skladStock(item.item_id);
+    const min=parseFloat(item.min_stock)||0;
+    return min>0&&stock<=min&&!String(item.item_id||'').startsWith('pending_');
+  });
+  if(low.length){
+    low.slice(0,5).forEach(item=>{
+      tgNotify('low_stock',{name:item.name,stock:skladStock(item.item_id),min:item.min_stock});
+    });
+    if(low.length>5) tgSend('📦 ...и ещё '+(low.length-5)+' позиций заканчиваются');
+    localStorage.setItem(key,'1');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -4578,6 +4995,9 @@ async function initApp(user){
   try{
     await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent()]);
     sync('ok','K2 ✓');
+    // Проверяем просрочки и нехватку — уведомляем раз при входе
+    checkOverdueNotify();
+    checkLowStockNotify();
   }catch(e){
     sync('error','Ошибка загрузки');
   }
