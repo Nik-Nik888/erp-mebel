@@ -3690,42 +3690,77 @@ function loadScript(url){
 
 function parseK3Text(text){
   const mats=[];
-  const fullText=text.replace(/\n/g,' ');
+  // Нормализуем текст
+  let t=text.replace(/\r\n/g,' ').replace(/\n/g,' ').replace(/\s+/g,' ');
   
-  // Список слов которые НЕ являются материалами
-  const SKIP=/^(Наименование|Итого|Материалы|Панели|Комплектующие|Кромки|Заказ|Дата|п\.?п|Ед\.|Кол-во|Цена|Стоимость|№|Материалы заказа)/i;
+  // Слова-стопы: заголовки, метаданные
+  const STOP_WORDS=/^(Заказ|Дата|Наименование|Итого|Материалы заказа|п\.?п|Ед\b|Кол[\s-]|Цена|Стоимость|№|изм)/i;
   
-  // Основной regex: номер + название + ед.изм + кол-во + цена + стоимость
-  const regex=/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|м\.?\s*п|лист|п\/м)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/gi;
-  let match;
+  // Единицы измерения — расширенный список К3
+  const UNITS='(?:шт|кв\\.?\\s*м|п[/.]\\s*м|пог\\.?\\s*м|п\\/м|лист|м\\.?\\s*п|м2|м²|компл|упак|рул)';
   
-  while((match=regex.exec(fullText))!==null){
-    let name=match[2].replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').replace(/\s+/g,' ').trim();
-    const unit=match[3].replace(/\s/g,'').trim();
-    const qty=parseFloat(match[4].replace(',','.'))||0;
-    const price=parseFloat(match[5].replace(',','.'))||0;
-    
-    if(!name||qty<=0) continue;
-    if(SKIP.test(name)) continue;
-    // Пропускаем если название содержит "Заказ №" или "Дата исполнения"
-    if(name.match(/Заказ\s*№|исполнения|от\s+\d{2}\./i)) continue;
-    // Пропускаем очень короткие названия (1-2 символа) — вероятно мусор
-    if(name.length<3) continue;
-    
-    mats.push({name,qty,unit,price});
+  // Стратегия 1: regex для строк формата "НОМЕР НАЗВАНИЕ ЕДИНИЦА КОЛ-ВО ЦЕНА СТОИМОСТЬ"
+  const rx1=new RegExp('(\\d+)\\s+(.+?)\\s+('+UNITS+')\\s+([\\d.,]+)\\s+([\\d.,]+)\\s+([\\d.,]+)','gi');
+  let m;
+  while((m=rx1.exec(t))!==null){
+    let name=m[2].replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').replace(/\s+/g,' ').trim();
+    if(STOP_WORDS.test(name)||name.length<3) continue;
+    if(name.match(/Заказ.*№|исполнения|от\s+\d{2}\./i)) continue;
+    const unit=m[3].replace(/\s/g,'').trim();
+    const qty=parseFloat(m[4].replace(',','.'))||0;
+    const price=parseFloat(m[5].replace(',','.'))||0;
+    if(qty>0) mats.push({name,qty,unit,price});
   }
   
-  // Fallback парсинг если основной regex ничего не нашёл
-  if(!mats.length){
-    const sections=fullText.split(/(?:Итого:|Панели|Комплектующие|Кромки)/i);
-    sections.forEach(section=>{
-      const lineMatches=[...section.matchAll(/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м?|п[\/.]\s*м|пог\.?\s*м|п\/м)\s+([\d.,]+)/gi)];
-      lineMatches.forEach(m=>{
-        const name=m[2].replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').trim();
-        const qty=parseFloat(m[4].replace(',','.'))||0;
-        if(name&&qty>0&&name.length>=3&&!SKIP.test(name)){
-          mats.push({name,qty,unit:m[3].replace(/\s/g,'').trim(),price:0});
+  // Стратегия 2: если стратегия 1 нашла мало — ищем упрощённым паттерном
+  // "НОМЕР НАЗВАНИЕ ЕДИНИЦА КОЛ-ВО" (без цены)
+  if(mats.length<3){
+    mats.length=0;
+    const rx2=new RegExp('(\\d+)\\s+(.+?)\\s+('+UNITS+')\\s+([\\d.,]+)','gi');
+    while((m=rx2.exec(t))!==null){
+      let name=m[2].replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').replace(/\s+/g,' ').trim();
+      if(STOP_WORDS.test(name)||name.length<3) continue;
+      if(name.match(/Заказ.*№|исполнения|от\s+\d{2}\./i)) continue;
+      const unit=m[3].replace(/\s/g,'').trim();
+      const qty=parseFloat(m[4].replace(',','.'))||0;
+      if(qty>0){
+        // Пробуем найти цену и стоимость после qty
+        const after=t.slice(m.index+m[0].length,m.index+m[0].length+30);
+        const priceMatch=after.match(/^\s*([\d.,]+)\s+([\d.,]+)/);
+        const price=priceMatch?parseFloat(priceMatch[1].replace(',','.'))||0:0;
+        mats.push({name,qty,unit,price});
+      }
+    }
+  }
+
+  // Стратегия 3: разбиваем по секциям и ищем в каждой
+  if(mats.length<2){
+    mats.length=0;
+    // Разбиваем по секциям К3: Панели, Комплектующие, Кромки
+    const sections=t.split(/(?:Панели|Комплектующие|Кромки)\s*/i);
+    sections.forEach(sec=>{
+      // Ищем строки с номерами в начале
+      const lines=sec.split(/(?=\b\d+\s+[А-ЯA-Z])/);
+      lines.forEach(line=>{
+        const lm=line.match(/^(\d+)\s+(.+)/);
+        if(!lm) return;
+        let rest=lm[2];
+        let name='',unit='шт',qty=0,price=0;
+        // Ищем единицу измерения
+        const unitRx=new RegExp('('+UNITS+')','i');
+        const um=rest.match(unitRx);
+        if(um){
+          name=rest.slice(0,um.index).replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').trim();
+          const afterUnit=rest.slice(um.index+um[0].length).trim();
+          unit=um[1].replace(/\s/g,'');
+          // После единицы: кол-во цена стоимость
+          const nums=[...afterUnit.matchAll(/([\d.,]+)/g)].map(n=>parseFloat(n[1].replace(',','.'))).filter(n=>n>0);
+          if(nums.length>=1) qty=nums[0];
+          if(nums.length>=2) price=nums[1];
         }
+        if(STOP_WORDS.test(name)||name.length<3) return;
+        if(name.match(/Заказ.*№|исполнения/i)) return;
+        if(qty>0) mats.push({name,qty,unit,price});
       });
     });
   }
