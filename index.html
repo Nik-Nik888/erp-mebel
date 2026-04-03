@@ -566,6 +566,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="tab active" onclick="setExpTab('list',this)">Все расходы</div>
         <div class="tab" onclick="setExpTab('by-cat',this)">По категориям</div>
         <div class="tab" onclick="setExpTab('recurring',this)">Регулярные</div>
+        <div class="tab" onclick="setExpTab('template',this)">Шаблон заказа</div>
       </div>
 
       <!-- Вкладка: Список -->
@@ -592,6 +593,21 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <!-- Вкладка: Регулярные -->
       <div id="exp-tab-recurring" style="display:none">
         <div id="exp-recur-body"></div>
+      </div>
+
+      <!-- Вкладка: Шаблон заказа -->
+      <div id="exp-tab-template" style="display:none">
+        <div style="background:var(--blue-light);border-radius:var(--r);padding:14px;margin-bottom:14px">
+          <div style="font-size:13px;color:var(--blue);font-weight:500;margin-bottom:4px">Автоматические расходы при создании заказа</div>
+          <div style="font-size:12px;color:var(--text2)">Эти расходы будут автоматически добавлены к каждому новому заказу (кроме КП)</div>
+        </div>
+        <div id="exp-template-list"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <select class="fsel" id="tpl-cat" style="width:130px"></select>
+          <input class="finput" id="tpl-desc" placeholder="Описание расхода..." style="flex:1">
+          <input class="finput" type="number" id="tpl-amount" placeholder="Сумма ₽" min="0" style="width:90px">
+          <button class="btn btn-primary" onclick="addExpTemplate()" style="padding:6px 14px">+</button>
+        </div>
       </div>
     </div>
 
@@ -1296,7 +1312,7 @@ async function loadOrders(){
     });
     fillDataLists();
     fillManagerFilter();
-    setPeriod('month');
+    setPeriod('all');
     render();
     sync('ok','Supabase ✓');
   }catch(e){
@@ -1839,6 +1855,10 @@ async function saveOrder(){
     // Автодобавление новых материалов в базу склада
     const formMatsForSuggest=getOrderMatsFromForm();
     if(formMatsForSuggest.length) await suggestNewMaterials(formMatsForSuggest);
+    // Авто-расходы для нового заказа (кроме КП)
+    if(!editId && row.status!=='Отправлено КП'){
+      await autoCreateExpenses(row.order_num);
+    }
     closeOrder();
     await loadOrders();
   }catch(e){ showToast('Ошибка: '+e.message) }
@@ -3541,14 +3561,22 @@ let importTab='file';
 
 function openSpecImport(){
   importFile=null; importTab='file';
-  $('imp-file-input').value='';
+  // Полный сброс файлового инпута (пересоздаём чтобы убрать кэш)
+  const oldInput=$('imp-file-input');
+  if(oldInput){const newInput=oldInput.cloneNode(true);newInput.value='';oldInput.parentNode.replaceChild(newInput,oldInput);}
   $('imp-file-preview').style.display='none';
+  $('imp-drop-zone').style.display='';
+  $('imp-drop-zone').style.borderColor='var(--border2)';
+  $('imp-drop-zone').style.background='var(--surface2)';
   $('imp-text').value='';
   $('imp-status').style.display='none';
   $('imp-file-section').style.display='';
   $('imp-text-section').style.display='none';
   $('imp-go-btn').textContent='🔍 Распознать';
   $('imp-go-btn').disabled=false;
+  // Сброс табов
+  document.querySelectorAll('#m-spec-import .tab').forEach(t=>t.classList.remove('active'));
+  $('imp-tab-file').classList.add('active');
   $('m-spec-import').classList.add('open');
 }
 function closeSpecImport(){ $('m-spec-import').classList.remove('open'); importFile=null; }
@@ -3661,41 +3689,42 @@ function loadScript(url){
 }
 
 function parseK3Text(text){
-  // Парсер для формата К3-Мебель PDF
   const mats=[];
-  // Разбиваем на строки, убираем лишние пробелы
-  const lines=text.replace(/\s+/g,' ').split(/(?=\d+\s+[А-ЯA-Z])/);
-  
-  // Ищем паттерны из К3: номер, название, ед.изм, кол-во, цена, стоимость
-  // Пример: "1 ЛДСП Увадрев 16 мм Олива U1604 PE кв.м 10.36687 2 0.00 0.00"
-  // Пример: "1 Петля 4-х шарнирная накладная 90/110, Артикул: H95087A шт 12 18.08 216.96"
-  
-  const regex=/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|м\.?\s*п|лист)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/gi;
-  let match;
   const fullText=text.replace(/\n/g,' ');
   
+  // Список слов которые НЕ являются материалами
+  const SKIP=/^(Наименование|Итого|Материалы|Панели|Комплектующие|Кромки|Заказ|Дата|п\.?п|Ед\.|Кол-во|Цена|Стоимость|№|Материалы заказа)/i;
+  
+  // Основной regex: номер + название + ед.изм + кол-во + цена + стоимость
+  const regex=/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м|п[\/.]?\s*м|пог\.?\s*м|м\.?\s*п|лист|п\/м)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/gi;
+  let match;
+  
   while((match=regex.exec(fullText))!==null){
-    const name=match[2].replace(/\s*,?\s*Артикул:?\s*\S+/i,'').replace(/\s+/g,' ').trim();
-    const unit=match[3].trim();
+    let name=match[2].replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').replace(/\s+/g,' ').trim();
+    const unit=match[3].replace(/\s/g,'').trim();
     const qty=parseFloat(match[4].replace(',','.'))||0;
     const price=parseFloat(match[5].replace(',','.'))||0;
-    if(name&&qty>0){
-      // Пропускаем строки-заголовки
-      if(name.match(/^(Наименование|Итого|Материалы|Панели|Комплектующие|Кромки)/i)) continue;
-      mats.push({name,qty,unit,price});
-    }
+    
+    if(!name||qty<=0) continue;
+    if(SKIP.test(name)) continue;
+    // Пропускаем если название содержит "Заказ №" или "Дата исполнения"
+    if(name.match(/Заказ\s*№|исполнения|от\s+\d{2}\./i)) continue;
+    // Пропускаем очень короткие названия (1-2 символа) — вероятно мусор
+    if(name.length<3) continue;
+    
+    mats.push({name,qty,unit,price});
   }
   
-  // Если regex не нашёл — пробуем построчный парсинг
+  // Fallback парсинг если основной regex ничего не нашёл
   if(!mats.length){
-    const lines2=fullText.split(/(?:Итого:|Панели|Комплектующие|Кромки)/i);
-    lines2.forEach(section=>{
-      const lineMatches=[...section.matchAll(/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м?|п[\/.]\s*м|пог\.?\s*м)\s+([\d.,]+)/gi)];
+    const sections=fullText.split(/(?:Итого:|Панели|Комплектующие|Кромки)/i);
+    sections.forEach(section=>{
+      const lineMatches=[...section.matchAll(/(\d+)\s+(.+?)\s+(шт|кв\.?\s*м?|п[\/.]\s*м|пог\.?\s*м|п\/м)\s+([\d.,]+)/gi)];
       lineMatches.forEach(m=>{
-        const name=m[2].replace(/\s*,?\s*Артикул:?\s*\S+/i,'').trim();
+        const name=m[2].replace(/\s*,?\s*Артикул:?\s*\S+/gi,'').trim();
         const qty=parseFloat(m[4].replace(',','.'))||0;
-        if(name&&qty>0&&!name.match(/^(Наименование|Ед|Кол|Цена|Стоимость)/i)){
-          mats.push({name,qty,unit:m[3].trim(),price:0});
+        if(name&&qty>0&&name.length>=3&&!SKIP.test(name)){
+          mats.push({name,qty,unit:m[3].replace(/\s/g,'').trim(),price:0});
         }
       });
     });
@@ -3863,6 +3892,8 @@ function setExpTab(tab,el){
   $('exp-tab-list').style.display=tab==='list'?'':'none';
   $('exp-tab-by-cat').style.display=tab==='by-cat'?'':'none';
   $('exp-tab-recurring').style.display=tab==='recurring'?'':'none';
+  $('exp-tab-template').style.display=tab==='template'?'':'none';
+  if(tab==='template') renderExpTemplate();
 }
 
 function renderExpList(){
@@ -4110,6 +4141,80 @@ async function removeExpCategory(id){
     fillExpCatFilter();
     showToast('Категория удалена');
   }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
+// ── EXPENSE TEMPLATES (авто-расходы при создании заказа) ──
+function getExpTemplates(){
+  try{return JSON.parse(localStorage.getItem('k2_exp_templates')||'[]')}catch(e){return[]}
+}
+function saveExpTemplates(tpls){
+  localStorage.setItem('k2_exp_templates',JSON.stringify(tpls));
+}
+
+function renderExpTemplate(){
+  const tpls=getExpTemplates();
+  const el=$('exp-template-list');
+  // Заполняем select категорий
+  const catSel=$('tpl-cat');
+  if(catSel) catSel.innerHTML=expCategories.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
+
+  if(!tpls.length){
+    el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0">Нет шаблонов. Добавьте расходы которые повторяются в каждом заказе.</div>';
+    return;
+  }
+  let h='';
+  tpls.forEach((t,i)=>{
+    const ci=getCatInfo(t.category);
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="background:${ci.color}18;color:${ci.color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">${ci.icon} ${t.category}</span>
+      <span style="flex:1;font-size:13px">${t.description||'—'}</span>
+      <span style="font-size:13px;font-weight:600;color:var(--red)">${(t.amount||0).toLocaleString('ru-RU')} ₽</span>
+      <button onclick="removeExpTemplate(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px">×</button>
+    </div>`;
+  });
+  const total=tpls.reduce((s,t)=>s+(t.amount||0),0);
+  h+=`<div style="text-align:right;padding:8px 0;font-size:12px"><span style="color:var(--text3)">Итого на заказ:</span> <b style="color:var(--red)">${total.toLocaleString('ru-RU')} ₽</b></div>`;
+  el.innerHTML=h;
+}
+
+function addExpTemplate(){
+  const cat=$('tpl-cat')?.value||'Прочее';
+  const desc=$('tpl-desc').value.trim();
+  const amount=parseFloat($('tpl-amount').value)||0;
+  if(!desc){showToast('Укажите описание');return}
+  if(amount<=0){showToast('Укажите сумму');return}
+  const tpls=getExpTemplates();
+  tpls.push({category:cat,description:desc,amount});
+  saveExpTemplates(tpls);
+  $('tpl-desc').value=''; $('tpl-amount').value='';
+  renderExpTemplate();
+  showToast('Шаблон добавлен');
+}
+
+function removeExpTemplate(idx){
+  const tpls=getExpTemplates();
+  tpls.splice(idx,1);
+  saveExpTemplates(tpls);
+  renderExpTemplate();
+}
+
+async function autoCreateExpenses(orderNum){
+  const tpls=getExpTemplates();
+  if(!tpls.length) return;
+  const today=new Date().toISOString().split('T')[0];
+  const rows=tpls.map(t=>({
+    expense_date:today,
+    category:t.category,
+    amount:t.amount,
+    description:t.description,
+    order_num:orderNum,
+    is_recurring:false
+  }));
+  try{
+    await sb.from('expenses').insert(rows);
+    expenses.push(...rows);
+    showToast('Авто-расходы: '+rows.length+' добавлено к '+orderNum);
+  }catch(e){}
 }
 
 // ══════════════════════════════════════════════════════
