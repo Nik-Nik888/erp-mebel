@@ -4929,7 +4929,7 @@ function renderKanban(){
       h+=`<div class="kanban-card" draggable="true" data-id="${o.order_num}" 
         ondragstart="kanbanDragStart(event,this)" ondragend="kanbanDragEnd(this)"
         ontouchstart="kanbanTouchStart(event,this)" ontouchmove="kanbanTouchMove(event)" ontouchend="kanbanTouchEnd(event,this)"
-        onclick="openEdit('${o.order_num}')"
+        onclick="if(event.target.tagName==='BUTTON')return;openEdit('${o.order_num}')"
         style="border-left-color:${color};padding:var(--kb-pad);font-size:var(--kb-font);cursor:pointer;${isOverdue?'background:var(--red-light);border-left-color:var(--red);border-color:rgba(163,45,45,0.3)':''}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-weight:600">${o.order_num}</span>
@@ -5083,8 +5083,9 @@ async function kanbanTouchEnd(e,el){
       }
     }
   } else if(!touchMoved&&!touchDragActive){
-    // Простой тап — открыть заказ
-    openEdit(el.dataset.id);
+    // Простой тап — открыть заказ (но не если тапнули на кнопку)
+    const tag=(e.target||{}).tagName;
+    if(tag!=='BUTTON') openEdit(el.dataset.id);
   }
   touchDragEl=null;touchMoved=false;touchDragActive=false;
 }
@@ -5471,7 +5472,7 @@ function renderDashboard(){
     const pct=cnt/maxSC*100;
     const bc=badgeClass(s);
     fh+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer;overflow:hidden" onclick="setTab('${s==='all'?'all':s}');showPage('orders')">
-      <span class="badge ${bc}" style="font-size:9px;min-width:70px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s}</span>
+      <span class="badge ${bc}" style="font-size:9px;width:100px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;display:inline-block">${s}</span>
       <div style="flex:1;background:var(--surface2);border-radius:3px;height:7px;overflow:hidden;min-width:20px"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px"></div></div>
       <span style="font-size:12px;font-weight:600;min-width:20px;text-align:right;flex-shrink:0">${cnt}</span>
     </div>`;
