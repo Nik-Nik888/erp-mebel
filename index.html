@@ -4666,29 +4666,51 @@ function kanbanZoomToggle(){
   renderKanban();
 }
 
+// ── Настройки — Supabase + localStorage cache ──
+let _appSettings={};
+
+async function loadAppSettings(){
+  // Сначала из localStorage (мгновенно)
+  try{_appSettings=JSON.parse(localStorage.getItem('k2_app_settings')||'{}')}catch(e){_appSettings={}}
+  // Потом из Supabase (свежие данные)
+  try{
+    const {data}=await sb.from('app_settings').select('*');
+    if(data){
+      data.forEach(r=>{_appSettings[r.key]=r.value});
+      localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
+    }
+  }catch(e){}
+}
+
+function getSetting(key,defaultVal){
+  return _appSettings[key]!==undefined?_appSettings[key]:defaultVal;
+}
+
+async function saveSetting(key,value){
+  _appSettings[key]=value;
+  localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
+  try{
+    await sb.from('app_settings').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});
+  }catch(e){}
+}
+
 // ── Поля отображения на карточке ──
 function getKanbanFields(){
-  const saved=localStorage.getItem('k2_kanban_fields');
-  if(saved) try{return JSON.parse(saved)}catch(e){}
-  return {description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,date:false,expenses:false,comment:false};
+  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,date:false,expenses:false,comment:false});
 }
-function saveKanbanFields(f){localStorage.setItem('k2_kanban_fields',JSON.stringify(f))}
+function saveKanbanFields(f){saveSetting('kanban_fields',f)}
 
 // ── Цвета источников ──
 function getSourceColors(){
-  const saved=localStorage.getItem('k2_source_colors');
-  if(saved) try{return JSON.parse(saved)}catch(e){}
-  return {'Авито':'#3b82f6','Instagram':'#e1306c','ВКонтакте':'#4a76a8','Телеграм':'#0088cc','Обзвон':'#8b5cf6','Рекомендация':'#16a34a','Повторный':'#854F0B','Другое':'#6b6a64'};
+  return getSetting('source_colors',{'Авито':'#3b82f6','Instagram':'#e1306c','ВКонтакте':'#4a76a8','Телеграм':'#0088cc','Обзвон':'#8b5cf6','Рекомендация':'#16a34a','Повторный':'#854F0B','Другое':'#6b6a64'});
 }
-function saveSourceColors(c){localStorage.setItem('k2_source_colors',JSON.stringify(c))}
+function saveSourceColors(c){saveSetting('source_colors',c)}
 
 // ── Настройки колонок канбана ──
 function getKanbanColumns(){
-  const saved=localStorage.getItem('k2_kanban_columns');
-  if(saved) try{return JSON.parse(saved)}catch(e){}
-  return ['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт'];
+  return getSetting('kanban_columns',['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт']);
 }
-function saveKanbanColumns(cols){localStorage.setItem('k2_kanban_columns',JSON.stringify(cols))}
+function saveKanbanColumns(cols){saveSetting('kanban_columns',cols)}
 
 function openKanbanSettings(){
   const cols=getKanbanColumns();
@@ -6145,7 +6167,7 @@ async function initApp(user){
   // Загружаем данные
   sync('loading','Загрузка...');
   try{
-    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent()]);
+    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent(), loadAppSettings()]);
     sync('ok','K2 ✓');
     renderDashboard();
     // Проверяем просрочки и нехватку — уведомляем раз при входе
