@@ -48,6 +48,16 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .sidebar-toggle-bar:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.04)}
 .sidebar-toggle-bar:hover svg line{stroke:rgba(255,255,255,0.7)}
 .toggle-label{font-size:11px;color:rgba(255,255,255,0.35)}
+/* KANBAN */
+.kanban{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px;min-height:400px;scroll-snap-type:x proximity}
+.kanban-col{min-width:var(--kb-col);max-width:var(--kb-col);flex:0 0 var(--kb-col);background:var(--surface2);border-radius:var(--r);display:flex;flex-direction:column;scroll-snap-align:start}
+@media(max-width:768px){.kanban-col{min-width:var(--kb-col-mob)!important;max-width:var(--kb-col-mob)!important;flex:0 0 var(--kb-col-mob)!important}}
+.kanban-col-hd{padding:10px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;position:sticky;top:0;background:var(--surface2);border-radius:var(--r) var(--r) 0 0;z-index:1}
+.kanban-col-body{flex:1;padding:6px;overflow-y:auto;max-height:calc(100vh - 300px)}
+.kanban-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;margin-bottom:6px;cursor:grab;transition:all 0.15s;border-left:3px solid var(--border)}
+.kanban-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.kanban-card.dragging{opacity:0.4;transform:scale(0.95)}
+.kanban-col.drag-over{background:var(--accent-light);border:2px dashed var(--accent)}
 .sidebar-logo{padding:0 20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
 .sidebar-logo .name{font-size:15px;font-weight:600;color:#fff}
 .sidebar-logo .sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
@@ -99,7 +109,7 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .tab.active .tab-count{background:var(--accent-light);color:var(--accent-text)}
 
 /* TABLE */
-.table-wrap{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden}
+.table-wrap{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:visible}
 .table-toolbar{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .search-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;flex:1;min-width:150px}
 .search-box input{background:none;border:none;outline:none;font-size:13px;color:var(--text);width:100%;font-family:'Geologica',sans-serif}
@@ -254,6 +264,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
   .period-bar input[type=date]{width:130px}
   #page-analytics [style*="grid-template-columns: 1fr 1fr"],
   #page-analytics [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  #page-dashboard [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
 }
 @media(min-width:641px){
   .mob-cards{display:none!important}
@@ -291,7 +302,9 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <span class="toggle-label">Свернуть</span>
     </div>
     <div class="nav-sec">Основное</div>
-    <div class="nav-item active" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this)">
+    <div class="nav-item active" data-roles="admin,manager,production,accounting" onclick="showPage('dashboard',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="3" rx="1"/><rect x="1" y="9" width="6" height="3" rx="1"/><rect x="9" y="6" width="6" height="6" rx="1"/></svg><span>Главная</span></div>
+    <div class="nav-item" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg><span>Заказы</span></div>
     <div class="nav-item" data-roles="admin,manager" onclick="showPage('kp',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9,2 9,6 13,6"/><line x1="5" y1="9" x2="11" y2="9"/></svg><span>КП / Расчёт</span></div>
@@ -299,6 +312,10 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="6" width="14" height="9" rx="1"/><path d="M5 6V4a3 3 0 016 0v2"/></svg><span>Склад</span></div>
     <div class="nav-item" data-roles="admin,accounting" onclick="showPage('expenses',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><text x="8" y="11" text-anchor="middle" font-size="9" font-weight="600" fill="currentColor">₽</text></svg><span>Расходы</span></div>
+    <div class="nav-item" data-roles="admin,manager" onclick="showPage('crm',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><circle cx="11" cy="6" r="2"/><path d="M1 13c0-2.5 2-4 5-4s5 1.5 5 4"/><path d="M10 13c0-1.8 1-3 3-3s2.5 1.2 2.5 3"/></svg><span>Клиенты</span></div>
+    <div class="nav-item" data-roles="admin,manager,production" onclick="showPage('calendar',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="12" rx="1.5"/><line x1="1" y1="7" x2="15" y2="7"/><line x1="4" y1="1" x2="4" y2="5"/><line x1="12" y1="1" x2="12" y2="5"/></svg><span>Календарь</span></div>
     <div class="nav-sec">Отчёты</div>
     <div class="nav-item" data-roles="admin,accounting,manager" onclick="showPage('analytics',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg><span>Аналитика</span></div>
@@ -317,11 +334,14 @@ tbody tr.overdue:hover td{background:#fff0f0}
   </nav>
 
   <main class="main">
-    <!-- ЗАКАЗЫ -->
-    <div class="page active" id="page-orders">
+    <!-- ДАШБОРД -->
+    <div class="page active" id="page-dashboard">
       <div class="page-header">
-        <div><div class="page-title">Заказы</div><div class="page-sub">Реестр производства</div></div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div>
+          <div class="page-title" id="dash-greeting">Добрый день!</div>
+          <div class="page-sub" id="dash-date">—</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
           <div class="sync-bar">
             <div class="saw" id="saw-loader">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -331,14 +351,61 @@ tbody tr.overdue:hover td{background:#fff0f0}
                 <path d="M12 22L10.2 18.5L12 19L13.8 18.5Z" fill="var(--text3)"/>
                 <path d="M2 12L5.5 10.2L5 12L5.5 13.8Z" fill="var(--text3)"/>
                 <path d="M22 12L18.5 13.8L19 12L18.5 10.2Z" fill="var(--text3)"/>
-                <path d="M4.93 4.93L7.5 7.1L6.1 7.5L5.7 6.1Z" fill="var(--text3)"/>
-                <path d="M19.07 19.07L16.5 16.9L17.9 16.5L18.3 17.9Z" fill="var(--text3)"/>
-                <path d="M4.93 19.07L6.1 16.5L6.5 17.9L5.1 18.3Z" fill="var(--text3)"/>
-                <path d="M19.07 4.93L17.9 7.5L17.5 6.1L18.9 5.7Z" fill="var(--text3)"/>
               </svg>
             </div>
-            <span id="stxt">Загрузка...</span>
+            <span class="stxt" id="stxt">—</span>
           </div>
+        </div>
+      </div>
+
+      <!-- KPI -->
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+        <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Активных заказов</div><div class="val" id="d-active">—</div><div class="hint">в работе</div></div>
+        <div class="stat" onclick="setTab('overdue');showPage('orders')" style="cursor:pointer;border-color:var(--red)"><div class="lbl">⚠ Просрочено</div><div class="val red" id="d-overdue">—</div><div class="hint">нажмите для списка</div></div>
+        <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Готовы к выдаче</div><div class="val green" id="d-ready">—</div><div class="hint">ожидают клиента</div></div>
+        <div class="stat"><div class="lbl">Получено сегодня</div><div class="val" id="d-today-pay">—</div><div class="hint">оплаты</div></div>
+        <div class="stat"><div class="lbl">Получено за месяц</div><div class="val green" id="d-month-pay">—</div><div class="hint">всего</div></div>
+        <div class="stat" onclick="showPage('crm')" style="cursor:pointer"><div class="lbl">Клиентов</div><div class="val" id="d-clients" style="color:var(--blue)">—</div><div class="hint">база</div></div>
+      </div>
+
+      <!-- Два блока -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- Последние заказы -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2)">📋 Последние заказы</div>
+            <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="showPage('orders')">Все →</button>
+          </div>
+          <div id="d-recent-orders"></div>
+        </div>
+
+        <!-- Просроченные -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--red)">⚠ Требуют внимания</div>
+          </div>
+          <div id="d-attention"></div>
+        </div>
+      </div>
+
+      <!-- Воронка и склад -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px">📊 Заказы по статусам</div>
+          <div id="d-funnel"></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px">📦 Склад — заканчивается</div>
+          <div id="d-low-stock"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ЗАКАЗЫ -->
+    <div class="page" id="page-orders">
+      <div class="page-header">
+        <div><div class="page-title">Заказы</div><div class="page-sub">Канбан-доска</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-ghost" onclick="loadOrders()">↻</button>
           <button class="btn btn-primary" onclick="openAdd()">+ Новый заказ</button>
         </div>
@@ -358,40 +425,28 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="stat"><div class="lbl">Активных</div><div class="val" id="s-active">—</div><div class="hint">в работе</div></div>
         <div class="stat"><div class="lbl">Просрочено</div><div class="val red" id="s-over">—</div><div class="hint">дедлайн прошёл</div></div>
         <div class="stat"><div class="lbl">Готовы</div><div class="val green" id="s-ready">—</div><div class="hint">ждут клиента</div></div>
-        <div class="stat"><div class="lbl">Кол-во договоров</div><div class="val" id="s-count">—</div><div class="hint">по фильтру/периоду</div></div>
-        <div class="stat"><div class="lbl">Договоров</div><div class="val" id="s-contracts">—</div><div class="hint">сумма по фильтру</div></div>
-        <div class="stat"><div class="lbl">Получено</div><div class="val green" id="s-received">—</div><div class="hint">предоплаты по фильтру</div></div>
+        <div class="stat"><div class="lbl">Кол-во</div><div class="val" id="s-count">—</div><div class="hint">заказов</div></div>
+        <div class="stat"><div class="lbl">Договоров</div><div class="val" id="s-contracts">—</div><div class="hint">сумма</div></div>
+        <div class="stat"><div class="lbl">Получено</div><div class="val green" id="s-received">—</div><div class="hint">оплаты</div></div>
       </div>
 
-      <div class="tabs">
-        <div class="tab active" onclick="setTab('all',this)">Все <span class="tab-count" id="tc-all">0</span></div>
-        <div class="tab" onclick="setTab('overdue',this)" style="color:var(--red)">Просрочено <span class="tab-count" id="tc-over2">0</span></div>
-        <div class="tab" onclick="setTab('Отправлено КП',this)">КП <span class="tab-count" id="tc-kp">0</span></div>
-        <div class="tab" onclick="setTab('Новый',this)">Новые <span class="tab-count" id="tc-new">0</span></div>
-        <div class="tab" onclick="setTab('Материал заказан',this)">Мат. заказан <span class="tab-count" id="tc-matorder">0</span></div>
-        <div class="tab" onclick="setTab('В работе',this)">В работе <span class="tab-count" id="tc-work">0</span></div>
-        <div class="tab" onclick="setTab('Готов к выдаче',this)">Готовы <span class="tab-count" id="tc-ready">0</span></div>
-        <div class="tab" onclick="setTab('Отгружен',this)">Отгружены <span class="tab-count" id="tc-ship">0</span></div>
-        <div class="tab" onclick="setTab('Закрыт',this)">Закрыт <span class="tab-count" id="tc-done">0</span></div>
-        <div class="tab" onclick="setTab('Приостановлен',this)">Пауза <span class="tab-count" id="tc-pause">0</span></div>
-        <div class="tab" onclick="setTab('Рекламация',this)">Рекламация <span class="tab-count" id="tc-reclam">0</span></div>
-        <div class="tab" onclick="setTab('Отказались',this)">Отказ <span class="tab-count" id="tc-refuse">0</span></div>
-      </div>
-
-      <div class="table-wrap">
-        <div class="table-toolbar">
-          <div class="search-box">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#9c9a92" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="14" y2="14"/></svg>
-            <input type="text" placeholder="Поиск..." oninput="render()" id="q">
-          </div>
-          <select class="fsel" onchange="render()" id="f-mgr"><option value="">Все менеджеры</option></select>
-          <select class="fsel" onchange="render()" id="f-src">
-            <option value="">Все источники</option>
-            <option>Авито</option><option>Instagram</option><option>ВКонтакте</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option>
-          </select>
+      <!-- Поиск и фильтры -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <div class="search-box" style="flex:1;min-width:160px">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#9c9a92" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="14" y2="14"/></svg>
+          <input type="text" placeholder="Поиск по клиенту, номеру..." oninput="renderKanban()" id="q" style="background:none;border:none;outline:none;font-size:13px;color:var(--text);width:100%;font-family:'Geologica',sans-serif">
         </div>
-        <div id="tbl-body" class="desk-table"><div class="loading">Загрузка...</div></div>
-        <div id="mob-body" class="mob-cards"></div>
+        <select class="fsel" onchange="renderKanban()" id="f-mgr"><option value="">Все менеджеры</option></select>
+        <button onclick="openKanbanSettings()" class="btn btn-ghost" style="padding:4px 10px;font-size:14px" title="Настройки колонок">⚙</button>
+      </div>
+
+      <div id="kanban-body"></div>
+
+      <!-- Зум -->
+      <div style="position:fixed;bottom:80px;right:24px;z-index:50">
+        <button onclick="kanbanZoomToggle()" id="kb-zoom-btn" style="width:44px;height:44px;border-radius:50%;background:var(--text);color:#fff;border:none;cursor:pointer;font-size:16px;box-shadow:0 3px 10px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center" title="Масштаб">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2"><circle cx="8" cy="8" r="6"/><line x1="13" y1="13" x2="18" y2="18"/><line x1="5" y1="8" x2="11" y2="8" id="kb-zoom-h"/><line x1="8" y1="5" x2="8" y2="11" id="kb-zoom-v"/></svg>
+        </button>
       </div>
     </div>
 
@@ -627,6 +682,73 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
     </div>
 
+    <!-- КЛИЕНТЫ (CRM) -->
+    <div class="page" id="page-crm">
+      <div class="page-header">
+        <div><div class="page-title">Клиенты</div><div class="page-sub">База контактов</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="loadClients()">↻</button>
+          <button class="btn btn-primary" onclick="openClient()">+ Клиент</button>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+        <div class="stat"><div class="lbl">Всего клиентов</div><div class="val" id="crm-total">—</div></div>
+        <div class="stat"><div class="lbl">С заказами</div><div class="val green" id="crm-active">—</div></div>
+        <div class="stat"><div class="lbl">Повторные</div><div class="val" id="crm-repeat" style="color:var(--blue)">—</div></div>
+        <div class="stat"><div class="lbl">Общая выручка</div><div class="val" id="crm-revenue">—</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+        <div class="search-box" style="flex:1;min-width:200px">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#9c9a92" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="14" y2="14"/></svg>
+          <input type="text" id="crm-search" placeholder="Поиск по имени, телефону..." oninput="renderClients()" style="background:none;border:none;outline:none;font-size:13px;color:var(--text);width:100%;font-family:'Geologica',sans-serif">
+        </div>
+        <select class="fsel" id="crm-sort" onchange="renderClients()">
+          <option value="name">По имени</option>
+          <option value="orders">По кол-ву заказов</option>
+          <option value="revenue">По выручке</option>
+          <option value="recent">Последние</option>
+        </select>
+      </div>
+
+      <div id="crm-body"><div class="loading">Загрузка...</div></div>
+    </div>
+
+    <!-- КАЛЕНДАРЬ ПРОИЗВОДСТВА -->
+    <div class="page" id="page-calendar">
+      <div class="page-header">
+        <div><div class="page-title">Календарь</div><div class="page-sub">Загрузка производства</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost" onclick="calPrev()">← Назад</button>
+          <span id="cal-month-label" style="font-size:14px;font-weight:600;min-width:140px;text-align:center"></span>
+          <button class="btn btn-ghost" onclick="calNext()">Вперёд →</button>
+          <button class="btn btn-ghost" onclick="calToday()">Сегодня</button>
+        </div>
+      </div>
+
+      <!-- Легенда -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:11px">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#185FA5;margin-right:4px"></span>КП</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#534AB7;margin-right:4px"></span>Новый</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#854F0B;margin-right:4px"></span>Мат. заказан</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2a5c3f;margin-right:4px"></span>В работе</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#16a34a;margin-right:4px"></span>Готов</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#A32D2D;margin-right:4px"></span>Дедлайн</span>
+      </div>
+
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+
+      <!-- Детали дня -->
+      <div id="cal-day-detail" style="display:none;margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:600" id="cal-day-title">—</div>
+          <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="$('cal-day-detail').style.display='none'">×</button>
+        </div>
+        <div id="cal-day-orders"></div>
+      </div>
+    </div>
+
     <!-- АНАЛИТИКА -->
     <div class="page" id="page-analytics">
       <div class="page-header">
@@ -720,7 +842,9 @@ tbody tr.overdue:hover td{background:#fff0f0}
 
 <!-- Мобильная навигация -->
 <nav class="mob-nav">
-  <button class="mnav-btn active" id="mn-orders" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this);syncMobNav('orders')">
+  <button class="mnav-btn active" id="mn-dashboard" data-roles="admin,manager,production,accounting" onclick="showPage('dashboard',this);syncMobNav('dashboard')">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="3" rx="1"/><rect x="1" y="9" width="6" height="3" rx="1"/><rect x="9" y="6" width="6" height="6" rx="1"/></svg>Главная</button>
+  <button class="mnav-btn" id="mn-orders" data-roles="admin,manager,production,accounting" onclick="showPage('orders',this);syncMobNav('orders')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg>Заказы</button>
   <button class="mnav-btn" id="mn-kp" data-roles="admin,manager" onclick="showPage('kp',this);syncMobNav('kp')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><line x1="5" y1="9" x2="11" y2="9"/></svg>КП</button>
@@ -728,6 +852,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="6" width="14" height="9" rx="1"/><path d="M5 6V4a3 3 0 016 0v2"/></svg>Склад</button>
   <button class="mnav-btn" id="mn-expenses" data-roles="admin,accounting" onclick="showPage('expenses',this);syncMobNav('expenses')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><text x="8" y="11" text-anchor="middle" font-size="9" font-weight="600" fill="currentColor">₽</text></svg>Расходы</button>
+  <button class="mnav-btn" id="mn-crm" data-roles="admin,manager" onclick="showPage('crm',this);syncMobNav('crm')">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5"/></svg>Клиенты</button>
   <button class="mnav-btn" id="mn-analytics" data-roles="admin,accounting,manager" onclick="showPage('analytics',this);syncMobNav('analytics')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg>Отчёты</button>
 </nav>
@@ -748,7 +874,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <select class="fsel2" id="f-status"><option>Отправлено КП</option><option>Новый</option><option>Материал заказан</option><option>В работе</option><option>Готов к выдаче</option><option>Отгружен</option><option>Закрыт</option><option>Приостановлен</option><option>Рекламация</option><option>Отказались</option></select></div>
         <div class="f"><label class="flabel">Менеджер</label><input class="finput" id="f-manager" list="mgr-list"><datalist id="mgr-list"></datalist></div>
         <div class="f"><label class="flabel">Источник</label>
-          <select class="fsel2" id="f-src2" onchange="toggleCustomSource()"><option>Авито</option><option>Instagram</option><option>ВКонтакте</option><option>Телеграм</option><option>Обзвон</option><option>Рекомендация</option><option>Повторный</option><option value="__other">Другое...</option></select>
+          <select class="fsel2" id="f-src2" onchange="toggleCustomSource()"></select>
           <input class="finput" id="f-src-custom" placeholder="Укажите источник..." style="display:none;margin-top:4px">
         </div>
         <div class="f"><label class="flabel">Сумма заказа (₽)</label><input class="finput" type="number" id="f-sum" oninput="calcDopay()"></div>
@@ -774,6 +900,19 @@ tbody tr.overdue:hover td{background:#fff0f0}
         </div>
 
         <div class="f full"><label class="flabel">Комментарий</label><textarea class="ftextarea" id="f-comment"></textarea></div>
+
+        <!-- Файлы заказа -->
+        <div class="f full" id="f-files-section" style="display:none;margin-top:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <label class="flabel" style="margin:0">📎 Файлы и фото</label>
+            <label style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:3px 10px;font-size:11px;color:var(--text2);font-family:'Geologica',sans-serif">
+              + Загрузить
+              <input type="file" id="f-file-input" multiple accept="image/*,.pdf,.doc,.docx,.xlsx" style="display:none" onchange="uploadOrderFiles(this.files)">
+            </label>
+          </div>
+          <div id="f-files-list"></div>
+          <div id="f-files-empty" style="font-size:12px;color:var(--text3)">Нет файлов</div>
+        </div>
       </div>
     </div>
     <div class="modal-ft" style="justify-content:space-between">
@@ -1080,6 +1219,37 @@ tbody tr.overdue:hover td{background:#fff0f0}
   </div>
 </div>
 
+<!-- МОДАЛ: клиент -->
+<div class="overlay" id="m-client">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-hd"><div class="modal-title" id="client-modal-title">Новый клиент</div><button class="modal-close" onclick="$('m-client').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <div class="fg">
+        <div class="f"><label class="flabel">Имя / Компания</label><input class="finput" id="cl-name" placeholder="Иванов Иван"></div>
+        <div class="f"><label class="flabel">Телефон</label><input class="finput" id="cl-phone" placeholder="+7..."></div>
+        <div class="f"><label class="flabel">Email</label><input class="finput" type="email" id="cl-email" placeholder="email@example.com"></div>
+        <div class="f"><label class="flabel">Адрес</label><input class="finput" id="cl-address" placeholder="Город, улица..."></div>
+        <div class="f"><label class="flabel">Источник</label>
+          <select class="fsel2" id="cl-source"></select></div>
+        <div class="f"><label class="flabel">Менеджер</label><input class="finput" id="cl-manager" list="mgr-list"></div>
+        <div class="f full"><label class="flabel">Заметки</label><textarea class="ftextarea" id="cl-notes" placeholder="Комментарии о клиенте..."></textarea></div>
+      </div>
+      <!-- История заказов клиента -->
+      <div id="cl-orders-section" style="display:none;margin-top:14px">
+        <div style="font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;margin-bottom:8px">История заказов</div>
+        <div id="cl-orders-list"></div>
+      </div>
+    </div>
+    <div class="modal-ft" style="justify-content:space-between">
+      <button class="btn btn-ghost" id="cl-del-btn" onclick="deleteClient()" style="display:none;color:var(--red);border-color:var(--red)">🗑</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-ghost" onclick="$('m-client').classList.remove('open')">Отмена</button>
+        <button class="btn btn-primary" onclick="saveClient()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- МОДАЛ: группы материалов -->
 <div class="overlay" id="m-mat-types">
   <div class="modal" style="max-width:420px">
@@ -1309,6 +1479,9 @@ function showPage(p, el){
     else renderAnalytics();
   }
   if(p==='users') loadUsers();
+  if(p==='crm') loadClients();
+  if(p==='dashboard') renderDashboard();
+  if(p==='calendar') renderCalendar();
 }
 function syncMobNav(p){
   document.querySelectorAll('.mnav-btn').forEach(x=>x.classList.remove('active'));
@@ -1334,11 +1507,11 @@ function setPeriod(mode){
 
 // ── STATS ─────────────────────────────────────────────
 function getFilteredByPeriod(){
-  const q=($('q').value||'').toLowerCase();
-  const mgr=$('f-mgr').value;
-  const src=$('f-src').value;
-  const from=$('p-from').value?new Date($('p-from').value):null;
-  const to=$('p-to').value?new Date($('p-to').value+'T23:59:59'):null;
+  const q=($('q')?.value||'').toLowerCase();
+  const mgr=$('f-mgr')?.value||'';
+  const src=$('f-src')?.value||'';
+  const from=$('p-from')?.value?new Date($('p-from').value):null;
+  const to=$('p-to')?.value?new Date($('p-to').value+'T23:59:59'):null;
   return orders.filter(o=>{
     if(mgr&&(o.manager||'').trim()!==mgr) return false;
     if(src&&(o.source||'').trim()!==src) return false;
@@ -1419,7 +1592,7 @@ async function loadOrders(){
     sync('ok','Supabase ✓');
   }catch(e){
     sync('error','Ошибка: '+e.message);
-    $('tbl-body').innerHTML='<div class="empty-state">Не удалось загрузить: '+e.message+'</div>';
+    $('kanban-body').innerHTML='<div class="empty-state">Не удалось загрузить: '+e.message+'</div>';
   }
 }
 
@@ -1439,11 +1612,11 @@ function fillManagerFilter(){
 
 // ── FILTER / RENDER ───────────────────────────────────
 function getFiltered(){
-  const q=($('q').value||'').toLowerCase();
-  const mgr=$('f-mgr').value;
-  const src=$('f-src').value;
-  const from=$('p-from').value?new Date($('p-from').value):null;
-  const to=$('p-to').value?new Date($('p-to').value+'T23:59:59'):null;
+  const q=($('q')?.value||'').toLowerCase();
+  const mgr=$('f-mgr')?.value||'';
+  const src=$('f-src')?.value||'';
+  const from=$('p-from')?.value?new Date($('p-from').value):null;
+  const to=$('p-to')?.value?new Date($('p-to').value+'T23:59:59'):null;
   const today=new Date(); today.setHours(0,0,0,0);
   return orders.filter(o=>{
     const s=(o.status||'').trim();
@@ -1488,137 +1661,7 @@ function getOrderExpTotal(orderNum){
 
 function render(){
   updateStats();
-  const list=getFiltered();
-  const today=new Date(); today.setHours(0,0,0,0);
-  const m=v=>v&&parseFloat(v)?Number(v).toLocaleString('ru-RU')+' ₽':'—';
-  const STATUS=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
-
-  if(!list.length){
-    $('tbl-body').innerHTML='<div class="empty-state">Заказов не найдено</div>';
-    $('mob-body').innerHTML='<div class="empty-state">Заказов не найдено</div>';
-    return;
-  }
-
-  let h=`<table><thead><tr>
-    <th>#</th><th>Дата</th><th>Клиент</th><th>Описание</th><th>Дедлайн</th>
-    <th>Статус</th><th>Менеджер</th><th>Предоплата</th><th>Сумма</th><th>Остаток</th>
-    <th>Расходы</th><th>Источник</th><th>Спец.</th><th>Комментарий</th><th></th>
-  </tr></thead><tbody>`;
-
-  list.forEach(o=>{
-    const rid=o.order_num||'';
-    const st=(o.status||'').trim();
-    const ddl=pDate(o.deadline); if(ddl) ddl.setHours(0,0,0,0);
-    const dt=pDate(o.order_date);
-    const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
-    const soon=ddl&&!over&&(ddl-today)<3*86400000;
-    const ddlHtml=ddl?`<span class="${over?'dl-over':soon?'dl-soon':'dl-ok'}">${ddl.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'})}${over?' !':''}</span>`:'—';
-    const dtHtml=dt?dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
-    const bc=badgeClass(st);
-    const selOpts=STATUS.map(s=>`<option value="${s}"${s===st?' selected':''}>${s}</option>`).join('');
-
-    const specRaw=(o.specification||'').trim();
-    let specCell='—';
-    if(specRaw){
-      let isKp=false, isDirect=false;
-      try{const sp=JSON.parse(specRaw);if(sp&&sp.kp){isKp=true;isDirect=!!sp.direct;}}catch(e){}
-      if(isKp&&!isDirect){
-        specCell=`<span onclick="openSpecModal('${rid}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9,2 9,6 13,6"/></svg>
-          Состав КП</span>`;
-      } else if(isKp&&isDirect){
-        specCell=`<span onclick="openSpecModal('${rid}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;background:var(--accent-light);color:var(--accent-text);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="5.5" x2="11" y2="5.5"/><line x1="5" y1="10.5" x2="9" y2="10.5"/></svg>
-          Материалы</span>`;
-      } else {
-        specCell=`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface2);padding:2px 5px;border-radius:3px">${specRaw}</span>`;
-      }
-    }
-    const cmt=(o.comment||'').trim();
-    const hasMaterialWarn=cmt.includes('🔴 ЗАКАЗАТЬ');
-    const cmtCell=cmt
-      ?`<span onclick="openComment('${rid}')" style="cursor:pointer;color:${hasMaterialWarn?'var(--red)':'var(--blue)'};font-size:11px;${hasMaterialWarn?'font-weight:600;':''}text-decoration:underline dotted;max-width:110px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${cmt.replace(/"/g,'&quot;')}">${hasMaterialWarn?'🔴 Заказать мат.':cmt}</span>`
-      :`<span onclick="openComment('${rid}')" style="cursor:pointer;color:var(--text3);font-size:11px">+ добавить</span>`;
-    const desc=(o.description||'').trim();
-    const descCell=desc
-      ?`<span onclick="openDesc('${rid}')" style="cursor:pointer;color:var(--blue);font-size:12px;text-decoration:underline dotted;max-width:140px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${desc}">${desc}</span>`
-      :`<span onclick="openDesc('${rid}')" style="cursor:pointer;color:var(--text3);font-size:12px">+ добавить</span>`;
-    const prepayCell=`<span onclick="openPrepay('${rid}')" style="cursor:pointer;color:var(--accent-text);font-weight:500" title="Нажми чтобы изменить оплату">${m(o.prepay)} <span style="font-size:9px;opacity:0.6">±</span></span>`;
-    const sum=parseFloat(o.order_sum)||0, prep=parseFloat(o.prepay)||0;
-    const dop=Math.max(0,sum-prep);
-    const ostatokHtml=dop>0?`<span style="color:var(--red);font-weight:500">${dop.toLocaleString('ru-RU')} ₽</span>`:'—';
-    const orderExp=getOrderExpTotal(rid);
-    const expCount=getOrderExpenses(rid).length;
-    const expCell=orderExp>0
-      ?`<span onclick="showOrderExpenses('${rid}')" style="cursor:pointer;color:var(--red);font-weight:500;font-size:12px" title="${expCount} расход(ов)">${orderExp.toLocaleString('ru-RU')} ₽ <span style="font-size:9px;opacity:0.6">(${expCount})</span></span>`
-      :`<span onclick="addExpenseForOrder('${rid}')" style="cursor:pointer;color:var(--text3);font-size:11px">+ расход</span>`;
-
-    h+=`<tr class="${over?'overdue':''}">
-      <td><span class="onum">${rid||'—'}</span></td>
-      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${dtHtml}</td>
-      <td><div style="font-weight:500;font-size:12px">${o.client||'—'}</div><div style="font-size:10px;color:var(--text3)">${o.phone||''}</div></td>
-      <td style="max-width:140px">${descCell}</td>
-      <td style="white-space:nowrap">${ddlHtml}</td>
-      <td><select class="inline-status ${bc}" onchange="quickStatus('${rid}',this.value)">${selOpts}</select></td>
-      <td style="color:var(--text2);font-size:12px">${o.manager||'—'}</td>
-      <td>${prepayCell}</td>
-      <td style="font-weight:500;font-size:12px">${m(o.order_sum)}</td>
-      <td>${ostatokHtml}</td>
-      <td>${expCell}</td>
-      <td style="color:var(--text3);font-size:11px">${o.source||'—'}</td>
-      <td>${specCell}</td>
-      <td style="max-width:110px">${cmtCell}</td>
-      <td><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px" onclick='openEdit("${rid}")'>Изм.</button></td>
-    </tr>`;
-  });
-  h+='</tbody></table>';
-  $('tbl-body').innerHTML=h;
-
-  // Mobile cards
-  let mc='';
-  list.forEach(o=>{
-    const rid=o.order_num||'';
-    const st=(o.status||'').trim();
-    const ddl=pDate(o.deadline); if(ddl) ddl.setHours(0,0,0,0);
-    const over=ddl&&ddl<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
-    const sum=parseFloat(o.order_sum)||0, prep=parseFloat(o.prepay)||0;
-    const dop=Math.max(0,sum-prep);
-    let hasKp=false, hasDirect=false;
-    try{const sp=JSON.parse(o.specification||'');if(sp&&sp.kp){hasKp=true;hasDirect=!!sp.direct;}}catch(e){}
-    const orderExp=getOrderExpTotal(rid);
-    const expCount=getOrderExpenses(rid).length;
-
-    mc+=`<div class="ocard${over?' overdue':''}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px" onclick='openEdit("${rid}")'>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="onum" style="font-size:10px">${rid}</span>
-          <span style="font-size:14px;font-weight:500">${o.client||'—'}</span>
-        </div>
-        <span class="badge ${badgeClass(st)}" style="font-size:10px">${st||'—'}</span>
-      </div>
-      <div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:5px" onclick='openEdit("${rid}")'>${o.description||'—'}</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px" onclick='openEdit("${rid}")'>
-        ${sum?`<span style="font-size:13px;font-weight:600">${sum.toLocaleString('ru-RU')} ₽</span>`:''}
-        ${prep?`<span style="font-size:11px;color:var(--accent)">оплачено ${prep.toLocaleString('ru-RU')} ₽</span>`:''}
-        ${dop?`<span style="font-size:11px;color:var(--red)">долг ${dop.toLocaleString('ru-RU')} ₽</span>`:''}
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-          ${hasKp&&!hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">КП</button>`:''}
-          ${hasKp&&hasDirect?`<button onclick="event.stopPropagation();openSpecModal('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">Мат.</button>`:''}
-          <button onclick="event.stopPropagation();openPrepay('${rid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">${prep?prep.toLocaleString('ru-RU')+' ₽ ±':'Оплата'}</button>
-          ${orderExp>0
-            ?`<button onclick="event.stopPropagation();showOrderExpenses('${rid}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">${orderExp.toLocaleString('ru-RU')} ₽ (${expCount})</button>`
-            :`<button onclick="event.stopPropagation();addExpenseForOrder('${rid}')" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border);border-radius:10px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Geologica',sans-serif">+ Расход</button>`}
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          ${ddl?`<span style="font-size:11px" class="${over?'dl-over':''}">${over?'просрочен ':'до '}${ddl.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</span>`:''}
-          <button onclick="openEdit('${rid}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--text2)">Изм.</button>
-        </div>
-      </div>
-    </div>`;
-  });
-  $('mob-body').innerHTML=mc;
+  renderKanban();
 }
 
 // ── ORDER MODAL ───────────────────────────────────────
@@ -1640,7 +1683,7 @@ function openAdd(){
   $('f-num').readOnly=false;
   ['f-date','f-client','f-phone','f-desc','f-ddl','f-manager','f-spec','f-comment'].forEach(f=>{const el=$(f);if(el)el.value=''});
   $('f-spec-json').value='';
-  
+  updateSourceSelects();
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
   $('f-status').value='Новый'; $('f-src2').value='Авито';
   $('f-src-custom').value=''; $('f-src-custom').style.display='none';
@@ -1648,6 +1691,10 @@ function openAdd(){
   $('f-mats-wrap').innerHTML='';
   orderMatCounter=0;
   updateOrderMatsEmpty();
+  // Файлы — скрываем для нового заказа
+  $('f-files-section').style.display='none';
+  $('f-files-list').innerHTML='';
+  $('f-files-empty').style.display='';
   $('m-order').classList.add('open');
 }
 
@@ -1663,6 +1710,7 @@ function openEdit(rid){
   $('f-desc').value=o.description||'';
   $('f-manager').value=o.manager||'';
   $('f-comment').value=o.comment||'';
+  updateSourceSelects();
 
   const specRaw=o.specification||'';
   let isKpSpec=false;
@@ -1682,6 +1730,9 @@ function openEdit(rid){
   const dt=pDate(o.order_date); $('f-date').value=dt?dt.toISOString().split('T')[0]:'';
   $('f-status').value=(o.status||'').trim()||'Новый';
   setSourceValue(o.source||'Авито');
+  // Файлы — показываем и загружаем
+  $('f-files-section').style.display='';
+  loadOrderFiles(rid);
   $('m-order').classList.add('open');
 }
 
@@ -1970,6 +2021,7 @@ async function saveOrder(){
     // Авто-расходы для нового заказа (кроме КП)
     if(!editId && row.status!=='Отправлено КП'){
       await autoCreateExpenses(row.order_num);
+      await autoCreateClient(row.client,row.phone,row.source,row.manager);
     }
     closeOrder();
     await loadOrders();
@@ -4515,6 +4567,982 @@ async function autoCreateExpenses(orderNum){
 }
 
 // ══════════════════════════════════════════════════════
+// КАНБАН-ДОСКА
+// ══════════════════════════════════════════════════════
+let kanbanZoomLevel=0;
+const KANBAN_SIZES=[
+  {col:'200px',colMax:'240px',mobCol:'52vw',font:'11px',pad:'8px'},
+  {col:'300px',colMax:'340px',mobCol:'85vw',font:'13px',pad:'12px'}
+];
+
+function kanbanZoomToggle(){
+  kanbanZoomLevel=kanbanZoomLevel?0:1;
+  // Переключаем + / - в лупе
+  const vLine=$('kb-zoom-v');
+  if(vLine) vLine.style.display=kanbanZoomLevel?'none':'';
+  renderKanban();
+}
+
+// ── Поля отображения на карточке ──
+function getKanbanFields(){
+  const saved=localStorage.getItem('k2_kanban_fields');
+  if(saved) try{return JSON.parse(saved)}catch(e){}
+  return {description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,date:false,expenses:false,comment:false};
+}
+function saveKanbanFields(f){localStorage.setItem('k2_kanban_fields',JSON.stringify(f))}
+
+// ── Цвета источников ──
+function getSourceColors(){
+  const saved=localStorage.getItem('k2_source_colors');
+  if(saved) try{return JSON.parse(saved)}catch(e){}
+  return {'Авито':'#3b82f6','Instagram':'#e1306c','ВКонтакте':'#4a76a8','Телеграм':'#0088cc','Обзвон':'#8b5cf6','Рекомендация':'#16a34a','Повторный':'#854F0B','Другое':'#6b6a64'};
+}
+function saveSourceColors(c){localStorage.setItem('k2_source_colors',JSON.stringify(c))}
+
+// ── Настройки колонок канбана ──
+function getKanbanColumns(){
+  const saved=localStorage.getItem('k2_kanban_columns');
+  if(saved) try{return JSON.parse(saved)}catch(e){}
+  return ['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт'];
+}
+function saveKanbanColumns(cols){localStorage.setItem('k2_kanban_columns',JSON.stringify(cols))}
+
+function openKanbanSettings(){
+  const cols=getKanbanColumns();
+  const fields=getKanbanFields();
+  const allStatuses=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
+  
+  let overlay=$('m-kb-settings');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.className='overlay';overlay.id='m-kb-settings';
+    overlay.innerHTML=`<div class="modal" style="max-width:440px"><div class="modal-hd"><div class="modal-title">Настройки канбана</div><button class="modal-close" onclick="$('m-kb-settings').classList.remove('open')">×</button></div><div class="modal-body" id="m-kb-settings-body" style="max-height:70vh;overflow-y:auto"></div><div class="modal-ft"><div style="display:flex;gap:8px;width:100%"><input class="finput" id="kb-new-col" placeholder="Новый этап..."><button class="btn btn-primary" onclick="addKanbanColumn()">+ Добавить</button></div></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  
+  // Секция 1: Что показывать на карточке
+  let h=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Поля на карточке</div>`;
+  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',date:'Дата создания',comment:'Комментарий'};
+  Object.entries(FIELD_LABELS).forEach(([key,label])=>{
+    h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
+      <input type="checkbox" ${fields[key]?'checked':''} onchange="toggleKanbanField('${key}',this.checked)" style="margin:0"> ${label}
+    </label>`;
+  });
+  
+  // Секция 2: Цвета источников
+  const srcColors=getSourceColors();
+  const allSources=Object.keys(srcColors);
+  h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">🎨 Источники заказов</div>`;
+  allSources.forEach(src=>{
+    const c=srcColors[src]||'#6b6a64';
+    const DEFAULT_SOURCES=['Авито','Instagram','ВКонтакте','Телеграм','Обзвон','Рекомендация','Повторный','Другое'];
+    const isCustom=!DEFAULT_SOURCES.includes(src);
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <input type="color" value="${c}" onchange="setSourceColor('${src}',this.value)" style="width:28px;height:24px;border:none;padding:0;cursor:pointer;background:none">
+      <span style="font-size:13px;flex:1">${src}</span>
+      <span style="font-size:10px;padding:2px 8px;border-radius:8px;background:${c}18;color:${c};font-weight:500">${src}</span>
+      ${isCustom?`<button onclick="removeSource('${src}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>`:'<span style="width:20px"></span>'}
+    </div>`;
+  });
+  h+=`<div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+    <input type="color" id="new-src-color" value="#8b5cf6" style="width:28px;height:24px;border:none;padding:0;cursor:pointer;background:none">
+    <input class="finput" id="new-src-name" placeholder="Новый источник..." style="flex:1">
+    <button class="btn btn-primary" onclick="addSource()" style="padding:4px 12px">+</button>
+  </div>`;
+  
+  // Секция 2: Колонки
+  h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">🗂 Колонки (этапы)</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Порядок и видимость колонок</div>`;
+  cols.forEach((col,i)=>{
+    const isDefault=allStatuses.includes(col);
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <input type="checkbox" checked onchange="toggleKanbanCol('${col}',this.checked)" style="margin:0">
+      <span style="font-size:13px;flex:1;font-weight:500">${col}</span>
+      <button onclick="moveKanbanCol(${i},-1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:var(--text3)">↑</button>
+      <button onclick="moveKanbanCol(${i},1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:var(--text3)">↓</button>
+      ${!isDefault?`<button onclick="removeKanbanCol('${col}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px">×</button>`:'<span style="width:20px"></span>'}
+    </div>`;
+  });
+  const hidden=allStatuses.filter(s=>!cols.includes(s));
+  if(hidden.length){
+    h+='<div style="font-size:11px;color:var(--text3);margin-top:8px;margin-bottom:4px">Скрытые:</div>';
+    hidden.forEach(col=>{
+      h+=`<label style="display:flex;align-items:center;gap:8px;padding:3px 0;opacity:0.5;cursor:pointer;font-size:12px">
+        <input type="checkbox" onchange="toggleKanbanCol('${col}',this.checked)" style="margin:0"> ${col}
+      </label>`;
+    });
+  }
+  $('m-kb-settings-body').innerHTML=h;
+  overlay.classList.add('open');
+}
+
+function toggleKanbanField(key,show){
+  const f=getKanbanFields();
+  f[key]=show;
+  saveKanbanFields(f);
+  renderKanban();
+}
+
+function setSourceColor(src,color){
+  const c=getSourceColors();
+  c[src]=color;
+  saveSourceColors(c);
+  renderKanban();
+  openKanbanSettings();
+}
+
+function addSource(){
+  const name=$('new-src-name').value.trim();
+  const color=$('new-src-color').value||'#8b5cf6';
+  if(!name){showToast('Укажите название');return}
+  const c=getSourceColors();
+  if(c[name]){showToast('Такой источник уже есть');return}
+  c[name]=color;
+  saveSourceColors(c);
+  // Добавляем в select источников в модалке заказа
+  updateSourceSelects();
+  $('new-src-name').value='';
+  openKanbanSettings();
+  renderKanban();
+  showToast('Источник "'+name+'" добавлен');
+}
+
+function removeSource(src){
+  if(!confirm('Удалить источник "'+src+'"?')) return;
+  const c=getSourceColors();
+  delete c[src];
+  saveSourceColors(c);
+  updateSourceSelects();
+  openKanbanSettings();
+  renderKanban();
+}
+
+function updateSourceSelects(){
+  const srcColors=getSourceColors();
+  let opts='';
+  Object.keys(srcColors).forEach(s=>{
+    if(s==='Другое') return;
+    opts+=`<option>${s}</option>`;
+  });
+  opts+=`<option value="__other">Другое...</option>`;
+  // Модалка заказа
+  const sel=$('f-src2');
+  if(sel){const cur=sel.value;sel.innerHTML=opts;if(cur)sel.value=cur}
+  // Модалка CRM
+  const sel2=$('cl-source');
+  if(sel2){const cur=sel2.value;sel2.innerHTML=opts;if(cur)sel2.value=cur}
+}
+
+function toggleKanbanCol(col,show){
+  let cols=getKanbanColumns();
+  if(show&&!cols.includes(col)) cols.push(col);
+  else if(!show) cols=cols.filter(c=>c!==col);
+  saveKanbanColumns(cols);
+  openKanbanSettings();
+  renderKanban();
+}
+
+function moveKanbanCol(idx,dir){
+  let cols=getKanbanColumns();
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=cols.length) return;
+  [cols[idx],cols[newIdx]]=[cols[newIdx],cols[idx]];
+  saveKanbanColumns(cols);
+  openKanbanSettings();
+  renderKanban();
+}
+
+function removeKanbanCol(col){
+  if(!confirm('Удалить этап "'+col+'"?')) return;
+  let cols=getKanbanColumns().filter(c=>c!==col);
+  saveKanbanColumns(cols);
+  openKanbanSettings();
+  renderKanban();
+}
+
+function addKanbanColumn(){
+  const name=$('kb-new-col').value.trim();
+  if(!name){showToast('Укажите название');return}
+  let cols=getKanbanColumns();
+  if(cols.includes(name)){showToast('Такой этап уже есть');return}
+  cols.push(name);
+  saveKanbanColumns(cols);
+  $('kb-new-col').value='';
+  openKanbanSettings();
+  renderKanban();
+  showToast('Этап "'+name+'" добавлен');
+}
+
+function renderKanban(){
+  const COLUMNS=getKanbanColumns();
+  const STATUS_COL_COLORS={'Отправлено КП':'#185FA5','Новый':'#534AB7','Материал заказан':'#854F0B','В работе':'#2a5c3f','Готов к выдаче':'#16a34a','Отгружен':'#3b82f6','Закрыт':'#6b6a64','Приостановлен':'#8a7340','Рекламация':'#A32D2D','Отказались':'#A32D2D'};
+  
+  const today=new Date();today.setHours(0,0,0,0);
+  const sz=KANBAN_SIZES[kanbanZoomLevel]||KANBAN_SIZES[1];
+  const isMob=window.innerWidth<768;
+  const q=($('q')?.value||'').toLowerCase();
+  const mgr=$('f-mgr')?.value||'';
+  
+  let h=`<div class="kanban" style="--kb-font:${sz.font};--kb-pad:${sz.pad};--kb-col:${sz.col};--kb-col-mob:${sz.mobCol}">`;
+  COLUMNS.forEach(col=>{
+    let colOrders=orders.filter(o=>(o.status||'').trim()===col);
+    if(q) colOrders=colOrders.filter(o=>
+      (o.client||'').toLowerCase().includes(q)||
+      (o.order_num||'').toLowerCase().includes(q)||
+      (o.description||'').toLowerCase().includes(q)
+    );
+    if(mgr) colOrders=colOrders.filter(o=>(o.manager||'').trim()===mgr);
+    // Просроченные наверх
+    colOrders.sort((a,b)=>{
+      const da=pDate(a.deadline),db=pDate(b.deadline);
+      const oa=da&&da<today&&col!=='Закрыт'&&col!=='Отгружен'?0:1;
+      const ob=db&&db<today&&col!=='Закрыт'&&col!=='Отгружен'?0:1;
+      return oa-ob;
+    });
+    const color=STATUS_COL_COLORS[col]||'#6b6a64';
+    
+    h+=`<div class="kanban-col" data-status="${col}"  
+      ondragover="kanbanDragOver(event,this)" ondragleave="kanbanDragLeave(this)" ondrop="kanbanDrop(event,this)">
+      <div class="kanban-col-hd" style="font-size:var(--kb-font)">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span style="flex:1">${col}</span>
+        <span style="background:var(--surface);padding:1px 7px;border-radius:10px;font-size:10px;color:var(--text3)">${colOrders.length}</span>
+      </div>
+      <div class="kanban-col-body">`;
+    
+    colOrders.forEach(o=>{
+      const sum=parseFloat(o.order_sum)||0;
+      const paid=parseFloat(o.prepay)||0;
+      const deadline=pDate(o.deadline);
+      const orderDate=pDate(o.order_date);
+      const isOverdue=deadline&&deadline<today&&col!=='Закрыт'&&col!=='Отгружен';
+      const paidPct=sum>0?Math.round(paid/sum*100):0;
+      const dop=sum>0?Math.max(0,sum-paid):0;
+      const fields=getKanbanFields();
+      const srcColors=getSourceColors();
+      const srcColor=srcColors[(o.source||'').trim()]||'#6b6a64';
+      const orderExp=getOrderExpTotal(o.order_num);
+      
+      h+=`<div class="kanban-card" draggable="true" data-id="${o.order_num}" 
+        ondragstart="kanbanDragStart(event,this)" ondragend="kanbanDragEnd(this)"
+        ontouchstart="kanbanTouchStart(event,this)" ontouchmove="kanbanTouchMove(event)" ontouchend="kanbanTouchEnd(event,this)"
+        onclick="openEdit('${o.order_num}')"
+        style="border-left-color:${color};padding:var(--kb-pad);font-size:var(--kb-font);cursor:pointer;${isOverdue?'background:var(--red-light);border-left-color:var(--red);border-color:rgba(163,45,45,0.3)':''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-weight:600">${o.order_num}</span>
+          <div style="display:flex;gap:4px;align-items:center">
+            ${fields.source&&o.source?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:${srcColor}18;color:${srcColor};font-weight:500">${o.source}</span>`:''}
+            ${isOverdue?'<span style="color:var(--red);font-weight:500;font-size:10px">⚠</span>':''}
+          </div>
+        </div>
+        <div style="font-weight:500;margin-bottom:2px">${o.client||'—'}</div>
+        ${fields.phone&&o.phone?`<div style="font-size:10px;color:var(--text3)">📱 ${o.phone}</div>`:''}
+        ${fields.description&&o.description?`<div style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${o.description}</div>`:''}
+        ${fields.date&&orderDate?`<div style="font-size:10px;color:var(--text3)">📅 ${orderDate.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'})}</div>`:''}
+        ${fields.deadline||fields.sum?`<div style="display:flex;justify-content:space-between;align-items:center;color:var(--text3);font-size:10px">
+          ${fields.deadline?`<span>${deadline?'⏰'+deadline.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}):'—'}</span>`:''}
+          ${fields.sum&&sum?`<span style="font-weight:500;color:var(--text)">${sum.toLocaleString('ru-RU')}₽</span>`:''}
+        </div>`:''}
+        ${fields.prepay?`<div style="font-size:10px;color:var(--accent-text)">💰 Предоплата: ${paid.toLocaleString('ru-RU')} ₽</div>`:''}
+        ${fields.dopay&&dop>0?`<div style="font-size:10px;color:var(--red)">📌 Остаток: ${dop.toLocaleString('ru-RU')} ₽</div>`:''}
+        ${fields.expenses&&orderExp>0?`<div style="font-size:10px;color:var(--red)">💸 Расходы: ${orderExp.toLocaleString('ru-RU')} ₽</div>`:''}
+        ${fields.payment&&sum?`<div style="background:var(--surface2);border-radius:2px;height:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${paidPct}%;background:${paidPct>=100?'var(--accent)':'var(--amber)'}"></div></div>
+        <div style="font-size:9px;color:var(--text3);text-align:right">${paidPct}%</div>`:''}
+        ${fields.manager&&o.manager?`<div style="font-size:10px;color:var(--text3)">👤 ${o.manager}</div>`:''}
+        ${fields.comment&&(o.comment||'').trim()?`<div style="font-size:10px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">💬 ${o.comment}</div>`:''}
+        <div style="display:flex;gap:4px;margin-top:5px">
+          <button onclick="event.stopPropagation();openPrepay('${o.order_num}')" style="flex:1;background:var(--accent-light);border:none;border-radius:3px;padding:2px 0;font-size:10px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text)">₽ Оплата</button>
+          <button onclick="event.stopPropagation();addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:3px;padding:2px 0;font-size:10px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red)">+ Расход</button>
+        </div>
+      </div>`;
+    });
+    
+    h+=`</div></div>`;
+  });
+  h+='</div>';
+  $('kanban-body').innerHTML=h;
+}
+
+// Desktop Drag & Drop
+let draggedOrderNum=null;
+
+function kanbanDragStart(e,el){
+  draggedOrderNum=el.dataset.id;
+  el.classList.add('dragging');
+  e.dataTransfer.effectAllowed='move';
+}
+function kanbanDragEnd(el){
+  el.classList.remove('dragging');
+  document.querySelectorAll('.kanban-col').forEach(c=>c.classList.remove('drag-over'));
+}
+function kanbanDragOver(e,col){e.preventDefault();col.classList.add('drag-over')}
+function kanbanDragLeave(col){col.classList.remove('drag-over')}
+
+async function kanbanDrop(e,col){
+  e.preventDefault();col.classList.remove('drag-over');
+  if(!draggedOrderNum) return;
+  const newStatus=col.dataset.status;
+  const o=findO(draggedOrderNum);
+  if(!o||(o.status||'').trim()===newStatus) return;
+  await quickStatus(draggedOrderNum,newStatus);
+  renderKanban();
+}
+
+// Mobile Touch Drag & Drop
+let touchDragEl=null, touchClone=null, touchStartX=0, touchStartY=0, touchMoved=false;
+
+function kanbanTouchStart(e,el){
+  touchDragEl=el;
+  touchMoved=false;
+  const t=e.touches[0];
+  touchStartX=t.clientX;
+  touchStartY=t.clientY;
+}
+
+function kanbanTouchMove(e){
+  if(!touchDragEl) return;
+  const t=e.touches[0];
+  const dx=Math.abs(t.clientX-touchStartX), dy=Math.abs(t.clientY-touchStartY);
+  if(!touchMoved&&(dx>10||dy>10)) touchMoved=true;
+  if(!touchMoved) return;
+  e.preventDefault();
+  
+  if(!touchClone){
+    touchClone=touchDragEl.cloneNode(true);
+    touchClone.style.cssText='position:fixed;z-index:9999;opacity:0.85;pointer-events:none;width:'+touchDragEl.offsetWidth+'px;transform:rotate(2deg);box-shadow:0 8px 24px rgba(0,0,0,0.2)';
+    document.body.appendChild(touchClone);
+    touchDragEl.classList.add('dragging');
+  }
+  touchClone.style.left=(t.clientX-touchDragEl.offsetWidth/2)+'px';
+  touchClone.style.top=(t.clientY-30)+'px';
+  
+  // Подсветка колонки
+  document.querySelectorAll('.kanban-col').forEach(c=>{
+    const r=c.getBoundingClientRect();
+    c.classList.toggle('drag-over',t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom);
+  });
+}
+
+async function kanbanTouchEnd(e,el){
+  if(!touchDragEl) return;
+  if(touchClone){
+    touchClone.remove();touchClone=null;
+    touchDragEl.classList.remove('dragging');
+    // Находим колонку под пальцем
+    const target=document.querySelector('.kanban-col.drag-over');
+    document.querySelectorAll('.kanban-col').forEach(c=>c.classList.remove('drag-over'));
+    if(target){
+      const newStatus=target.dataset.status;
+      const orderNum=touchDragEl.dataset.id;
+      const o=findO(orderNum);
+      if(o&&(o.status||'').trim()!==newStatus){
+        await quickStatus(orderNum,newStatus);
+        renderKanban();
+      }
+    }
+  } else if(!touchMoved){
+    // Простой тап — открыть заказ
+    openEdit(el.dataset.id);
+  }
+  touchDragEl=null;touchMoved=false;
+}
+
+// ══════════════════════════════════════════════════════
+// ФАЙЛЫ ЗАКАЗОВ
+// ══════════════════════════════════════════════════════
+let orderFiles=[];
+
+async function loadOrderFiles(orderNum){
+  $('f-files-list').innerHTML='';
+  $('f-files-empty').style.display='';
+  try{
+    const {data}=await sb.from('order_files').select('*').eq('order_num',orderNum).order('created_at',{ascending:false});
+    orderFiles=data||[];
+    renderOrderFiles();
+  }catch(e){}
+}
+
+function renderOrderFiles(){
+  const list=$('f-files-list');
+  const empty=$('f-files-empty');
+  if(!orderFiles.length){list.innerHTML='';empty.style.display='';return}
+  empty.style.display='none';
+  
+  let h='<div style="display:flex;flex-wrap:wrap;gap:8px">';
+  orderFiles.forEach(f=>{
+    const isImg=(f.file_type||'').startsWith('image');
+    const size=f.file_size?Math.round(f.file_size/1024)+'КБ':'';
+    
+    if(isImg){
+      h+=`<div style="position:relative;width:90px;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;background:var(--surface2)">
+        <img src="${f.file_url}" style="width:100%;height:70px;object-fit:cover;display:block;cursor:pointer" onclick="window.open('${f.file_url}','_blank')" title="${f.file_name}">
+        <div style="padding:3px 5px;font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.file_name}</div>
+        <button onclick="deleteOrderFile(${f.id},'${f.file_url}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1">×</button>
+      </div>`;
+    } else {
+      const icon=f.file_name.endsWith('.pdf')?'📄':f.file_name.endsWith('.xlsx')||f.file_name.endsWith('.xls')?'📊':'📁';
+      h+=`<div style="position:relative;border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;background:var(--surface2);min-width:120px">
+        <div style="display:flex;align-items:center;gap:6px;cursor:pointer" onclick="window.open('${f.file_url}','_blank')">
+          <span style="font-size:18px">${icon}</span>
+          <div>
+            <div style="font-size:11px;font-weight:500;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.file_name}</div>
+            <div style="font-size:9px;color:var(--text3)">${size}</div>
+          </div>
+        </div>
+        <button onclick="deleteOrderFile(${f.id},'${f.file_url}')" style="position:absolute;top:2px;right:2px;background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer">×</button>
+      </div>`;
+    }
+  });
+  h+='</div>';
+  list.innerHTML=h;
+}
+
+async function uploadOrderFiles(fileList){
+  if(!fileList||!fileList.length) return;
+  const orderNum=$('f-num').value.trim();
+  if(!orderNum){showToast('Сначала сохраните заказ');return}
+  
+  let uploaded=0;
+  for(const file of fileList){
+    const ext=file.name.split('.').pop().toLowerCase();
+    const fileName=orderNum+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)+'.'+ext;
+    const filePath='orders/'+orderNum+'/'+fileName;
+    
+    try{
+      // Загружаем в Supabase Storage
+      const {error:upErr}=await sb.storage.from('order-files').upload(filePath,file,{contentType:file.type});
+      if(upErr) throw upErr;
+      
+      // Получаем публичный URL
+      const {data:urlData}=sb.storage.from('order-files').getPublicUrl(filePath);
+      const fileUrl=urlData.publicUrl;
+      
+      // Сохраняем запись в таблицу
+      const row={
+        order_num:orderNum,
+        file_name:file.name,
+        file_url:fileUrl,
+        file_type:file.type,
+        file_size:file.size,
+        uploaded_by:currentProfile?.full_name||''
+      };
+      const {error:dbErr}=await sb.from('order_files').insert(row);
+      if(dbErr) throw dbErr;
+      
+      orderFiles.unshift(row);
+      uploaded++;
+    }catch(e){
+      showToast('Ошибка загрузки: '+e.message);
+    }
+  }
+  
+  if(uploaded){
+    await loadOrderFiles(orderNum);
+    showToast('Загружено '+uploaded+' файл(ов)');
+  }
+  // Сброс input
+  $('f-file-input').value='';
+}
+
+async function deleteOrderFile(id,url){
+  if(!confirm('Удалить файл?')) return;
+  try{
+    // Извлекаем путь из URL для удаления из storage
+    const path=url.split('/order-files/')[1];
+    if(path) await sb.storage.from('order-files').remove([decodeURIComponent(path)]);
+    // Удаляем запись
+    await sb.from('order_files').delete().eq('id',id);
+    orderFiles=orderFiles.filter(f=>f.id!==id);
+    renderOrderFiles();
+    showToast('Файл удалён');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// ══════════════════════════════════════════════════════
+// КАЛЕНДАРЬ ПРОИЗВОДСТВА
+// ══════════════════════════════════════════════════════
+let calMonth=new Date().getMonth(), calYear=new Date().getFullYear();
+
+const STATUS_COLORS={'Отправлено КП':'#185FA5','Новый':'#534AB7','Материал заказан':'#854F0B',
+  'В работе':'#2a5c3f','Готов к выдаче':'#16a34a','Отгружен':'#3b82f6',
+  'Закрыт':'#6b6a64','Приостановлен':'#8a7340','Рекламация':'#A32D2D','Отказались':'#A32D2D'};
+
+function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
+function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}renderCalendar()}
+function calToday(){calMonth=new Date().getMonth();calYear=new Date().getFullYear();renderCalendar()}
+
+function renderCalendar(){
+  const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  $('cal-month-label').textContent=MONTHS[calMonth]+' '+calYear;
+  
+  const today=new Date();today.setHours(0,0,0,0);
+  const firstDay=new Date(calYear,calMonth,1);
+  const lastDay=new Date(calYear,calMonth+1,0);
+  let startDow=firstDay.getDay();if(startDow===0)startDow=7; // Пн=1
+  
+  // Собираем данные по дням
+  const dayData={};
+  const ACTIVE_STATUSES=['Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Приостановлен','Рекламация'];
+  
+  orders.forEach(o=>{
+    const st=(o.status||'').trim();
+    const orderDate=pDate(o.order_date);
+    const deadline=pDate(o.deadline);
+    
+    // Показываем заказ как полоску от даты заказа до дедлайна
+    if(orderDate){
+      const key=orderDate.toISOString().split('T')[0];
+      if(!dayData[key])dayData[key]=[];
+      dayData[key].push({type:'start',order:o,color:STATUS_COLORS[st]||'#6b6a64'});
+    }
+    if(deadline){
+      const key=deadline.toISOString().split('T')[0];
+      if(!dayData[key])dayData[key]=[];
+      dayData[key].push({type:'deadline',order:o,color:'#A32D2D'});
+    }
+    // Активные заказы — отмечаем каждый день между датой и дедлайном
+    if(ACTIVE_STATUSES.includes(st)&&orderDate&&deadline){
+      const start=new Date(Math.max(orderDate,new Date(calYear,calMonth,1)));
+      const end=new Date(Math.min(deadline,lastDay));
+      for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+        const key=d.toISOString().split('T')[0];
+        if(!dayData[key])dayData[key]=[];
+        const exists=dayData[key].find(e=>e.order.id===o.id&&e.type==='active');
+        if(!exists) dayData[key].push({type:'active',order:o,color:STATUS_COLORS[st]||'#2a5c3f'});
+      }
+    }
+  });
+  
+  let html='';
+  // Заголовки дней недели
+  DAYS.forEach(d=>{
+    html+=`<div style="text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:6px 0">${d}</div>`;
+  });
+  
+  // Пустые ячейки до первого дня
+  for(let i=1;i<startDow;i++){
+    html+=`<div style="min-height:80px"></div>`;
+  }
+  
+  // Дни месяца
+  for(let d=1;d<=lastDay.getDate();d++){
+    const date=new Date(calYear,calMonth,d);
+    const key=date.toISOString().split('T')[0];
+    const isToday=date.getTime()===today.getTime();
+    const isWeekend=date.getDay()===0||date.getDay()===6;
+    const items=dayData[key]||[];
+    const activeItems=items.filter(i=>i.type==='active');
+    const deadlines=items.filter(i=>i.type==='deadline');
+    const starts=items.filter(i=>i.type==='start');
+    
+    const bg=isToday?'background:var(--accent-light);border-color:var(--accent)':isWeekend?'background:var(--surface2)':'background:var(--surface)';
+    
+    html+=`<div onclick="showCalDay('${key}')" style="${bg};border:1px solid var(--border);border-radius:var(--rs);min-height:80px;padding:4px;cursor:pointer;transition:all 0.1s;overflow:hidden" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--accent-text)':'var(--text)'};margin-bottom:3px">${d}</div>`;
+    
+    // Показываем до 4 элементов
+    const shown=[];
+    starts.slice(0,2).forEach(i=>{
+      shown.push(i);
+      html+=`<div style="font-size:9px;padding:1px 4px;margin-bottom:1px;border-radius:2px;background:${i.color}22;color:${i.color};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:2px solid ${i.color}">▸ ${i.order.client||i.order.order_num}</div>`;
+    });
+    deadlines.slice(0,2).forEach(i=>{
+      if(shown.find(s=>s.order.id===i.order.id)) return;
+      html+=`<div style="font-size:9px;padding:1px 4px;margin-bottom:1px;border-radius:2px;background:#A32D2D22;color:#A32D2D;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:2px solid #A32D2D">⏰ ${i.order.client||i.order.order_num}</div>`;
+    });
+    
+    // Индикатор загрузки (кол-во активных заказов)
+    if(activeItems.length>0){
+      const load=activeItems.length;
+      const loadColor=load>4?'var(--red)':load>2?'var(--amber)':'var(--accent)';
+      html+=`<div style="font-size:9px;color:${loadColor};font-weight:600;margin-top:2px">${load} заказ.</div>`;
+    }
+    
+    html+=`</div>`;
+  }
+  
+  $('cal-grid').innerHTML=html;
+  $('cal-day-detail').style.display='none';
+}
+
+function showCalDay(dateKey){
+  const date=new Date(dateKey);
+  const dateStr=date.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  $('cal-day-title').textContent=dateStr;
+  
+  const today=new Date();today.setHours(0,0,0,0);
+  const ACTIVE_STATUSES=['Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Приостановлен','Рекламация','Отправлено КП'];
+  
+  // Заказы у которых дата попадает в диапазон
+  const dayOrders=orders.filter(o=>{
+    const orderDate=pDate(o.order_date);
+    const deadline=pDate(o.deadline);
+    const st=(o.status||'').trim();
+    
+    // Заказ создан в этот день
+    if(orderDate&&orderDate.toISOString().split('T')[0]===dateKey) return true;
+    // Дедлайн в этот день
+    if(deadline&&deadline.toISOString().split('T')[0]===dateKey) return true;
+    // Активный заказ в этом диапазоне
+    if(ACTIVE_STATUSES.includes(st)&&orderDate&&deadline){
+      return date>=orderDate&&date<=deadline;
+    }
+    return false;
+  });
+  
+  if(!dayOrders.length){
+    $('cal-day-orders').innerHTML='<div style="color:var(--text3);font-size:13px">Нет заказов на этот день</div>';
+  } else {
+    let h='';
+    dayOrders.forEach(o=>{
+      const st=(o.status||'').trim();
+      const bc=badgeClass(st);
+      const orderDate=pDate(o.order_date);
+      const deadline=pDate(o.deadline);
+      const isDeadline=deadline&&deadline.toISOString().split('T')[0]===dateKey;
+      const isStart=orderDate&&orderDate.toISOString().split('T')[0]===dateKey;
+      const isOverdue=deadline&&deadline<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
+      
+      let tags='';
+      if(isStart) tags+='<span style="font-size:10px;color:var(--blue)">▸ создан</span> ';
+      if(isDeadline) tags+=`<span style="font-size:10px;color:${isOverdue?'var(--red)':'var(--amber)'}">⏰ дедлайн${isOverdue?' (просрочен!)':''}</span> `;
+      
+      const sum=parseFloat(o.order_sum)||0;
+      h+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;border-left:3px solid ${STATUS_COLORS[st]||'#6b6a64'}">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span style="font-size:12px;font-weight:600">${o.order_num}</span>
+            <span class="badge ${bc}" style="font-size:10px">${st}</span>
+            ${tags}
+          </div>
+          <div style="font-size:12px;color:var(--text)">${o.client||'—'} ${o.description?'— '+o.description:''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${sum?`<div style="font-size:12px;font-weight:600">${sum.toLocaleString('ru-RU')} ₽</div>`:''}
+          ${deadline?`<div style="font-size:10px;color:var(--text3)">до ${deadline.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</div>`:''}
+        </div>
+      </div>`;
+    });
+    $('cal-day-orders').innerHTML=h;
+  }
+  $('cal-day-detail').style.display='';
+}
+
+// ══════════════════════════════════════════════════════
+// ДАШБОРД
+// ══════════════════════════════════════════════════════
+function renderDashboard(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const hr=new Date().getHours();
+  const greeting=hr<12?'Доброе утро':hr<18?'Добрый день':'Добрый вечер';
+  const name=currentProfile?.full_name||'';
+  $('dash-greeting').textContent=greeting+(name?', '+name.split(' ')[0]:'')+'!';
+  $('dash-date').textContent=today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  
+  const INACTIVE=['Закрыт','Отгружен','Отправлено КП','Отказались'];
+  const active=orders.filter(o=>{const s=(o.status||'').trim();return !INACTIVE.includes(s)&&s!==''});
+  const overdue=orders.filter(o=>{
+    const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
+    const s=(o.status||'').trim();return d<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
+  });
+  const ready=orders.filter(o=>(o.status||'').trim()==='Готов к выдаче');
+  
+  // Оплаты сегодня (приблизительно — по дате заказа за сегодня)
+  const todayStr=today.toISOString().split('T')[0];
+  const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
+  const monthOrders=orders.filter(o=>{const d=pDate(o.order_date);return d&&d>=monthStart});
+  const monthPaid=monthOrders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  const allPaid=orders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  
+  $('d-active').textContent=active.length;
+  $('d-overdue').textContent=overdue.length;
+  $('d-ready').textContent=ready.length;
+  $('d-today-pay').textContent=fmt(0); // today's pay is hard to calc without payment log
+  $('d-month-pay').textContent=fmt(monthPaid);
+  $('d-clients').textContent=clients.length;
+  
+  // Подсвечиваем просрочки
+  $('d-overdue').parentElement.style.background=overdue.length?'var(--red-light)':'';
+  
+  // Последние 7 заказов
+  const recent=orders.slice(0,7);
+  if(recent.length){
+    let rh='';
+    recent.forEach(o=>{
+      const bc=badgeClass((o.status||'').trim());
+      const d=pDate(o.order_date);
+      const ds=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}):'—';
+      rh+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer">
+        <span style="font-size:11px;font-weight:500;min-width:50px;color:var(--text)">${o.order_num||'—'}</span>
+        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.client||'—'}</span>
+        <span class="badge ${bc}" style="font-size:10px">${(o.status||'—')}</span>
+        <span style="font-size:11px;color:var(--text3)">${ds}</span>
+      </div>`;
+    });
+    $('d-recent-orders').innerHTML=rh;
+  } else {
+    $('d-recent-orders').innerHTML='<div style="color:var(--text3);font-size:13px">Нет заказов</div>';
+  }
+  
+  // Требуют внимания: просрочки + неоплаченные готовые
+  const attention=[];
+  overdue.forEach(o=>attention.push({order:o,type:'overdue',text:'⏰ Просрочен дедлайн'}));
+  ready.forEach(o=>{
+    const sum=parseFloat(o.order_sum)||0,paid=parseFloat(o.prepay)||0;
+    if(sum>0&&paid<sum) attention.push({order:o,type:'unpaid',text:'💰 Готов, не оплачен полностью'});
+  });
+  orders.filter(o=>(o.status||'').trim()==='Материал заказан').forEach(o=>{
+    attention.push({order:o,type:'matorder',text:'📦 Ждёт материал'});
+  });
+  
+  if(attention.length){
+    let ah='';
+    attention.slice(0,8).forEach(a=>{
+      const o=a.order;
+      const color=a.type==='overdue'?'var(--red)':a.type==='unpaid'?'var(--amber)':'var(--blue)';
+      ah+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;background:${color}10;border-left:3px solid ${color};border-radius:0 var(--rs) var(--rs) 0;cursor:pointer">
+        <span style="font-size:11px;font-weight:500;min-width:50px">${o.order_num||'—'}</span>
+        <span style="font-size:12px;flex:1">${o.client||'—'}</span>
+        <span style="font-size:11px;color:${color}">${a.text}</span>
+      </div>`;
+    });
+    if(attention.length>8) ah+=`<div style="font-size:11px;color:var(--text3);padding:4px 0">...и ещё ${attention.length-8}</div>`;
+    $('d-attention').innerHTML=ah;
+  } else {
+    $('d-attention').innerHTML='<div style="color:var(--accent);font-size:13px;padding:10px 0;text-align:center">✓ Всё под контролем!</div>';
+  }
+  
+  // Воронка по статусам
+  const STATUS_ORDER=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
+  const statusCounts={};
+  orders.forEach(o=>{const s=(o.status||'').trim();statusCounts[s]=(statusCounts[s]||0)+1});
+  const maxSC=Math.max(...Object.values(statusCounts),1);
+  let fh='';
+  STATUS_ORDER.forEach(s=>{
+    const cnt=statusCounts[s]||0;
+    if(!cnt) return;
+    const pct=cnt/maxSC*100;
+    const bc=badgeClass(s);
+    fh+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="setTab('${s==='all'?'all':s}');showPage('orders')">
+      <span class="badge ${bc}" style="font-size:10px;min-width:90px">${s}</span>
+      <div style="flex:1;background:var(--surface2);border-radius:3px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px"></div></div>
+      <span style="font-size:13px;font-weight:600;min-width:25px;text-align:right">${cnt}</span>
+    </div>`;
+  });
+  $('d-funnel').innerHTML=fh||'<div style="color:var(--text3)">Нет заказов</div>';
+  
+  // Склад — заканчивается
+  const lowItems=skladItems.filter(item=>{
+    const stock=skladStock(item.item_id);
+    const min=parseFloat(item.min_stock)||0;
+    return min>0&&stock<=min&&!String(item.item_id||'').startsWith('pending_');
+  }).slice(0,5);
+  if(lowItems.length){
+    let sh='';
+    lowItems.forEach(item=>{
+      const stock=skladStock(item.item_id);
+      const empty=stock<=0;
+      sh+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;flex:1;color:${empty?'var(--red)':'var(--text)'};${empty?'font-weight:500':''}">${item.name}</span>
+        <span style="font-size:12px;font-weight:600;color:${empty?'var(--red)':'var(--amber)'}">${stock} / ${item.min_stock} ${item.unit||'шт'}</span>
+      </div>`;
+    });
+    $('d-low-stock').innerHTML=sh;
+  } else {
+    $('d-low-stock').innerHTML='<div style="color:var(--accent);font-size:13px;padding:10px 0;text-align:center">✓ Все материалы в норме</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// CRM — КЛИЕНТЫ
+// ══════════════════════════════════════════════════════
+let clients=[], clientEditId=null;
+
+async function loadClients(){
+  try{
+    const {data,error}=await sb.from('clients').select('*').order('name');
+    if(error) throw error;
+    clients=data||[];
+    renderClients();
+  }catch(e){$('crm-body').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>'}
+}
+
+function getClientStats(cl){
+  const clientOrders=orders.filter(o=>(o.client||'').trim().toLowerCase()===(cl.name||'').trim().toLowerCase());
+  const totalSum=clientOrders.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
+  const totalPaid=clientOrders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  const closed=clientOrders.filter(o=>(o.status||'').trim()==='Закрыт').length;
+  return {orders:clientOrders.length,totalSum,totalPaid,closed,list:clientOrders};
+}
+
+function renderClients(){
+  const q=($('crm-search')?.value||'').toLowerCase();
+  const sort=$('crm-sort')?.value||'name';
+  
+  let list=clients.map(cl=>{
+    const stats=getClientStats(cl);
+    return {...cl,...stats};
+  });
+  
+  if(q) list=list.filter(cl=>
+    (cl.name||'').toLowerCase().includes(q)||
+    (cl.phone||'').includes(q)||
+    (cl.email||'').toLowerCase().includes(q)
+  );
+  
+  if(sort==='name') list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ru'));
+  else if(sort==='orders') list.sort((a,b)=>b.orders-a.orders);
+  else if(sort==='revenue') list.sort((a,b)=>b.totalPaid-a.totalPaid);
+  else if(sort==='recent') list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  
+  // KPI
+  const totalClients=clients.length;
+  const withOrders=clients.filter(cl=>getClientStats(cl).orders>0).length;
+  const repeat=clients.filter(cl=>getClientStats(cl).orders>1).length;
+  const totalRev=clients.reduce((s,cl)=>s+getClientStats(cl).totalPaid,0);
+  
+  $('crm-total').textContent=totalClients;
+  $('crm-active').textContent=withOrders;
+  $('crm-repeat').textContent=repeat;
+  $('crm-revenue').textContent=fmt(totalRev);
+  
+  if(!list.length){$('crm-body').innerHTML='<div class="empty-state">Клиентов не найдено</div>';return}
+  
+  let h='';
+  list.forEach(cl=>{
+    const lastOrder=cl.list&&cl.list.length?cl.list[0]:null;
+    const lastDate=lastOrder?pDate(lastOrder.order_date):null;
+    const lastDateStr=lastDate?lastDate.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
+    
+    h+=`<div onclick="openClient(${cl.id})" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent-text);flex-shrink:0">${(cl.name||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:500">${cl.name||'—'}</div>
+        <div style="font-size:12px;color:var(--text3);display:flex;gap:10px;flex-wrap:wrap">
+          ${cl.phone?`<span>📱 ${cl.phone}</span>`:''}
+          ${cl.source?`<span>📣 ${cl.source}</span>`:''}
+          ${cl.manager?`<span>👤 ${cl.manager}</span>`:''}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${cl.orders?`<div style="font-size:13px;font-weight:600">${cl.orders} заказ(ов)</div>`:'<div style="font-size:12px;color:var(--text3)">Нет заказов</div>'}
+        ${cl.totalPaid?`<div style="font-size:12px;color:var(--accent)">${cl.totalPaid.toLocaleString('ru-RU')} ₽</div>`:''}
+        <div style="font-size:10px;color:var(--text3)">${lastDateStr}</div>
+      </div>
+    </div>`;
+  });
+  $('crm-body').innerHTML=h;
+}
+
+function openClient(id=null){
+  clientEditId=id;
+  $('client-modal-title').textContent=id?'Карточка клиента':'Новый клиент';
+  $('cl-del-btn').style.display=id?'inline-flex':'none';
+  $('cl-name').value='';$('cl-phone').value='';$('cl-email').value='';
+  $('cl-address').value='';$('cl-source').value='Авито';$('cl-manager').value='';$('cl-notes').value='';
+  $('cl-orders-section').style.display='none';
+  $('cl-orders-list').innerHTML='';
+  
+  if(id){
+    const cl=clients.find(c=>c.id===id);
+    if(cl){
+      $('cl-name').value=cl.name||'';
+      $('cl-phone').value=cl.phone||'';
+      $('cl-email').value=cl.email||'';
+      $('cl-address').value=cl.address||'';
+      $('cl-source').value=cl.source||'Авито';
+      $('cl-manager').value=cl.manager||'';
+      $('cl-notes').value=cl.notes||'';
+      
+      // История заказов
+      const stats=getClientStats(cl);
+      if(stats.list.length){
+        $('cl-orders-section').style.display='';
+        let oh=`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+          <div style="background:var(--surface2);border-radius:var(--rs);padding:8px 12px;text-align:center">
+            <div style="font-size:16px;font-weight:600">${stats.orders}</div><div style="font-size:10px;color:var(--text3)">заказов</div>
+          </div>
+          <div style="background:var(--accent-light);border-radius:var(--rs);padding:8px 12px;text-align:center">
+            <div style="font-size:16px;font-weight:600;color:var(--accent-text)">${stats.totalPaid.toLocaleString('ru-RU')} ₽</div><div style="font-size:10px;color:var(--accent-text)">оплачено</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:var(--rs);padding:8px 12px;text-align:center">
+            <div style="font-size:16px;font-weight:600">${stats.totalSum.toLocaleString('ru-RU')} ₽</div><div style="font-size:10px;color:var(--text3)">сумма</div>
+          </div>
+        </div>`;
+        stats.list.forEach(o=>{
+          const d=pDate(o.order_date);
+          const dateStr=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
+          const bc=badgeClass((o.status||'').trim());
+          oh+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:12px;font-weight:500;min-width:55px">${o.order_num||'—'}</span>
+            <span class="badge ${bc}" style="font-size:10px">${o.status||'—'}</span>
+            <span style="flex:1;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.description||'—'}</span>
+            <span style="font-size:11px;color:var(--text3)">${dateStr}</span>
+            <span style="font-size:12px;font-weight:500">${o.order_sum?(parseFloat(o.order_sum)).toLocaleString('ru-RU')+' ₽':'—'}</span>
+          </div>`;
+        });
+        $('cl-orders-list').innerHTML=oh;
+      }
+    }
+  }
+  $('m-client').classList.add('open');
+}
+
+async function saveClient(){
+  const name=$('cl-name').value.trim();
+  if(!name){showToast('Укажите имя');return}
+  const row={
+    name,
+    phone:$('cl-phone').value.trim()||null,
+    email:$('cl-email').value.trim()||null,
+    address:$('cl-address').value.trim()||null,
+    source:$('cl-source').value==='__other'?'Другое':$('cl-source').value,
+    manager:$('cl-manager').value.trim()||null,
+    notes:$('cl-notes').value.trim()||null
+  };
+  try{
+    if(clientEditId){
+      const {error}=await sb.from('clients').update(row).eq('id',clientEditId);
+      if(error) throw error;
+      showToast('Клиент обновлён');
+    } else {
+      const {error}=await sb.from('clients').insert(row);
+      if(error) throw error;
+      showToast('Клиент добавлен');
+    }
+    $('m-client').classList.remove('open');
+    await loadClients();
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function deleteClient(){
+  if(!clientEditId) return;
+  const cl=clients.find(c=>c.id===clientEditId);
+  const stats=getClientStats(cl||{});
+  if(stats.orders>0){showToast('У клиента есть заказы — удаление невозможно');return}
+  if(!confirm('Удалить клиента "'+((cl&&cl.name)||'')+'"?')) return;
+  try{
+    await sb.from('clients').delete().eq('id',clientEditId);
+    $('m-client').classList.remove('open');
+    await loadClients();
+    showToast('Клиент удалён');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// Автосоздание клиента при новом заказе
+async function autoCreateClient(name,phone,source,manager){
+  if(!name) return;
+  const exists=clients.find(c=>(c.name||'').trim().toLowerCase()===name.trim().toLowerCase());
+  if(exists) return;
+  try{
+    await sb.from('clients').insert({name:name.trim(),phone:phone||null,source:source||null,manager:manager||null});
+    // Обновляем локальный массив
+    const {data}=await sb.from('clients').select('*').eq('name',name.trim()).single();
+    if(data) clients.push(data);
+  }catch(e){}
+}
+
+// ══════════════════════════════════════════════════════
 // АНАЛИТИКА
 // ══════════════════════════════════════════════════════
 let aChartRevenue=null, aChartFunnel=null, aChartSources=null;
@@ -4892,6 +5920,13 @@ async function loadExpensesSilent(){
   }catch(e){}
 }
 
+async function loadClientsSilent(){
+  try{
+    const {data}=await sb.from('clients').select('*').order('name');
+    if(data) clients=data;
+  }catch(e){}
+}
+
 // ── OVERDUE & LOW STOCK NOTIFICATIONS ──────────────────
 function checkOverdueNotify(){
   const today=new Date();today.setHours(0,0,0,0);
@@ -4993,8 +6028,9 @@ async function initApp(user){
   // Загружаем данные
   sync('loading','Загрузка...');
   try{
-    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent()]);
+    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent()]);
     sync('ok','K2 ✓');
+    renderDashboard();
     // Проверяем просрочки и нехватку — уведомляем раз при входе
     checkOverdueNotify();
     checkLowStockNotify();
