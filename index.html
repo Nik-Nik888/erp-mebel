@@ -4670,16 +4670,16 @@ function kanbanZoomToggle(){
 let _appSettings={};
 
 async function loadAppSettings(){
-  // Сначала из localStorage (мгновенно)
   try{_appSettings=JSON.parse(localStorage.getItem('k2_app_settings')||'{}')}catch(e){_appSettings={}}
-  // Потом из Supabase (свежие данные)
   try{
-    const {data}=await sb.from('app_settings').select('*');
-    if(data){
+    const {data,error}=await sb.from('app_settings').select('*');
+    if(error){console.log('Settings load error:',error.message);return}
+    if(data&&data.length){
       data.forEach(r=>{_appSettings[r.key]=r.value});
       localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
+      console.log('Settings loaded from Supabase:',Object.keys(_appSettings));
     }
-  }catch(e){}
+  }catch(e){console.log('Settings load error:',e)}
 }
 
 function getSetting(key,defaultVal){
@@ -4690,8 +4690,18 @@ async function saveSetting(key,value){
   _appSettings[key]=value;
   localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
   try{
-    await sb.from('app_settings').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});
-  }catch(e){}
+    // Пробуем update, если не нашёл — insert
+    const {error:upErr}=await sb.from('app_settings').update({value,updated_at:new Date().toISOString()}).eq('key',key);
+    if(upErr){
+      const {error:inErr}=await sb.from('app_settings').insert({key,value,updated_at:new Date().toISOString()});
+      if(inErr) console.log('Settings save error:',inErr.message);
+    }
+    // Проверяем что запись существует
+    const {data:check}=await sb.from('app_settings').select('key').eq('key',key);
+    if(!check||!check.length){
+      await sb.from('app_settings').insert({key,value,updated_at:new Date().toISOString()});
+    }
+  }catch(e){console.log('Settings save error:',e)}
 }
 
 // ── Поля отображения на карточке ──
@@ -4955,8 +4965,8 @@ function renderKanban(){
         ${fields.manager&&o.manager?`<div style="font-size:10px;color:var(--text3)">👤 ${o.manager}</div>`:''}
         ${fields.comment&&(o.comment||'').trim()?`<div style="font-size:10px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">💬 ${o.comment}</div>`:''}
         <div style="display:flex;gap:4px;margin-top:5px;position:relative;z-index:2">
-          <button ontouchend="event.stopPropagation();event.preventDefault();openPrepay('${o.order_num}')" onclick="event.stopPropagation();openPrepay('${o.order_num}')" style="flex:1;background:var(--accent-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text);font-weight:500">₽ Оплата</button>
-          <button ontouchend="event.stopPropagation();event.preventDefault();addExpenseForOrder('${o.order_num}')" onclick="event.stopPropagation();addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
+          <button onpointerdown="btnTouchStart(this)" onpointerup="btnTouchEnd(this,'prepay','${o.order_num}')" onpointerleave="btnTouchCancel(this)" onclick="event.stopPropagation()" style="flex:1;background:var(--accent-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text);font-weight:500">₽ Оплата</button>
+          <button onpointerdown="btnTouchStart(this)" onpointerup="btnTouchEnd(this,'expense','${o.order_num}')" onpointerleave="btnTouchCancel(this)" onclick="event.stopPropagation()" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
         </div>
       </div>`;
     });
@@ -4965,6 +4975,22 @@ function renderKanban(){
   });
   h+='</div>';
   $('kanban-body').innerHTML=h;
+}
+
+// Card button touch delay — prevents accidental taps during scroll
+function btnTouchStart(el){
+  el._touchTime=Date.now();
+  el._touchCanceled=false;
+}
+function btnTouchCancel(el){
+  el._touchCanceled=true;
+}
+function btnTouchEnd(el,action,orderNum){
+  if(el._touchCanceled) return;
+  const dt=Date.now()-(el._touchTime||0);
+  if(dt<150) return; // слишком быстро — скорее всего случайный тап при скролле
+  if(action==='prepay') openPrepay(orderNum);
+  else if(action==='expense') addExpenseForOrder(orderNum);
 }
 
 // Desktop Drag & Drop
