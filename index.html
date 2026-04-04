@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K2 — ERP Мебель</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23F5C518'/><text x='16' y='23' text-anchor='middle' font-size='18' font-weight='bold' fill='%231c1b18'>K2</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -159,7 +160,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
 .modal{background:var(--surface);border-radius:var(--r);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
 .modal-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
 .modal-title{font-size:15px;font-weight:600}
-.modal-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;padding:4px}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:24px;line-height:1;padding:8px;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center}
 .modal-body{padding:22px}
 .modal-ft{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
 
@@ -413,7 +414,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         </div>
       </div>
 
-      <div class="period-bar">
+      <div class="period-bar" style="display:none">
         <label>Период:</label>
         <input type="date" id="p-from" onchange="updateStats()">
         <span style="color:var(--text3);font-size:12px">—</span>
@@ -889,18 +890,24 @@ tbody tr.overdue:hover td{background:#fff0f0}
 
         <!-- Материалы заказа -->
         <div class="f full" style="margin-top:4px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <label class="flabel" style="margin:0">Материалы заказа</label>
-            <div style="display:flex;gap:5px;align-items:center">
+          <div onclick="toggleMatsSection()" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="f-mats-arrow" style="font-size:10px;color:var(--text3);transition:transform 0.2s">▶</span>
+              <label class="flabel" style="margin:0;cursor:pointer">Материалы заказа</label>
+              <span id="f-mats-badge" style="display:none;font-size:10px;padding:1px 7px;border-radius:10px;background:var(--amber-light);color:var(--amber);font-weight:500">0</span>
+            </div>
+            <div style="display:flex;gap:5px;align-items:center" onclick="event.stopPropagation()">
               <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="openSpecImport()">📎 Загрузить</button>
               <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="addOrderMat()">+ материал</button>
             </div>
           </div>
-          <div id="f-mats-wrap" style="display:flex;flex-direction:column;gap:4px"></div>
-          <div id="f-mats-empty" style="font-size:12px;color:var(--text3);padding:8px 0">Нет материалов — нажмите "+ материал", "📎 Загрузить" или создайте через КП</div>
-          <div id="f-mats-total" style="display:none;margin-top:6px;background:var(--amber-light);border:1px solid rgba(133,79,11,0.15);border-radius:var(--rs);padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:12px;color:var(--amber);font-weight:500">📦 Себестоимость материалов</span>
-            <span id="f-mats-cost" style="font-size:15px;font-weight:600;color:var(--amber);font-family:'JetBrains Mono',monospace">0 ₽</span>
+          <div id="f-mats-body" style="display:none">
+            <div id="f-mats-wrap" style="display:flex;flex-direction:column;gap:4px"></div>
+            <div id="f-mats-empty" style="font-size:12px;color:var(--text3);padding:8px 0">Нет материалов — нажмите "+ материал", "📎 Загрузить" или создайте через КП</div>
+            <div id="f-mats-total" style="display:none;margin-top:6px;background:var(--amber-light);border:1px solid rgba(133,79,11,0.15);border-radius:var(--rs);padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--amber);font-weight:500">📦 Себестоимость материалов</span>
+              <span id="f-mats-cost" style="font-size:15px;font-weight:600;color:var(--amber);font-family:'JetBrains Mono',monospace">0 ₽</span>
+            </div>
           </div>
         </div>
 
@@ -1723,12 +1730,15 @@ function openAdd(){
   // Сбрасываем материалы
   $('f-mats-wrap').innerHTML='';
   orderMatCounter=0;
+  matsCollapsed=false;
+  if($('f-mats-body'))$('f-mats-body').style.display='';
+  if($('f-mats-arrow'))$('f-mats-arrow').style.transform='rotate(90deg)';
   updateOrderMatsEmpty();
   // Файлы — скрываем для нового заказа
   $('f-files-section').style.display='none';
   $('f-files-list').innerHTML='';
   $('f-files-empty').style.display='';
-  $('m-order').classList.add('open');
+  $('m-order').classList.add('open');history.pushState(null,'',location.href);
 }
 
 function openEdit(rid){
@@ -1766,10 +1776,21 @@ function openEdit(rid){
   // Файлы — показываем и загружаем
   $('f-files-section').style.display='';
   loadOrderFiles(rid);
-  $('m-order').classList.add('open');
+  $('m-order').classList.add('open');history.pushState(null,'',location.href);
 }
 
-function closeOrder(){ $('m-order').classList.remove('open') }
+function closeOrder(){ $('m-order').classList.remove('open');history.pushState(null,'',location.href) }
+
+// Android back button — закрывает модалки вместо выхода из браузера
+window.addEventListener('popstate',function(){
+  const openModal=document.querySelector('.overlay.open');
+  if(openModal){
+    openModal.classList.remove('open');
+    history.pushState(null,'',location.href);
+  }
+});
+// Пушим начальное состояние
+history.pushState(null,'',location.href);
 function calcDopay(){
   const s=parseFloat($('f-sum').value)||0, p=parseFloat($('f-prepay').value)||0;
   $('f-dopay').value=s>0?Math.max(0,s-p):'';
@@ -1849,22 +1870,27 @@ function addOrderMat(name='', qty=1, price=0){
   const wrap=$('f-mats-wrap');
   const row=document.createElement('div');
   row.id='omat-'+i;
-  row.style.cssText='display:flex;gap:6px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 8px';
+  row.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 8px;position:relative';
   row.innerHTML=`
     <datalist id="${dlId}">${opts}</datalist>
+    <button type="button" onclick="document.getElementById('omat-${i}').remove();updateOrderMatsEmpty();calcOrderSum()" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px 4px">×</button>
     <input type="text" value="${n}" list="${dlId}" class="omat-name" placeholder="Материал..." autocomplete="off"
       oninput="onOrderMatChange(this,${i})" onchange="onOrderMatChange(this,${i})" onfocus="this.select()"
-      style="flex:2;min-width:0;background:transparent;border:none;outline:none;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text)">
-    <input type="number" value="${qty}" class="omat-qty" min="0.5" step="0.5" placeholder="Кол-во"
-      oninput="calcOrderSum()" onchange="calcOrderSum()"
-      style="width:55px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;outline:none;text-align:center;font-family:'Geologica',sans-serif;color:var(--text)">
-    <input type="number" value="${p}" class="omat-price" min="0" placeholder="Цена"
-      oninput="calcOrderSum()" onchange="calcOrderSum()"
-      style="width:65px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;outline:none;text-align:right;font-family:'Geologica',sans-serif;color:var(--text2)">
-    <span class="omat-sum" id="omat-sum-${i}" style="font-size:11px;min-width:60px;text-align:right;font-weight:500;color:var(--accent-text)">${matSum?matSum.toLocaleString('ru-RU')+' ₽':'—'}</span>
-    <span class="omat-stock" id="omat-stock-${i}" style="font-size:10px;min-width:40px;text-align:center;color:var(--text3)">${stock!=='—'?(stock>0?'✓'+stock:'⚠0'):'—'}</span>
-    <button type="button" onclick="document.getElementById('omat-${i}').remove();updateOrderMatsEmpty();calcOrderSum()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 2px">×</button>`;
+      style="width:100%;background:transparent;border:none;outline:none;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text);margin-bottom:4px;padding-right:20px">
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="number" value="${qty}" class="omat-qty" min="0.5" step="0.5" placeholder="Кол"
+        oninput="calcOrderSum()" onchange="calcOrderSum()"
+        style="width:50px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 4px;font-size:11px;outline:none;text-align:center;font-family:'Geologica',sans-serif;color:var(--text)">
+      <span style="font-size:10px;color:var(--text3)">×</span>
+      <input type="number" value="${p}" class="omat-price" min="0" placeholder="Цена"
+        oninput="calcOrderSum()" onchange="calcOrderSum()"
+        style="width:60px;background:transparent;border:1px solid var(--border);border-radius:4px;padding:3px 4px;font-size:11px;outline:none;text-align:right;font-family:'Geologica',sans-serif;color:var(--text2)">
+      <span style="font-size:10px;color:var(--text3)">=</span>
+      <span class="omat-sum" id="omat-sum-${i}" style="font-size:11px;font-weight:500;color:var(--accent-text);flex:1;text-align:right">${matSum?matSum.toLocaleString('ru-RU')+'₽':'—'}</span>
+      <span class="omat-stock" id="omat-stock-${i}" style="font-size:10px;color:var(--text3)">${stock!=='—'?(stock>0?'✓'+stock:'⚠0'):'—'}</span>
+    </div>`;
   wrap.appendChild(row);
+  expandMatsSection();
   updateOrderMatsEmpty();
   calcOrderSum();
 }
@@ -1918,10 +1944,34 @@ function calcOrderSum(){
   }
 }
 
+let matsCollapsed=true;
+function toggleMatsSection(){
+  matsCollapsed=!matsCollapsed;
+  const body=$('f-mats-body');
+  const arrow=$('f-mats-arrow');
+  if(body) body.style.display=matsCollapsed?'none':'';
+  if(arrow) arrow.style.transform=matsCollapsed?'rotate(0deg)':'rotate(90deg)';
+}
+
+function expandMatsSection(){
+  matsCollapsed=false;
+  const body=$('f-mats-body');
+  const arrow=$('f-mats-arrow');
+  if(body) body.style.display='';
+  if(arrow) arrow.style.transform='rotate(90deg)';
+}
+
 function updateOrderMatsEmpty(){
   const wrap=$('f-mats-wrap');
   const empty=$('f-mats-empty');
-  if(empty) empty.style.display=wrap.children.length?'none':'';
+  const count=wrap?wrap.children.length:0;
+  if(empty) empty.style.display=count?'none':'';
+  // Обновляем бейдж кол-ва
+  const badge=$('f-mats-badge');
+  if(badge){
+    badge.style.display=count?'':'none';
+    badge.textContent=count;
+  }
 }
 
 function getOrderMatsFromForm(){
@@ -4882,9 +4932,9 @@ function renderKanban(){
         <div style="font-size:9px;color:var(--text3);text-align:right">${paidPct}%</div>`:''}
         ${fields.manager&&o.manager?`<div style="font-size:10px;color:var(--text3)">👤 ${o.manager}</div>`:''}
         ${fields.comment&&(o.comment||'').trim()?`<div style="font-size:10px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">💬 ${o.comment}</div>`:''}
-        <div style="display:flex;gap:4px;margin-top:5px">
-          <button onclick="event.stopPropagation();openPrepay('${o.order_num}')" style="flex:1;background:var(--accent-light);border:none;border-radius:3px;padding:2px 0;font-size:10px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text)">₽ Оплата</button>
-          <button onclick="event.stopPropagation();addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:3px;padding:2px 0;font-size:10px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red)">+ Расход</button>
+        <div style="display:flex;gap:4px;margin-top:5px;position:relative;z-index:2">
+          <button ontouchend="event.stopPropagation();event.preventDefault();openPrepay('${o.order_num}')" onclick="event.stopPropagation();openPrepay('${o.order_num}')" style="flex:1;background:var(--accent-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text);font-weight:500">₽ Оплата</button>
+          <button ontouchend="event.stopPropagation();event.preventDefault();addExpenseForOrder('${o.order_num}')" onclick="event.stopPropagation();addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
         </div>
       </div>`;
     });
@@ -5476,13 +5526,18 @@ function renderClients(){
     const lastDate=lastOrder?pDate(lastOrder.order_date):null;
     const lastDateStr=lastDate?lastDate.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
     
+    const srcColors=getSourceColors();
+    const srcColor=srcColors[(cl.source||'').trim()]||'#6b6a64';
+    
     h+=`<div onclick="openClient(${cl.id})" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent-text);flex-shrink:0">${(cl.name||'?')[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:500">${cl.name||'—'}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:14px;font-weight:500">${cl.name||'—'}</span>
+          ${cl.source?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${srcColor}18;color:${srcColor};font-weight:500">${cl.source}</span>`:''}
+        </div>
         <div style="font-size:12px;color:var(--text3);display:flex;gap:10px;flex-wrap:wrap">
           ${cl.phone?`<span>📱 ${cl.phone}</span>`:''}
-          ${cl.source?`<span>📣 ${cl.source}</span>`:''}
           ${cl.manager?`<span>👤 ${cl.manager}</span>`:''}
         </div>
       </div>
