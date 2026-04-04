@@ -414,15 +414,9 @@ tbody tr.overdue:hover td{background:#fff0f0}
         </div>
       </div>
 
-      <div class="period-bar" style="display:none">
-        <label>Период:</label>
-        <input type="date" id="p-from" onchange="updateStats()">
-        <span style="color:var(--text3);font-size:12px">—</span>
-        <input type="date" id="p-to" onchange="updateStats()">
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="setPeriod('month')">Этот месяц</button>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="setPeriod('prev')">Прошлый</button>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="setPeriod('all')">Всё время</button>
-      </div>
+      <!-- Period inputs hidden - used by getFilteredByPeriod -->
+      <input type="hidden" id="p-from">
+      <input type="hidden" id="p-to">
 
       <div class="stats">
         <div class="stat"><div class="lbl">Активных</div><div class="val" id="s-active">—</div><div class="hint">в работе</div></div>
@@ -4675,9 +4669,12 @@ async function loadAppSettings(){
     const {data,error}=await sb.from('app_settings').select('*');
     if(error){console.log('Settings load error:',error.message);return}
     if(data&&data.length){
-      data.forEach(r=>{_appSettings[r.key]=r.value});
+      data.forEach(r=>{
+        try{_appSettings[r.key]=typeof r.value==='string'?JSON.parse(r.value):r.value}
+        catch(e){_appSettings[r.key]=r.value}
+      });
       localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
-      console.log('Settings loaded from Supabase:',Object.keys(_appSettings));
+      console.log('Settings synced:',Object.keys(_appSettings).join(', '));
     }
   }catch(e){console.log('Settings load error:',e)}
 }
@@ -4690,17 +4687,9 @@ async function saveSetting(key,value){
   _appSettings[key]=value;
   localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
   try{
-    // Пробуем update, если не нашёл — insert
-    const {error:upErr}=await sb.from('app_settings').update({value,updated_at:new Date().toISOString()}).eq('key',key);
-    if(upErr){
-      const {error:inErr}=await sb.from('app_settings').insert({key,value,updated_at:new Date().toISOString()});
-      if(inErr) console.log('Settings save error:',inErr.message);
-    }
-    // Проверяем что запись существует
-    const {data:check}=await sb.from('app_settings').select('key').eq('key',key);
-    if(!check||!check.length){
-      await sb.from('app_settings').insert({key,value,updated_at:new Date().toISOString()});
-    }
+    await sb.from('app_settings').delete().eq('key',key);
+    const {error}=await sb.from('app_settings').insert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()});
+    if(error) console.log('Settings save error:',error.message);
   }catch(e){console.log('Settings save error:',e)}
 }
 
@@ -4965,8 +4954,8 @@ function renderKanban(){
         ${fields.manager&&o.manager?`<div style="font-size:10px;color:var(--text3)">👤 ${o.manager}</div>`:''}
         ${fields.comment&&(o.comment||'').trim()?`<div style="font-size:10px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">💬 ${o.comment}</div>`:''}
         <div style="display:flex;gap:4px;margin-top:5px;position:relative;z-index:2">
-          <button onpointerdown="btnTouchStart(this)" onpointerup="btnTouchEnd(this,'prepay','${o.order_num}')" onpointerleave="btnTouchCancel(this)" onclick="event.stopPropagation()" style="flex:1;background:var(--accent-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text);font-weight:500">₽ Оплата</button>
-          <button onpointerdown="btnTouchStart(this)" onpointerup="btnTouchEnd(this,'expense','${o.order_num}')" onpointerleave="btnTouchCancel(this)" onclick="event.stopPropagation()" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
+          <button onclick="event.stopPropagation();if(!window._scrolling)openPrepay('${o.order_num}')" style="flex:1;background:var(--accent-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text);font-weight:500">₽ Оплата</button>
+          <button onclick="event.stopPropagation();if(!window._scrolling)addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
         </div>
       </div>`;
     });
@@ -4977,21 +4966,19 @@ function renderKanban(){
   $('kanban-body').innerHTML=h;
 }
 
-// Card button touch delay — prevents accidental taps during scroll
-function btnTouchStart(el){
-  el._touchTime=Date.now();
-  el._touchCanceled=false;
-}
-function btnTouchCancel(el){
-  el._touchCanceled=true;
-}
-function btnTouchEnd(el,action,orderNum){
-  if(el._touchCanceled) return;
-  const dt=Date.now()-(el._touchTime||0);
-  if(dt<150) return; // слишком быстро — скорее всего случайный тап при скролле
-  if(action==='prepay') openPrepay(orderNum);
-  else if(action==='expense') addExpenseForOrder(orderNum);
-}
+// Scroll detection — prevents accidental button taps during scroll
+window._scrolling=false;
+let _scrollTimer=null;
+document.addEventListener('scroll',()=>{
+  window._scrolling=true;
+  clearTimeout(_scrollTimer);
+  _scrollTimer=setTimeout(()=>{window._scrolling=false},300);
+},true);
+document.addEventListener('touchmove',()=>{
+  window._scrolling=true;
+  clearTimeout(_scrollTimer);
+  _scrollTimer=setTimeout(()=>{window._scrolling=false},300);
+},true);
 
 // Desktop Drag & Drop
 let draggedOrderNum=null;
