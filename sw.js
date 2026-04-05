@@ -1,4 +1,4 @@
-const CACHE_NAME = 'k2-mebel-v1';
+const CACHE_NAME = 'k2-mebel-v2';
 const URLS_TO_CACHE = [
   '/erp-mebel/',
   '/erp-mebel/index.html'
@@ -24,7 +24,6 @@ self.addEventListener('activate', event => {
 
 // Стратегия: сначала сеть, если нет — кэш
 self.addEventListener('fetch', event => {
-  // Пропускаем запросы к Supabase и Telegram — они всегда через сеть
   if (event.request.url.includes('supabase.co') || 
       event.request.url.includes('api.telegram.org') ||
       event.request.url.includes('cdnjs.cloudflare.com')) {
@@ -34,7 +33,6 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Кэшируем успешные GET-ответы
         if (response.ok && event.request.method === 'GET') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
@@ -42,7 +40,6 @@ self.addEventListener('fetch', event => {
         return response;
       })
       .catch(() => {
-        // Нет сети — отдаём из кэша
         return caches.match(event.request).then(cached => {
           return cached || new Response('Нет подключения к интернету', { 
             status: 503, 
@@ -50,5 +47,21 @@ self.addEventListener('fetch', event => {
           });
         });
       })
+  );
+});
+
+// Push-уведомления
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      // Фокусируем существующее окно или открываем новое
+      for (const client of windowClients) {
+        if (client.url.includes('/erp-mebel') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow('/erp-mebel/');
+    })
   );
 });
