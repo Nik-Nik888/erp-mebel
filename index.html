@@ -65,6 +65,7 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .kanban-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,0.06)}
 .kanban-card.dragging{opacity:0.4;transform:scale(0.95)}
 .kanban-col.drag-over{background:var(--accent-light);border:2px dashed var(--accent)}
+.gantt-row:hover{background:var(--surface2)!important}
 .sidebar-logo{padding:0 20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
 .sidebar-logo .name{font-size:15px;font-weight:600;color:#fff}
 .sidebar-logo .sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
@@ -324,7 +325,9 @@ tbody tr.overdue:hover td{background:#fff0f0}
     <div class="nav-item" data-roles="admin,manager" onclick="showPage('crm',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><circle cx="11" cy="6" r="2"/><path d="M1 13c0-2.5 2-4 5-4s5 1.5 5 4"/><path d="M10 13c0-1.8 1-3 3-3s2.5 1.2 2.5 3"/></svg><span>Клиенты</span></div>
     <div class="nav-item" data-roles="admin,manager,production" onclick="showPage('calendar',this)">
-      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="12" rx="1.5"/><line x1="1" y1="7" x2="15" y2="7"/><line x1="4" y1="1" x2="4" y2="5"/><line x1="12" y1="1" x2="12" y2="5"/></svg><span>Календарь</span></div>
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="12" rx="1.5"/><line x1="1" y1="7" x2="15" y2="7"/><line x1="4" y1="1" x2="4" y2="5"/><line x1="12" y1="1" x2="12" y2="5"/></svg><span>Производство</span></div>
+    <div class="nav-item" data-roles="admin,manager,production" onclick="showPage('workshop',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="10" rx="1.5"/><circle cx="5" cy="9" r="2"/><circle cx="11" cy="9" r="2"/><line x1="7" y1="9" x2="9" y2="9" stroke-width="2"/></svg><span>Цех</span></div>
     <div class="nav-sec">Отчёты</div>
     <div class="nav-item" data-roles="admin,accounting,manager" onclick="showPage('analytics',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg><span>Аналитика</span></div>
@@ -728,37 +731,50 @@ tbody tr.overdue:hover td{background:#fff0f0}
     </div>
 
     <!-- КАЛЕНДАРЬ ПРОИЗВОДСТВА -->
+    <!-- GANTT ПРОИЗВОДСТВА -->
     <div class="page" id="page-calendar">
       <div class="page-header">
-        <div><div class="page-title">Календарь</div><div class="page-sub">Загрузка производства</div></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-ghost" onclick="calPrev()">← Назад</button>
-          <span id="cal-month-label" style="font-size:14px;font-weight:600;min-width:140px;text-align:center"></span>
-          <button class="btn btn-ghost" onclick="calNext()">Вперёд →</button>
-          <button class="btn btn-ghost" onclick="calToday()">Сегодня</button>
+        <div><div class="page-title">Производство</div><div class="page-sub">Gantt-диаграмма</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="ganttPrev()">←</button>
+          <span id="gantt-period-label" style="font-size:13px;font-weight:600;min-width:100px;text-align:center"></span>
+          <button class="btn btn-ghost" onclick="ganttNext()">→</button>
+          <button class="btn btn-ghost" onclick="ganttToday()">Сегодня</button>
+          <select class="fsel" id="gantt-view" onchange="renderGantt()" style="font-size:12px">
+            <option value="14">2 недели</option>
+            <option value="30" selected>Месяц</option>
+            <option value="60">2 месяца</option>
+          </select>
+          <select class="fsel" id="gantt-filter" onchange="renderGantt()" style="font-size:12px">
+            <option value="active">Активные</option>
+            <option value="all">Все заказы</option>
+            <option value="overdue">Просроченные</option>
+          </select>
         </div>
       </div>
 
-      <!-- Легенда -->
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:11px">
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#185FA5;margin-right:4px"></span>КП</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#534AB7;margin-right:4px"></span>Новый</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#854F0B;margin-right:4px"></span>Мат. заказан</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2a5c3f;margin-right:4px"></span>В работе</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#16a34a;margin-right:4px"></span>Готов</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#A32D2D;margin-right:4px"></span>Дедлайн</span>
-      </div>
+      <!-- Легенда этапов -->
+      <div id="gantt-legend" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:10px"></div>
 
-      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+      <!-- Загрузка по дням -->
+      <div id="gantt-load" style="margin-bottom:6px"></div>
 
-      <!-- Детали дня -->
-      <div id="cal-day-detail" style="display:none;margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:14px;font-weight:600" id="cal-day-title">—</div>
-          <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="$('cal-day-detail').style.display='none'">×</button>
+      <!-- Gantt chart -->
+      <div id="gantt-body" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+    </div>
+
+    <!-- ЦЕХ — для планшетов на производстве -->
+    <div class="page" id="page-workshop">
+      <div class="page-header">
+        <div><div class="page-title">Цех</div><div class="page-sub">Управление этапами</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="loadOrders().then(()=>renderWorkshop())">↻</button>
+          <select class="fsel" id="ws-filter" onchange="renderWorkshop()" style="font-size:13px">
+            <option value="">Все участки</option>
+          </select>
         </div>
-        <div id="cal-day-orders"></div>
       </div>
+      <div id="ws-body"></div>
     </div>
 
     <!-- АНАЛИТИКА -->
@@ -871,7 +887,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
   <div class="mob-more-item" onclick="showPage('kp');syncMobNav('kp');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">📄 КП / Расчёт</div>
   <div class="mob-more-item" onclick="showPage('expenses');syncMobNav('expenses');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">💰 Расходы</div>
   <div class="mob-more-item" onclick="showPage('crm');syncMobNav('crm');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">👥 Клиенты</div>
-  <div class="mob-more-item" onclick="showPage('calendar');syncMobNav('calendar');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">📅 Календарь</div>
+  <div class="mob-more-item" onclick="showPage('calendar');syncMobNav('calendar');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">📅 Производство</div>
+  <div class="mob-more-item" onclick="showPage('workshop');syncMobNav('workshop');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">🏭 Цех</div>
 </div>
 
 <!-- МОДАЛ: заказ -->
@@ -896,7 +913,20 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f"><label class="flabel">Сумма заказа (₽)</label><input class="finput" type="number" id="f-sum" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Предоплата (₽)</label><input class="finput" type="number" id="f-prepay" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Остаток (авто)</label><input class="finput" type="number" id="f-dopay" readonly style="background:var(--accent-light);color:var(--accent-text);font-weight:500"></div>
-        <div class="f" style="display:none"><input type="hidden" id="f-spec"><input type="hidden" id="f-spec-json"></div>
+        <div class="f" style="display:none"><input type="hidden" id="f-spec"><input type="hidden" id="f-spec-json"><input type="hidden" id="f-stages-data" value="{}"></div>
+
+        <!-- Этапы производства -->
+        <div class="f full" id="f-stages-section" style="display:none;margin-top:4px">
+          <div onclick="toggleStagesSection()" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="f-stages-arrow" style="font-size:10px;color:var(--text3);transition:transform 0.2s;transform:rotate(90deg)">▶</span>
+              <label class="flabel" style="margin:0;cursor:pointer">Этапы производства</label>
+              <span id="f-stages-progress" style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--accent-light);color:var(--accent-text);font-weight:500">0/13</span>
+            </div>
+            <button type="button" onclick="event.stopPropagation();openStagesSettings()" class="btn btn-ghost" style="font-size:12px;padding:2px 8px" title="Настройки этапов">⚙</button>
+          </div>
+          <div id="f-stages-body"></div>
+        </div>
 
         <!-- Материалы заказа -->
         <div class="f full" style="margin-top:4px">
@@ -1503,7 +1533,8 @@ function showPage(p, el){
   if(p==='users') loadUsers();
   if(p==='crm') loadClients();
   if(p==='dashboard') renderDashboard();
-  if(p==='calendar') renderCalendar();
+  if(p==='calendar') renderGantt();
+  if(p==='workshop') renderWorkshop();
 }
 function syncMobNav(p){
   document.querySelectorAll('.mnav-btn').forEach(x=>x.classList.remove('active'));
@@ -1754,6 +1785,9 @@ function openAdd(){
   $('f-files-section').style.display='none';
   $('f-files-list').innerHTML='';
   $('f-files-empty').style.display='';
+  // Этапы — скрываем для нового
+  $('f-stages-section').style.display='none';
+  $('f-stages-data').value='{}';
   $('m-order').classList.add('open');history.pushState(null,'',location.href);
 }
 
@@ -1792,6 +1826,14 @@ function openEdit(rid){
   // Файлы — показываем и загружаем
   $('f-files-section').style.display='';
   loadOrderFiles(rid);
+  // Этапы производства
+  $('f-stages-section').style.display='';
+  const stages=getOrderStages(o);
+  $('f-stages-data').value=JSON.stringify(stages);
+  stagesCollapsed=false;
+  $('f-stages-body').style.display='';
+  $('f-stages-arrow').style.transform='rotate(90deg)';
+  renderStagesForm(stages);
   $('m-order').classList.add('open');history.pushState(null,'',location.href);
 }
 
@@ -2067,7 +2109,8 @@ async function saveOrder(){
     dopay: sum>0?Math.max(0,sum-prep):0,
     source: getSourceValue(),
     specification: specValue,
-    comment: $('f-comment').value||''
+    comment: $('f-comment').value||'',
+    stages: JSON.parse($('f-stages-data').value||'{}')
   };
   try{
     if(editId){
@@ -2429,6 +2472,9 @@ async function quickStatus(rid,newSt){
     const {error}=await sb.from('orders').update({status:newSt}).eq('id',o.id);
     if(error) throw error;
     o.status=newSt;
+
+    // Авто-отметка этапов при смене статуса
+    autoMarkStages(o, newSt);
 
     // Логируем смену статуса + TG уведомление
     await logStatusChange(rid, oldSt, newSt);
@@ -4666,6 +4712,270 @@ async function autoCreateExpenses(orderNum){
 }
 
 // ══════════════════════════════════════════════════════
+// ЭТАПЫ ПРОИЗВОДСТВА
+// ══════════════════════════════════════════════════════
+const DEFAULT_PROD_STAGES=[
+  {key:'kp',name:'КП / Заявка',icon:'📋',color:'#185FA5',kanban:'Отправлено КП'},
+  {key:'zamer',name:'Замер',icon:'📏',color:'#6366f1',kanban:''},
+  {key:'project',name:'Проектирование',icon:'📐',color:'#8b5cf6',kanban:''},
+  {key:'soglasovanie',name:'Согласование',icon:'✅',color:'#534AB7',kanban:''},
+  {key:'material',name:'Заказ материалов',icon:'📦',color:'#854F0B',kanban:'Материал заказан'},
+  {key:'raskroy',name:'Раскрой',icon:'🪚',color:'#b45309',kanban:'В работе'},
+  {key:'kromka',name:'Кромка',icon:'🔲',color:'#a16207',kanban:''},
+  {key:'prisadka',name:'Присадка',icon:'🔩',color:'#78716c',kanban:''},
+  {key:'sborka',name:'Сборка',icon:'🔧',color:'#2a5c3f',kanban:''},
+  {key:'upakovka',name:'Упаковка',icon:'📦',color:'#16a34a',kanban:'Готов к выдаче'},
+  {key:'otgruzka',name:'Отгрузка',icon:'🚛',color:'#0d9488',kanban:'Отгружен'},
+  {key:'dostavka',name:'Доставка',icon:'🚚',color:'#0284c7',kanban:''},
+  {key:'montazh',name:'Монтаж',icon:'🏠',color:'#3b82f6',kanban:''}
+];
+
+// Динамические этапы — из Supabase settings или default
+let PROD_STAGES=[...DEFAULT_PROD_STAGES];
+
+function getProdStages(){
+  return getSetting('prod_stages',null);
+}
+function loadProdStages(){
+  const saved=getProdStages();
+  if(saved&&Array.isArray(saved)&&saved.length>0) PROD_STAGES=saved;
+}
+
+// Авто-отметка этапов по статусу канбана
+async function autoMarkStages(o,newStatus){
+  let stages=getOrderStages(o);
+  let changed=false;
+  
+  // Находим все этапы привязанные к этому статусу канбана и ранее
+  let matched=false;
+  for(const st of PROD_STAGES){
+    if(stages[st.key]&&stages[st.key].skip) continue;
+    if(st.kanban===newStatus){matched=true}
+    if(matched) break;
+    // Отмечаем все этапы до совпавшего
+    if(!stages[st.key]||!stages[st.key].done){
+      // Проверяем — следующий этап совпадает?
+    }
+  }
+  
+  // Более точная логика: отметить все этапы до привязанного к этому статусу
+  for(let i=0;i<PROD_STAGES.length;i++){
+    const st=PROD_STAGES[i];
+    if(stages[st.key]&&stages[st.key].skip) continue;
+    if(st.kanban===newStatus){
+      // Отмечаем этот и все предыдущие активные
+      for(let j=0;j<=i;j++){
+        const prev=PROD_STAGES[j];
+        if(stages[prev.key]&&stages[prev.key].skip) continue;
+        if(!stages[prev.key]||!stages[prev.key].done){
+          stages[prev.key]={done:true,date:new Date().toISOString()};
+          changed=true;
+        }
+      }
+      break;
+    }
+  }
+  
+  if(changed){
+    o.stages=stages;
+    try{await sb.from('orders').update({stages}).eq('id',o.id)}catch(e){}
+  }
+}
+
+// ── Настройки этапов ──
+function openStagesSettings(){
+  let overlay=$('m-stages-settings');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.className='overlay';overlay.id='m-stages-settings';
+    overlay.innerHTML=`<div class="modal" style="max-width:500px"><div class="modal-hd"><div class="modal-title">Настройка этапов производства</div><button class="modal-close" onclick="$('m-stages-settings').classList.remove('open')">×</button></div><div class="modal-body" id="m-stages-settings-body" style="max-height:70vh;overflow-y:auto"></div><div class="modal-ft"><div style="display:flex;gap:8px;width:100%"><input class="finput" id="new-stage-name" placeholder="Новый этап..."><input class="finput" id="new-stage-icon" placeholder="🔧" style="width:50px"><button class="btn btn-primary" onclick="addProdStage()">+</button></div></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  renderStagesSettings();
+  overlay.classList.add('open');
+}
+
+function renderStagesSettings(){
+  const kanbanCols=getKanbanColumns();
+  let h='<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Порядок, названия и привязка к колонкам канбана. Перетащите для изменения порядка.</div>';
+  
+  PROD_STAGES.forEach((st,i)=>{
+    h+=`<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <button onclick="moveProdStage(${i},-1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;color:var(--text3)">↑</button>
+      <button onclick="moveProdStage(${i},1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;color:var(--text3)">↓</button>
+      <span style="font-size:14px;flex-shrink:0">${st.icon}</span>
+      <input value="${st.name}" onchange="updateProdStage(${i},'name',this.value)" style="flex:1;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text)">
+      <select onchange="updateProdStage(${i},'kanban',this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:3px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text2);max-width:110px">
+        <option value="">— нет —</option>
+        ${kanbanCols.map(c=>`<option value="${c}"${st.kanban===c?' selected':''}>${c}</option>`).join('')}
+      </select>
+      <input type="color" value="${st.color}" onchange="updateProdStage(${i},'color',this.value)" style="width:24px;height:22px;border:none;padding:0;cursor:pointer;background:none">
+      <button onclick="removeProdStage(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>
+    </div>`;
+  });
+  $('m-stages-settings-body').innerHTML=h;
+}
+
+function updateProdStage(i,field,val){
+  PROD_STAGES[i][field]=val;
+  saveSetting('prod_stages',PROD_STAGES);
+  renderStagesSettings();
+}
+
+function moveProdStage(i,dir){
+  const ni=i+dir;
+  if(ni<0||ni>=PROD_STAGES.length) return;
+  [PROD_STAGES[i],PROD_STAGES[ni]]=[PROD_STAGES[ni],PROD_STAGES[i]];
+  saveSetting('prod_stages',PROD_STAGES);
+  renderStagesSettings();
+}
+
+function removeProdStage(i){
+  if(!confirm('Удалить этап "'+PROD_STAGES[i].name+'"?')) return;
+  PROD_STAGES.splice(i,1);
+  saveSetting('prod_stages',PROD_STAGES);
+  renderStagesSettings();
+}
+
+function addProdStage(){
+  const name=$('new-stage-name').value.trim();
+  const icon=$('new-stage-icon').value.trim()||'⚙';
+  if(!name){showToast('Укажите название');return}
+  const key=name.toLowerCase().replace(/[^a-zа-яё0-9]/g,'_').slice(0,20)+'_'+Date.now().toString(36).slice(-4);
+  PROD_STAGES.push({key,name,icon,color:'#6b6a64',kanban:''});
+  saveSetting('prod_stages',PROD_STAGES);
+  $('new-stage-name').value='';$('new-stage-icon').value='';
+  renderStagesSettings();
+  showToast('Этап "'+name+'" добавлен');
+}
+
+let stagesCollapsed=false;
+function toggleStagesSection(){
+  stagesCollapsed=!stagesCollapsed;
+  const body=$('f-stages-body');
+  const arrow=$('f-stages-arrow');
+  if(body) body.style.display=stagesCollapsed?'none':'';
+  if(arrow) arrow.style.transform=stagesCollapsed?'rotate(0deg)':'rotate(90deg)';
+}
+
+function getOrderStages(o){
+  if(!o||!o.stages) return {};
+  if(typeof o.stages==='string') try{return JSON.parse(o.stages)}catch(e){return {}}
+  return o.stages||{};
+}
+
+function renderStagesForm(stages){
+  const body=$('f-stages-body');
+  if(!body) return;
+  
+  // Считаем только активные (не пропущенные) этапы
+  const activeStages=PROD_STAGES.filter(st=>!stages[st.key]||!stages[st.key].skip);
+  const done=activeStages.filter(st=>stages[st.key]&&stages[st.key].done).length;
+  const total=activeStages.length;
+  const prog=$('f-stages-progress');
+  if(prog) prog.textContent=done+'/'+total;
+  
+  // Найти текущий этап (первый активный не завершённый)
+  let currentKey='';
+  for(const st of PROD_STAGES){
+    if(stages[st.key]&&stages[st.key].skip) continue;
+    if(!stages[st.key]||!stages[st.key].done){currentKey=st.key;break}
+  }
+  
+  let h='<div style="display:flex;flex-direction:column;gap:2px">';
+  PROD_STAGES.forEach((st,i)=>{
+    const data=stages[st.key]||{};
+    const isSkip=!!data.skip;
+    const isDone=!!data.done&&!isSkip;
+    const doneDate=data.date||'';
+    const isCurrent=st.key===currentKey;
+    
+    if(isSkip){
+      // Пропущенный этап — серый, маленький
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:3px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface2);opacity:0.4">
+        <span style="font-size:11px;flex-shrink:0">${st.icon}</span>
+        <span style="font-size:11px;flex:1;text-decoration:line-through;color:var(--text3)">${st.name}</span>
+        <button type="button" onclick="setStageSkip('${st.key}',false)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:9px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent)">вернуть</button>
+      </div>`;
+    } else {
+      const bg=isDone?`${st.color}12`:isCurrent?'var(--accent-light)':'var(--surface2)';
+      const border=isCurrent?'border:1px solid var(--accent)':'border:1px solid var(--border)';
+      const opacity=!isDone&&!isCurrent?'opacity:0.6':'';
+      
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--rs);${border};background:${bg};${opacity}">
+        <input type="checkbox" ${isDone?'checked':''} onchange="toggleStage('${st.key}',this.checked)" style="margin:0;flex-shrink:0;width:16px;height:16px;cursor:pointer">
+        <span style="font-size:13px;flex-shrink:0">${st.icon}</span>
+        <span style="font-size:12px;flex:1;font-weight:${isCurrent?'600':'400'};color:${isDone?st.color:'var(--text)'}">${st.name}</span>
+        ${isDone&&doneDate?`<span style="font-size:10px;color:var(--text3)">${new Date(doneDate).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</span>`:''}
+        ${isCurrent?'<span style="font-size:9px;color:var(--accent-text);font-weight:500">← сейчас</span>':''}
+        ${!isDone?`<button type="button" onclick="setStageSkip('${st.key}',true)" title="Пропустить этап" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:2px">✕</button>`:''}
+      </div>`;
+    }
+  });
+  
+  // Прогресс-бар
+  const pct=total?Math.round(done/total*100):0;
+  h+=`<div style="margin-top:6px;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden">
+    <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px;transition:width 0.3s"></div>
+  </div>
+  <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:2px">${pct}% выполнено (${done} из ${total})</div>`;
+  h+='</div>';
+  body.innerHTML=h;
+}
+
+function setStageSkip(key,skip){
+  const stagesJson=$('f-stages-data');
+  let stages={};
+  try{stages=JSON.parse(stagesJson.value||'{}')}catch(e){}
+  
+  if(skip){
+    stages[key]={skip:true};
+  } else {
+    delete stages[key];
+  }
+  
+  stagesJson.value=JSON.stringify(stages);
+  renderStagesForm(stages);
+  if(editId) saveStagesNow(stages);
+}
+
+function toggleStage(key,checked){
+  const stagesJson=$('f-stages-data');
+  let stages={};
+  try{stages=JSON.parse(stagesJson.value||'{}')}catch(e){}
+  
+  if(checked){
+    stages[key]={done:true,date:new Date().toISOString()};
+    // Автоматически отмечаем все предыдущие активные этапы
+    for(const st of PROD_STAGES){
+      if(st.key===key) break;
+      if(stages[st.key]&&stages[st.key].skip) continue; // пропущенные не трогаем
+      if(!stages[st.key]||!stages[st.key].done){
+        stages[st.key]={done:true,date:stages[st.key]?.date||new Date().toISOString()};
+      }
+    }
+  } else {
+    delete stages[key];
+    // Снимаем все последующие активные этапы
+    let found=false;
+    for(const st of PROD_STAGES){
+      if(st.key===key) found=true;
+      if(found&&stages[st.key]&&!stages[st.key].skip) delete stages[st.key];
+    }
+  }
+  
+  stagesJson.value=JSON.stringify(stages);
+  renderStagesForm(stages);
+  if(editId) saveStagesNow(stages);
+}
+
+async function saveStagesNow(stages){
+  if(!editId) return;
+  try{
+    await sb.from('orders').update({stages}).eq('id',editId);
+  }catch(e){console.log('Stages save error:',e)}
+}
+
+// ══════════════════════════════════════════════════════
 // КАНБАН-ДОСКА
 // ══════════════════════════════════════════════════════
 let kanbanZoomLevel=0;
@@ -5233,174 +5543,390 @@ async function deleteOrderFile(id,url){
 }
 
 // ══════════════════════════════════════════════════════
-// КАЛЕНДАРЬ ПРОИЗВОДСТВА
+// ЦЕХ — интерфейс для планшетов на участках
 // ══════════════════════════════════════════════════════
-let calMonth=new Date().getMonth(), calYear=new Date().getFullYear();
+function renderWorkshop(){
+  const filter=$('ws-filter')?.value||'';
+  const today=new Date();today.setHours(0,0,0,0);
+  const INACTIVE=['Закрыт','Отгружен','Отказались','Отправлено КП'];
+  
+  // Заполняем фильтр участками
+  const sel=$('ws-filter');
+  if(sel&&sel.options.length<=1){
+    PROD_STAGES.forEach(st=>{
+      const o=document.createElement('option');o.value=st.key;o.textContent=st.icon+' '+st.name;
+      sel.appendChild(o);
+    });
+  }
+  
+  // Активные заказы
+  let active=orders.filter(o=>{
+    const s=(o.status||'').trim();
+    return !INACTIVE.includes(s)&&s!=='';
+  });
+  
+  // Для каждого заказа определяем текущий этап
+  let cards=[];
+  active.forEach(o=>{
+    const stages=getOrderStages(o);
+    const activeStages=PROD_STAGES.filter(s=>!stages[s.key]||!stages[s.key].skip);
+    
+    // Текущий этап
+    let current=null;
+    for(const st of activeStages){
+      if(!stages[st.key]||!stages[st.key].done){current=st;break}
+    }
+    if(!current) return; // все этапы завершены
+    
+    // Предыдущий завершённый
+    let prevDone=null;
+    for(let i=PROD_STAGES.indexOf(current)-1;i>=0;i--){
+      const ps=PROD_STAGES[i];
+      if(stages[ps.key]&&stages[ps.key].skip) continue;
+      if(stages[ps.key]&&stages[ps.key].done){prevDone=ps;break}
+    }
+    
+    // Следующий этап
+    let nextStage=null;
+    let foundCurrent=false;
+    for(const st of activeStages){
+      if(st.key===current.key){foundCurrent=true;continue}
+      if(foundCurrent){nextStage=st;break}
+    }
+    
+    const dl=pDate(o.deadline);
+    const isOverdue=dl&&dl<today;
+    const {done,total}=getStageDoneCount(o);
+    
+    cards.push({order:o,current,prevDone,nextStage,isOverdue,done,total,stages});
+  });
+  
+  // Фильтр по участку
+  if(filter) cards=cards.filter(c=>c.current.key===filter);
+  
+  // Сортировка: просроченные сверху, потом по дедлайну
+  cards.sort((a,b)=>{
+    if(a.isOverdue&&!b.isOverdue) return -1;
+    if(!a.isOverdue&&b.isOverdue) return 1;
+    const da=pDate(a.order.deadline)||new Date('2099-01-01');
+    const db=pDate(b.order.deadline)||new Date('2099-01-01');
+    return da-db;
+  });
+  
+  if(!cards.length){
+    $('ws-body').innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:15px">Нет активных заказов на этом участке</div>';
+    return;
+  }
+  
+  let h='';
+  cards.forEach(c=>{
+    const o=c.order;
+    const dl=pDate(o.deadline);
+    const dlStr=dl?dl.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}):'—';
+    const pct=c.total?Math.round(c.done/c.total*100):0;
+    
+    h+=`<div style="background:var(--surface);border:1px solid ${c.isOverdue?'var(--red)':'var(--border)'};border-radius:var(--r);padding:16px;margin-bottom:12px;${c.isOverdue?'border-left:4px solid var(--red);background:var(--red-light)':'border-left:4px solid '+c.current.color}">
+      
+      <!-- Заголовок -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-size:16px;font-weight:600">${o.order_num} — ${o.client||'—'}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${o.description||''} ${c.isOverdue?'<span style="color:var(--red);font-weight:600">⚠ ПРОСРОЧЕН</span>':''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text3)">Дедлайн</div>
+          <div style="font-size:15px;font-weight:600;color:${c.isOverdue?'var(--red)':'var(--text)'}">${dlStr}</div>
+        </div>
+      </div>
+      
+      <!-- Прогресс -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div style="flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px"></div>
+        </div>
+        <span style="font-size:12px;color:var(--text3);font-weight:500">${c.done}/${c.total}</span>
+      </div>
+      
+      <!-- Текущий этап — большая кнопка -->
+      <div style="background:${c.current.color}15;border:2px solid ${c.current.color};border-radius:var(--r);padding:16px;text-align:center;margin-bottom:10px">
+        <div style="font-size:24px;margin-bottom:4px">${c.current.icon}</div>
+        <div style="font-size:16px;font-weight:600;color:${c.current.color};margin-bottom:8px">${c.current.name}</div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button onclick="wsMarkDone('${o.order_num}','${c.current.key}')" style="padding:12px 32px;font-size:15px;font-weight:600;background:${c.current.color};color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:'Geologica',sans-serif;min-width:140px">✓ Завершить</button>
+        </div>
+      </div>
+      
+      <!-- Мини-этапы -->
+      <div style="display:flex;gap:3px;flex-wrap:wrap">`;
+    
+    const activeStages=PROD_STAGES.filter(s=>!c.stages[s.key]||!c.stages[s.key].skip);
+    activeStages.forEach(st=>{
+      const d=c.stages[st.key];
+      const isDone=d&&d.done;
+      const isCur=st.key===c.current.key;
+      const bg=isDone?st.color:isCur?st.color+'33':'var(--surface2)';
+      const txtCol=isDone?'#fff':isCur?st.color:'var(--text3)';
+      h+=`<div style="padding:3px 6px;border-radius:4px;font-size:10px;background:${bg};color:${txtCol};font-weight:${isCur?'600':'400'}" title="${st.name}">${st.icon}</div>`;
+    });
+    
+    h+=`</div>
+      
+      ${c.prevDone?`<div style="font-size:10px;color:var(--text3);margin-top:8px">Предыдущий: ${c.prevDone.icon} ${c.prevDone.name} ✓</div>`:''}
+      ${c.nextStage?`<div style="font-size:10px;color:var(--text3)">Следующий: ${c.nextStage.icon} ${c.nextStage.name}</div>`:''}
+    </div>`;
+  });
+  
+  $('ws-body').innerHTML=h;
+}
+
+async function wsMarkDone(orderNum,stageKey){
+  const o=findO(orderNum);if(!o) return;
+  let stages=getOrderStages(o);
+  
+  // Отмечаем этап
+  stages[stageKey]={done:true,date:new Date().toISOString()};
+  
+  // Автоотмечаем предыдущие
+  for(const st of PROD_STAGES){
+    if(st.key===stageKey) break;
+    if(stages[st.key]&&stages[st.key].skip) continue;
+    if(!stages[st.key]||!stages[st.key].done){
+      stages[st.key]={done:true,date:stages[st.key]?.date||new Date().toISOString()};
+    }
+  }
+  
+  o.stages=stages;
+  try{
+    await sb.from('orders').update({stages}).eq('id',o.id);
+    showToast(PROD_STAGES.find(s=>s.key===stageKey)?.icon+' Этап завершён');
+    
+    // Автосмена статуса канбана если есть привязка
+    const stage=PROD_STAGES.find(s=>s.key===stageKey);
+    if(stage){
+      // Найти следующий этап с привязкой к канбану
+      let nextKanban='';
+      let foundCurrent=false;
+      for(const st of PROD_STAGES){
+        if(st.key===stageKey){foundCurrent=true;continue}
+        if(foundCurrent&&!stages[st.key]?.skip&&st.kanban){nextKanban=st.kanban;break}
+      }
+      // Или если текущий этап привязан — проверяем нужно ли двинуть
+      if(stage.kanban){
+        // Все этапы до следующего kanban-привязанного завершены
+        // Ничего не делаем — статус уже был установлен при входе в эту колонку
+      }
+    }
+    
+    renderWorkshop();
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// ══════════════════════════════════════════════════════
+// GANTT ПРОИЗВОДСТВА
+// ══════════════════════════════════════════════════════
+let ganttStart=new Date();
+ganttStart.setDate(ganttStart.getDate()-3);
+ganttStart.setHours(0,0,0,0);
 
 const STATUS_COLORS={'Отправлено КП':'#185FA5','Новый':'#534AB7','Материал заказан':'#854F0B',
   'В работе':'#2a5c3f','Готов к выдаче':'#16a34a','Отгружен':'#3b82f6',
   'Закрыт':'#6b6a64','Приостановлен':'#8a7340','Рекламация':'#A32D2D','Отказались':'#A32D2D'};
 
-function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
-function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}renderCalendar()}
-function calToday(){calMonth=new Date().getMonth();calYear=new Date().getFullYear();renderCalendar()}
+function ganttPrev(){const d=parseInt($('gantt-view').value)||30;ganttStart.setDate(ganttStart.getDate()-d);renderGantt()}
+function ganttNext(){const d=parseInt($('gantt-view').value)||30;ganttStart.setDate(ganttStart.getDate()+d);renderGantt()}
+function ganttToday(){ganttStart=new Date();ganttStart.setDate(ganttStart.getDate()-3);ganttStart.setHours(0,0,0,0);renderGantt()}
 
-function renderCalendar(){
-  const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-  const DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-  $('cal-month-label').textContent=MONTHS[calMonth]+' '+calYear;
-  
-  const today=new Date();today.setHours(0,0,0,0);
-  const firstDay=new Date(calYear,calMonth,1);
-  const lastDay=new Date(calYear,calMonth+1,0);
-  let startDow=firstDay.getDay();if(startDow===0)startDow=7; // Пн=1
-  
-  // Собираем данные по дням
-  const dayData={};
-  const ACTIVE_STATUSES=['Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Приостановлен','Рекламация'];
-  
-  orders.forEach(o=>{
-    const st=(o.status||'').trim();
-    const orderDate=pDate(o.order_date);
-    const deadline=pDate(o.deadline);
-    
-    // Показываем заказ как полоску от даты заказа до дедлайна
-    if(orderDate){
-      const key=orderDate.toISOString().split('T')[0];
-      if(!dayData[key])dayData[key]=[];
-      dayData[key].push({type:'start',order:o,color:STATUS_COLORS[st]||'#6b6a64'});
-    }
-    if(deadline){
-      const key=deadline.toISOString().split('T')[0];
-      if(!dayData[key])dayData[key]=[];
-      dayData[key].push({type:'deadline',order:o,color:'#A32D2D'});
-    }
-    // Активные заказы — отмечаем каждый день между датой и дедлайном
-    if(ACTIVE_STATUSES.includes(st)&&orderDate&&deadline){
-      const start=new Date(Math.max(orderDate,new Date(calYear,calMonth,1)));
-      const end=new Date(Math.min(deadline,lastDay));
-      for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
-        const key=d.toISOString().split('T')[0];
-        if(!dayData[key])dayData[key]=[];
-        const exists=dayData[key].find(e=>e.order.id===o.id&&e.type==='active');
-        if(!exists) dayData[key].push({type:'active',order:o,color:STATUS_COLORS[st]||'#2a5c3f'});
-      }
-    }
-  });
-  
-  let html='';
-  // Заголовки дней недели
-  DAYS.forEach(d=>{
-    html+=`<div style="text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:6px 0">${d}</div>`;
-  });
-  
-  // Пустые ячейки до первого дня
-  for(let i=1;i<startDow;i++){
-    html+=`<div style="min-height:80px"></div>`;
-  }
-  
-  // Дни месяца
-  for(let d=1;d<=lastDay.getDate();d++){
-    const date=new Date(calYear,calMonth,d);
-    const key=date.toISOString().split('T')[0];
-    const isToday=date.getTime()===today.getTime();
-    const isWeekend=date.getDay()===0||date.getDay()===6;
-    const items=dayData[key]||[];
-    const activeItems=items.filter(i=>i.type==='active');
-    const deadlines=items.filter(i=>i.type==='deadline');
-    const starts=items.filter(i=>i.type==='start');
-    
-    const bg=isToday?'background:var(--accent-light);border-color:var(--accent)':isWeekend?'background:var(--surface2)':'background:var(--surface)';
-    
-    html+=`<div onclick="showCalDay('${key}')" style="${bg};border:1px solid var(--border);border-radius:var(--rs);min-height:80px;padding:4px;cursor:pointer;transition:all 0.1s;overflow:hidden" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--accent-text)':'var(--text)'};margin-bottom:3px">${d}</div>`;
-    
-    // Показываем до 4 элементов
-    const shown=[];
-    starts.slice(0,2).forEach(i=>{
-      shown.push(i);
-      html+=`<div style="font-size:9px;padding:1px 4px;margin-bottom:1px;border-radius:2px;background:${i.color}22;color:${i.color};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:2px solid ${i.color}">▸ ${i.order.client||i.order.order_num}</div>`;
-    });
-    deadlines.slice(0,2).forEach(i=>{
-      if(shown.find(s=>s.order.id===i.order.id)) return;
-      html+=`<div style="font-size:9px;padding:1px 4px;margin-bottom:1px;border-radius:2px;background:#A32D2D22;color:#A32D2D;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:2px solid #A32D2D">⏰ ${i.order.client||i.order.order_num}</div>`;
-    });
-    
-    // Индикатор загрузки (кол-во активных заказов)
-    if(activeItems.length>0){
-      const load=activeItems.length;
-      const loadColor=load>4?'var(--red)':load>2?'var(--amber)':'var(--accent)';
-      html+=`<div style="font-size:9px;color:${loadColor};font-weight:600;margin-top:2px">${load} заказ.</div>`;
-    }
-    
-    html+=`</div>`;
-  }
-  
-  $('cal-grid').innerHTML=html;
-  $('cal-day-detail').style.display='none';
+function getActiveStages(o){
+  const stages=getOrderStages(o);
+  return PROD_STAGES.filter(s=>!stages[s.key]||!stages[s.key].skip);
 }
 
-function showCalDay(dateKey){
-  const date=new Date(dateKey);
-  const dateStr=date.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
-  $('cal-day-title').textContent=dateStr;
-  
+function getCurrentStageGantt(o){
+  const stages=getOrderStages(o);
+  for(const st of PROD_STAGES){
+    if(stages[st.key]&&stages[st.key].skip) continue;
+    if(!stages[st.key]||!stages[st.key].done) return st;
+  }
+  return null; // все завершены
+}
+
+function getStageDoneCount(o){
+  const stages=getOrderStages(o);
+  const active=PROD_STAGES.filter(s=>!stages[s.key]||!stages[s.key].skip);
+  const done=active.filter(s=>stages[s.key]&&stages[s.key].done);
+  return {done:done.length,total:active.length};
+}
+
+function renderGantt(){
+  const days=parseInt($('gantt-view').value)||30;
+  const filter=$('gantt-filter').value;
   const today=new Date();today.setHours(0,0,0,0);
-  const ACTIVE_STATUSES=['Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Приостановлен','Рекламация','Отправлено КП'];
+  const DAY=86400000;
+  const end=new Date(ganttStart.getTime()+days*DAY);
   
-  // Заказы у которых дата попадает в диапазон
-  const dayOrders=orders.filter(o=>{
-    const orderDate=pDate(o.order_date);
-    const deadline=pDate(o.deadline);
+  // Период label
+  const fmt=d=>d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'});
+  $('gantt-period-label').textContent=fmt(ganttStart)+' — '+fmt(end);
+  
+  // Легенда
+  let leg='';
+  PROD_STAGES.forEach(s=>{
+    leg+=`<span style="display:inline-flex;align-items:center;gap:2px"><span style="width:8px;height:8px;border-radius:2px;background:${s.color}"></span>${s.icon}</span>`;
+  });
+  $('gantt-legend').innerHTML=leg;
+  
+  // Фильтр заказов
+  const INACTIVE=['Закрыт','Отгружен','Отказались'];
+  let filtered=orders.filter(o=>{
     const st=(o.status||'').trim();
-    
-    // Заказ создан в этот день
-    if(orderDate&&orderDate.toISOString().split('T')[0]===dateKey) return true;
-    // Дедлайн в этот день
-    if(deadline&&deadline.toISOString().split('T')[0]===dateKey) return true;
-    // Активный заказ в этом диапазоне
-    if(ACTIVE_STATUSES.includes(st)&&orderDate&&deadline){
-      return date>=orderDate&&date<=deadline;
+    if(filter==='active') return !INACTIVE.includes(st)&&st!=='';
+    if(filter==='overdue'){
+      const dl=pDate(o.deadline);
+      return dl&&dl<today&&!INACTIVE.includes(st);
     }
-    return false;
+    return true;
   });
   
-  if(!dayOrders.length){
-    $('cal-day-orders').innerHTML='<div style="color:var(--text3);font-size:13px">Нет заказов на этот день</div>';
-  } else {
-    let h='';
-    dayOrders.forEach(o=>{
-      const st=(o.status||'').trim();
-      const bc=badgeClass(st);
-      const orderDate=pDate(o.order_date);
-      const deadline=pDate(o.deadline);
-      const isDeadline=deadline&&deadline.toISOString().split('T')[0]===dateKey;
-      const isStart=orderDate&&orderDate.toISOString().split('T')[0]===dateKey;
-      const isOverdue=deadline&&deadline<today&&st!=='Закрыт'&&st!=='Отгружен'&&st!=='Отказались';
-      
-      let tags='';
-      if(isStart) tags+='<span style="font-size:10px;color:var(--blue)">▸ создан</span> ';
-      if(isDeadline) tags+=`<span style="font-size:10px;color:${isOverdue?'var(--red)':'var(--amber)'}">⏰ дедлайн${isOverdue?' (просрочен!)':''}</span> `;
-      
-      const sum=parseFloat(o.order_sum)||0;
-      h+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;border-left:3px solid ${STATUS_COLORS[st]||'#6b6a64'}">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-            <span style="font-size:12px;font-weight:600">${o.order_num}</span>
-            <span class="badge ${bc}" style="font-size:10px">${st}</span>
-            ${tags}
-          </div>
-          <div style="font-size:12px;color:var(--text)">${o.client||'—'} ${o.description?'— '+o.description:''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          ${sum?`<div style="font-size:12px;font-weight:600">${sum.toLocaleString('ru-RU')} ₽</div>`:''}
-          ${deadline?`<div style="font-size:10px;color:var(--text3)">до ${deadline.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</div>`:''}
-        </div>
-      </div>`;
-    });
-    $('cal-day-orders').innerHTML=h;
+  // Только заказы в видимом диапазоне
+  filtered=filtered.filter(o=>{
+    const od=pDate(o.order_date)||pDate(o.deadline);
+    const dl=pDate(o.deadline)||pDate(o.order_date);
+    if(!od&&!dl) return false;
+    const oStart=od||dl, oEnd=dl||od;
+    return oEnd>=ganttStart&&oStart<=end;
+  });
+  
+  // Сортировка: просроченные сверху, потом по дате
+  filtered.sort((a,b)=>{
+    const da=pDate(a.deadline),db=pDate(b.deadline);
+    const oa=da&&da<today?0:1, ob=db&&db<today?0:1;
+    if(oa!==ob) return oa-ob;
+    const sa=pDate(a.order_date)||new Date(0),sb2=pDate(b.order_date)||new Date(0);
+    return sa-sb2;
+  });
+  
+  // Загрузка по дням
+  const dayLoad={};
+  orders.forEach(o=>{
+    const st=(o.status||'').trim();
+    if(INACTIVE.includes(st)) return;
+    const od=pDate(o.order_date),dl=pDate(o.deadline);
+    if(!od||!dl) return;
+    for(let d=new Date(Math.max(od,ganttStart));d<=Math.min(dl,end);d=new Date(d.getTime()+DAY)){
+      const k=d.toISOString().split('T')[0];
+      dayLoad[k]=(dayLoad[k]||0)+1;
+    }
+  });
+  
+  let loadH='<div style="display:flex;margin-left:160px">';
+  for(let i=0;i<days;i++){
+    const d=new Date(ganttStart.getTime()+i*DAY);
+    const k=d.toISOString().split('T')[0];
+    const load=dayLoad[k]||0;
+    const isWe=d.getDay()===0||d.getDay()===6;
+    const color=isWe?'var(--surface2)':load>4?'#A32D2D':load>2?'#b45309':load>0?'var(--accent)':'var(--surface2)';
+    loadH+=`<div style="flex:1;height:14px;background:${color};display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff;font-weight:600" title="${d.toLocaleDateString('ru-RU')}: ${load}">${load||''}</div>`;
   }
-  $('cal-day-detail').style.display='';
+  loadH+='</div>';
+  $('gantt-load').innerHTML=loadH;
+  
+  // Gantt table
+  const colW=Math.max(24,Math.min(40,Math.floor(600/days)));
+  let h=`<div style="min-width:${160+days*colW}px">`;
+  
+  // Header — дни
+  h+=`<div style="display:flex;position:sticky;top:0;z-index:2;background:var(--surface)">`;
+  h+=`<div style="min-width:160px;max-width:160px;padding:4px 8px;font-size:10px;font-weight:600;color:var(--text3)">Заказ</div>`;
+  for(let i=0;i<days;i++){
+    const d=new Date(ganttStart.getTime()+i*DAY);
+    const isToday=d.getTime()===today.getTime();
+    const isWe=d.getDay()===0||d.getDay()===6;
+    const isMon=d.getDay()===1;
+    h+=`<div style="width:${colW}px;min-width:${colW}px;text-align:center;font-size:${colW>30?'9':'7'}px;padding:2px 0;color:${isToday?'var(--accent-text)':isWe?'var(--text3)':'var(--text2)'};font-weight:${isToday||isMon?'700':'400'};background:${isToday?'var(--accent-light)':'transparent'};border-left:${isMon?'1px solid var(--border)':'none'}">${d.getDate()}${isMon?'<br>'+['','Пн','Вт','Ср','Чт','Пт','Сб','Вс'][d.getDay()]:''}</div>`;
+  }
+  h+=`</div>`;
+  
+  // Rows — заказы
+  if(!filtered.length){
+    h+=`<div style="padding:20px;color:var(--text3);text-align:center">Нет заказов в этом периоде</div>`;
+  }
+  
+  filtered.forEach(o=>{
+    const od=pDate(o.order_date);
+    const dl=pDate(o.deadline);
+    const st=(o.status||'').trim();
+    const isOverdue=dl&&dl<today&&!INACTIVE.includes(st);
+    const curStage=getCurrentStageGantt(o);
+    const {done,total}=getStageDoneCount(o);
+    const pct=total?Math.round(done/total*100):0;
+    const srcColors=getSourceColors();
+    const srcColor=srcColors[(o.source||'').trim()]||'#6b6a64';
+    
+    h+=`<div style="display:flex;border-bottom:1px solid var(--border);${isOverdue?'background:var(--red-light)':''}" onclick="openEdit('${o.order_num}')" class="gantt-row">`;
+    
+    // Левая колонка — инфо заказа
+    h+=`<div style="min-width:160px;max-width:160px;padding:6px 8px;cursor:pointer;border-right:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:11px;font-weight:600">${o.order_num}</span>
+        ${curStage?`<span style="font-size:10px">${curStage.icon}</span>`:'<span style="font-size:9px;color:var(--accent)">✅</span>'}
+      </div>
+      <div style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${o.client||'—'}</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+        <div style="flex:1;background:var(--surface2);border-radius:2px;height:3px;overflow:hidden;max-width:60px"><div style="height:100%;width:${pct}%;background:var(--accent)"></div></div>
+        <span style="font-size:8px;color:var(--text3)">${done}/${total}</span>
+      </div>
+    </div>`;
+    
+    // Правая часть — дни с полоской
+    h+=`<div style="display:flex;flex:1;position:relative">`;
+    
+    // Фоновые ячейки дней
+    for(let i=0;i<days;i++){
+      const d=new Date(ganttStart.getTime()+i*DAY);
+      const isToday2=d.getTime()===today.getTime();
+      const isWe2=d.getDay()===0||d.getDay()===6;
+      const isMon2=d.getDay()===1;
+      h+=`<div style="width:${colW}px;min-width:${colW}px;height:100%;${isToday2?'background:var(--accent-light)':isWe2?'background:var(--surface2)':''};${isMon2?'border-left:1px solid var(--border)':''}"></div>`;
+    }
+    
+    // Bar overlay
+    if(od&&dl){
+      const barStart=Math.max(0,Math.floor((od-ganttStart)/DAY));
+      const barEnd=Math.min(days,Math.ceil((dl-ganttStart)/DAY)+1);
+      const barLeft=barStart*colW;
+      const barWidth=Math.max(colW,(barEnd-barStart)*colW);
+      const barColor=curStage?curStage.color:'var(--accent)';
+      
+      // Этапы внутри бара — мини-сегменты
+      const activeStages=getActiveStages(o);
+      const stages=getOrderStages(o);
+      let segH='';
+      if(barWidth>40&&activeStages.length>0){
+        const segW=Math.floor(barWidth/activeStages.length);
+        activeStages.forEach((s,si)=>{
+          const sd=stages[s.key];
+          const isDone=sd&&sd.done;
+          segH+=`<div style="width:${segW}px;height:100%;background:${isDone?s.color+'cc':s.color+'22'};display:flex;align-items:center;justify-content:center;font-size:${segW>20?'9':'7'}px" title="${s.name}${isDone?' ✓':''}">${segW>16?s.icon:''}</div>`;
+        });
+      }
+      
+      h+=`<div style="position:absolute;top:4px;bottom:4px;left:${barLeft}px;width:${barWidth}px;border-radius:4px;overflow:hidden;display:flex;border:1px solid ${isOverdue?'var(--red)':barColor+'44'};cursor:pointer" title="${o.order_num} — ${o.client}\n${curStage?curStage.name:'Завершён'} (${pct}%)">`;
+      if(segH) h+=segH;
+      else h+=`<div style="flex:1;background:${barColor}33"></div>`;
+      h+=`</div>`;
+      
+      // Дедлайн маркер
+      const dlDay=Math.floor((dl-ganttStart)/DAY);
+      if(dlDay>=0&&dlDay<days){
+        h+=`<div style="position:absolute;top:0;bottom:0;left:${dlDay*colW+colW-1}px;width:2px;background:${isOverdue?'var(--red)':'var(--amber)'}" title="Дедлайн"></div>`;
+      }
+    }
+    
+    h+=`</div></div>`;
+  });
+  
+  h+=`</div>`;
+  $('gantt-body').innerHTML=h;
 }
 
 // ══════════════════════════════════════════════════════
@@ -6209,6 +6735,7 @@ async function initApp(user){
   sync('loading','Загрузка...');
   try{
     await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent(), loadAppSettings()]);
+    loadProdStages();
     sync('ok','K2 ✓');
     renderDashboard();
     // Проверяем просрочки и нехватку — уведомляем раз при входе
