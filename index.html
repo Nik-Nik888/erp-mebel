@@ -880,8 +880,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="6" width="14" height="9" rx="1"/><path d="M5 6V4a3 3 0 016 0v2"/></svg>Склад</button>
   <button class="mnav-btn" id="mn-analytics" onclick="showPage('analytics',this);syncMobNav('analytics')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg>Отчёты</button>
-  <button class="mnav-btn" id="mn-chat" onclick="openMobileChat()">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12a1 1 0 011 1v7a1 1 0 01-1 1H5l-3 3V4a1 1 0 011-1z"/></svg>Чат<span id="chat-unread-mob" style="display:none;position:absolute;top:-2px;right:8px;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center"></span></button>
+  <button class="mnav-btn" id="mn-chat" onclick="openMobileChat()" style="position:relative">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12a1 1 0 011 1v7a1 1 0 01-1 1H5l-3 3V4a1 1 0 011-1z"/></svg>Чат<span id="chat-unread-mob" style="display:none;position:absolute;top:0;right:4px;min-width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:8px;font-weight:700;align-items:center;justify-content:center"></span></button>
   <button class="mnav-btn" id="mn-more" onclick="toggleMobMore()">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>Ещё</button>
 </nav>
@@ -5040,7 +5040,7 @@ async function saveSetting(key,value){
 
 // ── Поля отображения на карточке ──
 function getKanbanFields(){
-  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,date:false,expenses:false,comment:false});
+  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,date:false,expenses:false,comment:false,chat:true});
 }
 function saveKanbanFields(f){saveSetting('kanban_fields',f)}
 
@@ -5070,7 +5070,7 @@ function openKanbanSettings(){
   
   // Секция 1: Что показывать на карточке
   let h=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Поля на карточке</div>`;
-  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',date:'Дата создания',comment:'Комментарий'};
+  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',date:'Дата создания',comment:'Комментарий',chat:'💬 Чат (если есть)'};
   Object.entries(FIELD_LABELS).forEach(([key,label])=>{
     h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
       <input type="checkbox" ${fields[key]?'checked':''} onchange="toggleKanbanField('${key}',this.checked)" style="margin:0"> ${label}
@@ -5302,6 +5302,7 @@ function renderKanban(){
         <div style="font-size:9px;color:var(--text3);text-align:right">${paidPct}%</div>`:''}
         ${fields.manager&&o.manager?`<div style="font-size:10px;color:var(--text3)">👤 ${o.manager}</div>`:''}
         ${fields.comment&&(o.comment||'').trim()?`<div style="font-size:10px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">💬 ${o.comment}</div>`:''}
+        ${fields.chat&&chatMessages.some(m=>m.order_num===o.order_num)?`<div onclick="event.stopPropagation();openChatForOrder('${o.order_num}')" style="font-size:10px;color:var(--blue);margin-top:2px;cursor:pointer;font-weight:500">💬 ${chatMessages.filter(m=>m.order_num===o.order_num).length} сообщ.</div>`:''}
         <div style="display:flex;gap:4px;margin-top:5px;position:relative;z-index:2">
           <button onclick="event.stopPropagation();if(!window._scrolling)openPrepay('${o.order_num}')" style="flex:1;background:var(--accent-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--accent-text);font-weight:500">₽ Оплата</button>
           <button onclick="event.stopPropagation();if(!window._scrolling)addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
@@ -5595,13 +5596,19 @@ function openMobileChat(){
     mob.id='chat-mobile';
     mob.style.cssText='position:fixed;inset:0;z-index:300;background:var(--surface);display:flex;flex-direction:column';
     mob.innerHTML=`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--text);color:#fff;flex-shrink:0">
-        <div style="font-size:15px;font-weight:600">💬 Чат K2</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="chat-filter-order-mob" onchange="$('chat-filter-order').value=this.value;renderChatMessages()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;padding:3px 6px;font-size:11px;font-family:'Geologica',sans-serif">
+      <div style="background:var(--text);color:#fff;flex-shrink:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px">
+          <div style="font-size:15px;font-weight:600">💬 Чат K2</div>
+          <button onclick="closeMobileChat()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px">×</button>
+        </div>
+        <div style="display:flex;gap:6px;padding:0 12px 10px;align-items:center">
+          <input type="text" id="chat-search-mob" placeholder="🔍 Поиск..." oninput="renderChatMessages()" style="flex:1;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-family:'Geologica',sans-serif;outline:none;min-width:0">
+          <select id="chat-filter-order-mob" onchange="$('chat-filter-order').value=this.value;renderChatMessages()" style="background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:6px;padding:6px;font-size:11px;font-family:'Geologica',sans-serif">
             <option value="">Все</option>
           </select>
-          <button onclick="closeMobileChat()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px">×</button>
+          <select id="chat-filter-user-mob" onchange="renderChatMessages()" style="background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:6px;padding:6px;font-size:11px;font-family:'Geologica',sans-serif">
+            <option value="">Все</option>
+          </select>
         </div>
       </div>
       <div id="chat-messages-mob" style="flex:1;overflow-y:auto;padding:10px 12px"></div>
@@ -5617,11 +5624,15 @@ function openMobileChat(){
     document.body.appendChild(mob);
   }
   mob.style.display='flex';
-  // Синхронизируем фильтр
+  // Синхронизируем фильтры
   const mobSel=$('chat-filter-order-mob');
-  if(mobSel){
-    const mainSel=$('chat-filter-order');
-    if(mainSel) mobSel.innerHTML=mainSel.innerHTML;
+  if(mobSel){const mainSel=$('chat-filter-order');if(mainSel) mobSel.innerHTML=mainSel.innerHTML}
+  // Заполняем фильтр по пользователям
+  const userSel=$('chat-filter-user-mob');
+  if(userSel){
+    const users=[...new Set(chatMessages.map(m=>m.user_name).filter(Boolean))];
+    userSel.innerHTML='<option value="">Все</option>';
+    users.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;userSel.appendChild(o)});
   }
   renderChatMessages();
   scrollChatBottom();
@@ -5727,14 +5738,21 @@ function updateChatOrderFilter(){
   const sel=$('chat-filter-order');
   if(!sel) return;
   const orderNums=[...new Set(chatMessages.filter(m=>m.order_num).map(m=>m.order_num))];
-  // Сохраняем текущий выбор
   const cur=sel.value;
-  sel.innerHTML='<option value="">Все сообщения</option>';
+  sel.innerHTML='<option value="">Все</option>';
   orderNums.forEach(n=>{
     const opt=document.createElement('option');opt.value=n;opt.textContent='📎 '+n;
     if(n===cur) opt.selected=true;
     sel.appendChild(opt);
   });
+  // User filter for PC
+  const userSel=$('chat-filter-user-pc');
+  if(userSel){
+    const users=[...new Set(chatMessages.map(m=>m.user_name).filter(Boolean))];
+    const curU=userSel.value;
+    userSel.innerHTML='<option value="">Все</option>';
+    users.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;if(u===curU)o.selected=true;userSel.appendChild(o)});
+  }
 }
 
 function renderChatMessages(){
@@ -5742,11 +5760,18 @@ function renderChatMessages(){
   if(!container) return;
   
   const filterOrder=$('chat-filter-order')?.value||'';
+  const searchQ=($('chat-search-mob')?.value||$('chat-search-pc')?.value||'').toLowerCase();
+  const filterUser=$('chat-filter-user-mob')?.value||$('chat-filter-user-pc')?.value||'';
+  
   let msgs=chatMessages;
   if(filterOrder) msgs=msgs.filter(m=>m.order_num===filterOrder);
+  if(searchQ) msgs=msgs.filter(m=>(m.text||'').toLowerCase().includes(searchQ)||(m.user_name||'').toLowerCase().includes(searchQ));
+  if(filterUser) msgs=msgs.filter(m=>m.user_name===filterUser);
   
   if(!msgs.length){
-    container.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">${filterOrder?'Нет сообщений по заказу '+filterOrder:'Нет сообщений. Напишите первое!'}</div>`;
+    const emptyMsg=filterOrder?'Нет сообщений по заказу '+filterOrder:searchQ?'Ничего не найдено':'Нет сообщений';
+    container.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">${emptyMsg}</div>`;
+    const mc=$('chat-messages-mob');if(mc) mc.innerHTML=container.innerHTML;
     return;
   }
   
@@ -5780,7 +5805,7 @@ function renderChatMessages(){
     // Привязка к заказу
     if(m.order_num){
       h+=`<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">
-        <span onclick="event.stopPropagation();showPage('orders');setTimeout(()=>openEdit('${m.order_num}'),200)" style="font-size:10px;padding:2px 6px;border-radius:6px;background:var(--amber-light);color:var(--amber);font-weight:500;cursor:pointer">📎 ${m.order_num}</span>
+        <span onclick="event.stopPropagation();closeMobileChat();showPage('orders');setTimeout(()=>openEdit('${m.order_num}'),300)" style="font-size:10px;padding:2px 6px;border-radius:6px;background:var(--amber-light);color:var(--amber);font-weight:500;cursor:pointer">📎 ${m.order_num}</span>
       </div>`;
     }
     
@@ -7231,13 +7256,19 @@ document.body.insertAdjacentHTML('beforeend',`
 <!-- Окно чата -->
 <div id="chat-widget" style="display:none;position:fixed;bottom:80px;right:24px;z-index:201;width:380px;max-width:calc(100vw - 48px);height:500px;max-height:calc(100vh - 140px);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 12px 40px rgba(0,0,0,0.2);flex-direction:column;overflow:hidden">
   <!-- Шапка -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--text);color:#fff;border-radius:var(--r) var(--r) 0 0">
-    <div style="font-size:14px;font-weight:600">💬 Чат K2</div>
-    <div style="display:flex;gap:6px;align-items:center">
-      <select id="chat-filter-order" onchange="renderChatMessages()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:10px;font-family:'Geologica',sans-serif;cursor:pointer">
-        <option value="">Все сообщения</option>
-      </select>
+  <div style="background:var(--text);color:#fff;border-radius:var(--r) var(--r) 0 0;flex-shrink:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px">
+      <div style="font-size:14px;font-weight:600">💬 Чат K2</div>
       <button onclick="toggleChatWidget()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:2px">×</button>
+    </div>
+    <div style="display:flex;gap:4px;padding:0 10px 8px;align-items:center">
+      <input type="text" id="chat-search-pc" placeholder="🔍" oninput="renderChatMessages()" style="flex:1;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-family:'Geologica',sans-serif;outline:none;min-width:0">
+      <select id="chat-filter-order" onchange="renderChatMessages()" style="background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:4px;padding:4px;font-size:10px;font-family:'Geologica',sans-serif;max-width:90px">
+        <option value="">Все</option>
+      </select>
+      <select id="chat-filter-user-pc" onchange="renderChatMessages()" style="background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:4px;padding:4px;font-size:10px;font-family:'Geologica',sans-serif;max-width:80px">
+        <option value="">Все</option>
+      </select>
     </div>
   </div>
   <!-- Сообщения -->
