@@ -1,10 +1,9 @@
-const CACHE_NAME = 'k2-mebel-v2';
+const CACHE_NAME = 'k2-mebel-v3';
 const URLS_TO_CACHE = [
   '/erp-mebel/',
   '/erp-mebel/index.html'
 ];
 
-// Установка — кэшируем основные файлы
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))
@@ -12,7 +11,6 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Активация — удаляем старые кэши
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -22,18 +20,25 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Стратегия: сначала сеть, если нет — кэш
 self.addEventListener('fetch', event => {
-  if (event.request.url.includes('supabase.co') || 
-      event.request.url.includes('api.telegram.org') ||
-      event.request.url.includes('cdnjs.cloudflare.com')) {
+  const url = event.request.url;
+  
+  // Пропускаем всё кроме статики — Supabase, Telegram, WS всегда через сеть
+  if (url.includes('supabase.co') || 
+      url.includes('api.telegram.org') ||
+      url.includes('cdnjs.cloudflare.com') ||
+      url.includes('fonts.googleapis.com') ||
+      url.includes('fonts.gstatic.com') ||
+      url.includes('wss://') ||
+      url.includes('ws://') ||
+      event.request.method !== 'GET') {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        if (response.ok && event.request.method === 'GET') {
+        if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
@@ -41,7 +46,7 @@ self.addEventListener('fetch', event => {
       })
       .catch(() => {
         return caches.match(event.request).then(cached => {
-          return cached || new Response('Нет подключения к интернету', { 
+          return cached || new Response('Нет подключения', { 
             status: 503, 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
@@ -50,12 +55,10 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Push-уведомления
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-      // Фокусируем существующее окно или открываем новое
       for (const client of windowClients) {
         if (client.url.includes('/erp-mebel') && 'focus' in client) {
           return client.focus();
