@@ -6055,7 +6055,10 @@ async function loadChatMessages(){
 }
 
 function subscribeChatRealtime(){
-  if(chatSubscription) return;
+  if(chatSubscription){
+    try{sb.removeChannel(chatSubscription)}catch(e){}
+    chatSubscription=null;
+  }
   chatSubscription=sb.channel('chat-realtime')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{
       chatMessages.push(payload.new);
@@ -6065,7 +6068,6 @@ function subscribeChatRealtime(){
       if(chatWidgetOpen||chatMobileOpen){
         renderChatMessages();
         scrollChatBottom();
-        // Звук даже если чат открыт (от чужих сообщений)
         if(!isMe) playChatSound();
       } else {
         chatUnreadCount++;
@@ -6081,8 +6083,39 @@ function subscribeChatRealtime(){
         }
       }
     })
-    .subscribe();
+    .subscribe((status)=>{
+      console.log('Realtime status:',status);
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        // Переподключение через 3 секунды
+        setTimeout(()=>{
+          console.log('Realtime reconnecting...');
+          chatSubscription=null;
+          subscribeChatRealtime();
+        },3000);
+      }
+    });
 }
+
+// Переподключение при возврате вкладки в фокус
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&chatLoaded){
+    // Перезагружаем свежие сообщения
+    loadChatMessages().then(()=>{
+      if(chatWidgetOpen||chatMobileOpen){renderChatMessages();scrollChatBottom()}
+    });
+  }
+});
+
+// Переподключение при восстановлении сети
+window.addEventListener('online',()=>{
+  console.log('Network online — reconnecting realtime');
+  chatSubscription=null;
+  subscribeChatRealtime();
+  // Перезагружаем данные
+  loadChatMessages().then(()=>{
+    if(chatWidgetOpen||chatMobileOpen){renderChatMessages();scrollChatBottom()}
+  });
+});
 
 // Звук уведомления чата
 function playChatSound(){
