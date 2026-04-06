@@ -1,4 +1,4 @@
-const CACHE_NAME = 'k2-mebel-v3';
+const CACHE_NAME = 'k2-mebel-v4';
 const URLS_TO_CACHE = [
   '/erp-mebel/',
   '/erp-mebel/index.html'
@@ -22,8 +22,6 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = event.request.url;
-  
-  // Пропускаем всё кроме статики — Supabase, Telegram, WS всегда через сеть
   if (url.includes('supabase.co') || 
       url.includes('api.telegram.org') ||
       url.includes('cdnjs.cloudflare.com') ||
@@ -55,6 +53,35 @@ self.addEventListener('fetch', event => {
   );
 });
 
+// Получение Push-уведомления от сервера
+self.addEventListener('push', event => {
+  let title = 'K2 Мебель';
+  let body = 'Новое уведомление';
+  
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      title = data.title || title;
+      body = data.body || body;
+    } catch (e) {
+      body = event.data.text() || body;
+    }
+  }
+  
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      vibrate: [200, 100, 200],
+      tag: 'k2-push-' + Date.now(),
+      requireInteraction: false,
+      actions: [{ action: 'open', title: 'Открыть' }]
+    })
+  );
+});
+
+// Клик по уведомлению — открыть приложение
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
