@@ -430,19 +430,19 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <!-- Period bar -->
       <div class="period-bar">
         <label>Период:</label>
-        <input type="date" id="p-from" onchange="updateStats()" style="font-family:'Geologica',sans-serif">
+        <input type="date" id="p-from" onchange="updateStats();renderKanban()" style="font-family:'Geologica',sans-serif">
         <span style="color:var(--text3);font-size:12px">—</span>
-        <input type="date" id="p-to" onchange="updateStats()" style="font-family:'Geologica',sans-serif">
+        <input type="date" id="p-to" onchange="updateStats();renderKanban()" style="font-family:'Geologica',sans-serif">
         <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="setPeriod('month')">Этот месяц</button>
         <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="setPeriod('prev')">Прошлый</button>
         <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="setPeriod('all')">Всё время</button>
       </div>
 
       <div class="stats">
-        <div class="stat"><div class="lbl">Активных</div><div class="val" id="s-active">—</div><div class="hint">в работе</div></div>
-        <div class="stat"><div class="lbl">Просрочено</div><div class="val red" id="s-over">—</div><div class="hint">дедлайн прошёл</div></div>
-        <div class="stat"><div class="lbl">Готовы</div><div class="val green" id="s-ready">—</div><div class="hint">ждут клиента</div></div>
-        <div class="stat"><div class="lbl">Кол-во</div><div class="val" id="s-count">—</div><div class="hint">заказов</div></div>
+        <div class="stat" onclick="setKanbanFilter('active')" style="cursor:pointer"><div class="lbl">Активных</div><div class="val" id="s-active">—</div><div class="hint">в работе</div></div>
+        <div class="stat" onclick="setKanbanFilter('overdue')" style="cursor:pointer"><div class="lbl">Просрочено</div><div class="val red" id="s-over">—</div><div class="hint">дедлайн прошёл</div></div>
+        <div class="stat" onclick="setKanbanFilter('ready')" style="cursor:pointer"><div class="lbl">Готовы</div><div class="val green" id="s-ready">—</div><div class="hint">ждут клиента</div></div>
+        <div class="stat" onclick="setKanbanFilter('')" style="cursor:pointer"><div class="lbl">Кол-во</div><div class="val" id="s-count">—</div><div class="hint">заказов</div></div>
         <div class="stat"><div class="lbl">Договоров</div><div class="val" id="s-contracts">—</div><div class="hint">сумма</div></div>
         <div class="stat"><div class="lbl">Получено</div><div class="val green" id="s-received">—</div><div class="hint">оплаты</div></div>
       </div>
@@ -887,7 +887,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
   <button class="mnav-btn" id="mn-analytics" onclick="showPage('analytics',this);syncMobNav('analytics')">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg>Отчёты</button>
   <button class="mnav-btn" id="mn-chat" onclick="openMobileChat()" style="position:relative">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12a1 1 0 011 1v7a1 1 0 01-1 1H5l-3 3V4a1 1 0 011-1z"/></svg>Чат<span id="chat-unread-mob" style="display:none;position:absolute;top:0;right:4px;min-width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:8px;font-weight:700;align-items:center;justify-content:center"></span></button>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12a1 1 0 011 1v7a1 1 0 01-1 1H5l-3 3V4a1 1 0 011-1z"/></svg>Чат<span id="chat-unread-mob" style="display:none;position:absolute;top:0;right:2px;min-width:16px;height:16px;border-radius:50%;background:#A32D2D;color:#fff;font-size:8px;font-weight:700;text-align:center;line-height:16px"></span></button>
   <button class="mnav-btn" id="mn-more" onclick="toggleMobMore()">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>Ещё</button>
 </nav>
@@ -1590,6 +1590,7 @@ function setPeriod(mode){
     $('p-to').value=to.toISOString().split('T')[0];
   } else { $('p-from').value=''; $('p-to').value=''; }
   updateStats();
+  renderKanban();
 }
 
 // ── STATS ─────────────────────────────────────────────
@@ -1944,6 +1945,22 @@ async function suggestNewMaterials(mats){
 let orderMatCounter=0;
 
 function addOrderMat(name='', qty=1, price=0){
+  // Проверяем дубликат — если материал уже есть, суммируем количество
+  if(name){
+    const existing=$('f-mats-wrap').querySelectorAll('[id^="omat-"]');
+    for(const row of existing){
+      const nameInput=row.querySelector('.omat-name');
+      if(nameInput&&nameInput.value.trim()===name.trim()){
+        const qtyInput=row.querySelector('.omat-qty');
+        if(qtyInput){
+          qtyInput.value=parseFloat(qtyInput.value||0)+parseFloat(qty||0);
+          calcOrderSum();
+          return; // не создаём новую строку
+        }
+      }
+    }
+  }
+  
   const i=orderMatCounter++;
   const allMats=getMatOptions();
   const n=name||(allMats.length?allMats[0]:'');
@@ -2501,7 +2518,7 @@ async function quickStatus(rid,newSt){
     o.status=newSt;
 
     // Авто-отметка этапов при смене статуса
-    autoMarkStages(o, newSt);
+    try{await autoMarkStages(o, newSt)}catch(e){console.log('autoMarkStages error:',e)}
 
     // Логируем смену статуса + TG уведомление
     await logStatusChange(rid, oldSt, newSt);
@@ -5235,6 +5252,21 @@ function addKanbanColumn(){
   showToast('Этап "'+name+'" добавлен');
 }
 
+let kanbanStatFilter='';
+
+function setKanbanFilter(type){
+  // Toggle — если уже выбран, сбрасываем
+  kanbanStatFilter=(kanbanStatFilter===type)?'':type;
+  // Подсвечиваем активный stat-бокс
+  document.querySelectorAll('.stat').forEach(s=>s.style.outline='');
+  if(kanbanStatFilter){
+    const idx={active:0,overdue:1,ready:2}[kanbanStatFilter];
+    const stats=document.querySelectorAll('.stat');
+    if(stats[idx]) stats[idx].style.outline='2px solid var(--accent)';
+  }
+  renderKanban();
+}
+
 function renderKanban(){
   const COLUMNS=getKanbanColumns();
   const STATUS_COL_COLORS={'Отправлено КП':'#185FA5','Новый':'#534AB7','Материал заказан':'#854F0B','В работе':'#2a5c3f','Готов к выдаче':'#16a34a','Отгружен':'#3b82f6','Закрыт':'#6b6a64','Приостановлен':'#8a7340','Рекламация':'#A32D2D','Отказались':'#A32D2D'};
@@ -5245,6 +5277,13 @@ function renderKanban(){
   const q=($('q')?.value||'').toLowerCase();
   const mgr=$('f-mgr')?.value||'';
   const src=$('f-src')?.value||'';
+  
+  // Период фильтр
+  const pFrom=$('p-from')?.value?new Date($('p-from').value):null;
+  const pTo=$('p-to')?.value?new Date($('p-to').value+'T23:59:59'):null;
+  
+  // Stat-фильтр
+  const INACTIVE=['Закрыт','Отгружен','Отправлено КП','Отказались'];
   
   let h=`<div class="kanban" style="--kb-font:${sz.font};--kb-pad:${sz.pad};--kb-col:${sz.col};--kb-col-mob:${sz.mobCol}">`;
   COLUMNS.forEach(col=>{
@@ -5258,6 +5297,19 @@ function renderKanban(){
     );
     if(mgr) colOrders=colOrders.filter(o=>(o.manager||'').trim()===mgr);
     if(src) colOrders=colOrders.filter(o=>(o.source||'').trim()===src);
+    // Период
+    if(pFrom||pTo){
+      colOrders=colOrders.filter(o=>{
+        const d=pDate(o.order_date);if(!d) return false;
+        if(pFrom&&d<pFrom) return false;
+        if(pTo&&d>pTo) return false;
+        return true;
+      });
+    }
+    // Stat-фильтр
+    if(kanbanStatFilter==='active') colOrders=colOrders.filter(o=>!INACTIVE.includes((o.status||'').trim()));
+    if(kanbanStatFilter==='overdue') colOrders=colOrders.filter(o=>{const d=pDate(o.deadline);return d&&d<today&&!['Закрыт','Отгружен','Отказались'].includes((o.status||'').trim())});
+    if(kanbanStatFilter==='ready') colOrders=colOrders.filter(o=>(o.status||'').trim()==='Готов к выдаче');
     // Просроченные наверх
     colOrders.sort((a,b)=>{
       const da=pDate(a.deadline),db=pDate(b.deadline);
@@ -5868,6 +5920,7 @@ function toggleChatWidget(){
     if(!chatLoaded) initChat();
     chatUnreadCount=0;
     updateChatUnread();
+    updateFaviconBadge(false);
     renderChatMessages();
     scrollChatBottom();
     $('chat-input')?.focus();
@@ -5879,6 +5932,7 @@ function openMobileChat(){
   chatMobileOpen=true;
   chatUnreadCount=0;
   updateChatUnread();
+  updateFaviconBadge(false);
   
   // Создаём полноэкранный чат если нет
   let mob=$('chat-mobile');
@@ -5981,7 +6035,7 @@ function updateChatUnread(){
   const badge=$('chat-unread');
   if(badge){badge.style.display=chatUnreadCount>0?'flex':'none';badge.textContent=chatUnreadCount}
   const mobBadge=$('chat-unread-mob');
-  if(mobBadge){mobBadge.style.display=chatUnreadCount>0?'flex':'none';mobBadge.textContent=chatUnreadCount}
+  if(mobBadge){mobBadge.style.display=chatUnreadCount>0?'block':'none';mobBadge.textContent=chatUnreadCount}
 }
 
 async function initChat(){
@@ -6005,15 +6059,20 @@ function subscribeChatRealtime(){
   chatSubscription=sb.channel('chat-realtime')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{
       chatMessages.push(payload.new);
+      const msg=payload.new;
+      const isMe=msg.user_id===currentProfile?.id;
+      
       if(chatWidgetOpen||chatMobileOpen){
         renderChatMessages();
         scrollChatBottom();
+        // Звук даже если чат открыт (от чужих сообщений)
+        if(!isMe) playChatSound();
       } else {
         chatUnreadCount++;
         updateChatUnread();
-        // Push-уведомление если не наш собственный месседж
-        const msg=payload.new;
-        if(msg.user_id!==currentProfile?.id){
+        updateFaviconBadge(true);
+        if(!isMe){
+          playChatSound();
           showLocalNotification(
             '💬 '+(msg.user_name||'Сообщение'),
             msg.text+(msg.order_num?' [📎'+msg.order_num+']':''),
@@ -6023,6 +6082,53 @@ function subscribeChatRealtime(){
       }
     })
     .subscribe();
+}
+
+// Звук уведомления чата
+function playChatSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.type='sine';
+    // Два коротких тона — "дин-дон"
+    osc.frequency.setValueAtTime(880,ctx.currentTime);
+    osc.frequency.setValueAtTime(1100,ctx.currentTime+0.1);
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.25);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime+0.25);
+    // Вибрация на мобильном
+    if(navigator.vibrate) navigator.vibrate([100,50,100]);
+  }catch(e){}
+}
+
+// Бейдж на favicon — красная точка
+const originalFavicon=document.querySelector('link[rel="icon"]')?.href||'';
+function updateFaviconBadge(show){
+  const link=document.querySelector('link[rel="icon"]');
+  if(!link) return;
+  if(!show){link.href=originalFavicon;document.title='K2 — ERP Мебель';return}
+  // Меняем title
+  document.title='('+chatUnreadCount+') K2 — ERP Мебель';
+  // Рисуем красную точку на favicon
+  try{
+    const canvas=document.createElement('canvas');
+    canvas.width=32;canvas.height=32;
+    const ctx2=canvas.getContext('2d');
+    // Жёлтый фон
+    ctx2.fillStyle='#F5C518';
+    ctx2.beginPath();ctx2.roundRect(0,0,32,32,[6]);ctx2.fill();
+    // K2 текст
+    ctx2.fillStyle='#1c1b18';ctx2.font='bold 16px sans-serif';
+    ctx2.textAlign='center';ctx2.textBaseline='middle';
+    ctx2.fillText('K2',16,16);
+    // Красный кружок
+    ctx2.fillStyle='#e11d48';
+    ctx2.beginPath();ctx2.arc(26,6,6,0,Math.PI*2);ctx2.fill();
+    link.href=canvas.toDataURL();
+  }catch(e){}
 }
 
 function updateChatOrderFilter(){
