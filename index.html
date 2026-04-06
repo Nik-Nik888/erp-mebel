@@ -5714,8 +5714,12 @@ async function checkRemindersNotify(){
     
     for(const r of data){
       // Отправляем в Telegram
-      const msg=`🔔 НАПОМИНАНИЕ\n\n📝 ${r.text}${r.client_name?'\n👤 Клиент: '+r.client_name:''}${r.phone?'\n📱 '+r.phone:''}${r.order_num?'\n📋 Заказ: '+r.order_num:''}`;
-      tgNotify('reminder',{text:msg});
+      const lines=['🔔 <b>НАПОМИНАНИЕ</b>','','📝 '+escHtmlTg(r.text)];
+      if(r.client_name) lines.push('👤 Клиент: '+escHtmlTg(r.client_name));
+      if(r.phone) lines.push('📱 '+r.phone);
+      if(r.order_num) lines.push('📋 Заказ: '+r.order_num);
+      if(r.created_by) lines.push('👤 Создал: '+escHtmlTg(r.created_by));
+      tgSend(lines.join('\n'));
       
       // Push-уведомление
       showLocalNotification('🔔 Напоминание',r.text+(r.client_name?' — '+r.client_name:''),'rem-'+r.id);
@@ -5725,8 +5729,13 @@ async function checkRemindersNotify(){
     }
     
     if(data.length) showToast('🔔 '+data.length+' напоминание(й) сработало');
-  }catch(e){}
+  }catch(e){console.log('Reminders check error:',e)}
 }
+
+function escHtmlTg(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// Периодическая проверка напоминаний — каждые 60 секунд
+setInterval(()=>{checkRemindersNotify()},60000);
 
 // ══════════════════════════════════════════════════════
 // ГЛОБАЛЬНЫЙ ПОИСК (Ctrl+K)
