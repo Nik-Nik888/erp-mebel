@@ -1120,7 +1120,10 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
     </div>
     <div class="modal-ft" style="justify-content:space-between">
-      <button class="btn btn-ghost" id="si-del-btn" onclick="deleteSkladItem()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Удалить</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost" id="si-del-btn" onclick="deleteSkladItem()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Удалить</button>
+        <button class="btn btn-ghost" id="si-merge-btn" onclick="openMergeSklad()" style="display:none">🔗 Объединить</button>
+      </div>
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn btn-ghost" onclick="closeSkladItem()">Отмена</button>
         <button class="btn btn-primary" onclick="saveSkladItem()">Сохранить</button>
@@ -1945,6 +1948,9 @@ async function suggestNewMaterials(mats){
 let orderMatCounter=0;
 
 function addOrderMat(name='', qty=1, price=0){
+  // Убираем конвертацию из названия (0.20 кв.м → 1 лист.)
+  name=(name||'').replace(/\s*\(\d+[\.,]\d+\s*кв\.?м?\s*→\s*\d+\s*лист\.?\)\s*$/,'').trim();
+  
   // Проверяем дубликат — если материал уже есть, суммируем количество
   if(name){
     const existing=$('f-mats-wrap').querySelectorAll('[id^="omat-"]');
@@ -3756,6 +3762,7 @@ function openSkladItem(item=null){
   $('si-price').value=item?item.buy_price||'':'';
   $('si-stock').value='';
   $('si-del-btn').style.display=item?'inline-flex':'none';
+  $('si-merge-btn').style.display=item?'inline-flex':'none';
   $('m-sklad-item').classList.add('open');
 }
 function closeSkladItem(){ $('m-sklad-item').classList.remove('open'); editSkladId=null }
@@ -3807,6 +3814,69 @@ async function deleteSkladItem(){
     await loadSklad();
     showToast('Материал "'+name+'" удалён'+(movesWithOrder.length?' (история заказов сохранена)':''));
   }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
+// ── Объединение дубликатов на складе ──
+function openMergeSklad(){
+  if(!editSkladId) return;
+  const current=skladItems.find(i=>i.id===editSkladId);
+  if(!current) return;
+  
+  // Находим другие позиции для объединения (кроме текущей)
+  const others=skladItems.filter(i=>i.id!==editSkladId);
+  
+  let ov=$('m-merge-sklad');
+  if(!ov){
+    ov=document.createElement('div');ov.className='overlay';ov.id='m-merge-sklad';
+    ov.innerHTML=`<div class="modal" style="max-width:440px"><div class="modal-hd"><div class="modal-title">🔗 Объединить позиции</div><button class="modal-close" onclick="$('m-merge-sklad').classList.remove('open')">×</button></div><div class="modal-body" id="m-merge-body"></div></div>`;
+    document.body.appendChild(ov);
+  }
+  
+  let h=`<div style="margin-bottom:12px;font-size:13px">
+    Текущая позиция: <b>${current.name}</b> (остаток: ${skladStock(current.item_id)})
+  </div>
+  <div style="margin-bottom:10px;font-size:12px;color:var(--text3)">Выберите позицию для объединения. Её остаток и история движений будут перенесены в "${current.name}", а дубль удалён.</div>
+  <input type="text" id="merge-search" placeholder="Поиск..." oninput="filterMergeList()" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:'Geologica',sans-serif;margin-bottom:10px;box-sizing:border-box;outline:none">
+  <div id="merge-list" style="max-height:300px;overflow-y:auto">`;
+  
+  others.forEach(i=>{
+    const stock=skladStock(i.item_id);
+    h+=`<div class="merge-item" data-name="${(i.name||'').toLowerCase()}" onclick="doMergeSklad(${current.id},'${current.item_id}',${i.id},'${i.item_id}','${escHtml(i.name)}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);border-radius:4px" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <span style="font-size:12px">${i.name}</span>
+      <span style="font-size:11px;color:var(--text3)">${stock} ${i.unit||'шт'}</span>
+    </div>`;
+  });
+  h+='</div>';
+  
+  $('m-merge-body').innerHTML=h;
+  ov.classList.add('open');
+}
+
+function filterMergeList(){
+  const q=($('merge-search')?.value||'').toLowerCase();
+  document.querySelectorAll('.merge-item').forEach(el=>{
+    el.style.display=el.dataset.name.includes(q)?'':'none';
+  });
+}
+
+async function doMergeSklad(keepId,keepItemId,removeId,removeItemId,removeName){
+  if(!confirm('Объединить "'+removeName+'" → в текущую позицию?\n\nОстаток и все движения будут перенесены, дубль удалён.')) return;
+  
+  try{
+    // 1. Переносим все движения со старого item_id на новый
+    const {error:moveErr}=await sb.from('sklad_moves').update({item_id:keepItemId}).eq('item_id',removeItemId);
+    if(moveErr) throw moveErr;
+    
+    // 2. Удаляем дубль из sklad_items
+    const {error:delErr}=await sb.from('sklad_items').delete().eq('id',removeId);
+    if(delErr) throw delErr;
+    
+    // 3. Перезагружаем склад
+    $('m-merge-sklad').classList.remove('open');
+    closeSkladItem();
+    await loadSklad();
+    showToast('✓ Позиции объединены — "'+removeName+'" удалена');
+  }catch(e){showToast('Ошибка: '+e.message)}
 }
 
 async function saveSkladItem(){
@@ -4264,7 +4334,7 @@ function parseK3Text(text){
       m.unitOriginal=m.unit;
       m.qty=Math.ceil(m.qty/SHEET_AREA);
       m.unit='шт';
-      m.name+=' ('+m.qtyOriginal.toFixed(2)+' кв.м → '+m.qty+' лист.)';
+      // Не добавляем конвертацию в название — чтобы не создавать дубли на складе
     }
   });
   
