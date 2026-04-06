@@ -4,9 +4,9 @@
   "description": "Система управления мебельным производством",
   "start_url": "/erp-mebel/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f5f3ee",
   "theme_color": "#1c1b18",
-  "orientation": "any",
   "icons": [
     {
       "src": "icon-192.png",
