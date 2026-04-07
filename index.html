@@ -2500,30 +2500,25 @@ async function quickStatus(rid,newSt){
     }
   }
 
-  // ── БЛОКИРОВКА: проверяем материалы по уровню ──
-  // До "В работе" — свободно (КП, Новый, Материал заказан)
-  // "В работе" — нужны листовые (ЛДСП, ХДФ, МДФ) + кромка
-  // "Готов к выдаче" и дальше — нужен полный список
+  // ── БЛОКИРОВКА: проверяем материалы по правилам из настроек ──
   const mats=getSpecMats(o);
-  const WORK_STATUSES=['В работе'];
-  const FULL_CHECK_STATUSES=['Готов к выдаче','Отгружен','Закрыт'];
-  const FREE_STATUSES=['Отправлено КП','Новый','Материал заказан'];
+  const matRules=getMatCheckRules();
+  const checkRule=matRules[newSt]||'none';
   
-  if(mats.length>0 && !FREE_STATUSES.includes(newSt)){
+  if(mats.length>0 && checkRule!=='none'){
     await loadSkladSilent();
     
     let checkMats=mats;
     
-    if(WORK_STATUSES.includes(newSt)){
-      // Для "В работе" — только листовые и кромка
-      const SHEET_KEYWORDS=['лдсп','хдф','мдф','фанера','дсп','двп','лист'];
-      const EDGE_KEYWORDS=['кромка','кром.','abs','пвх кромка'];
+    if(checkRule==='sheets'){
+      // Проверяем только материалы с ключевыми словами из настроек
+      const keywords=getMatKeywords();
       checkMats=mats.filter(m=>{
         const n=(m.name||'').toLowerCase();
-        return SHEET_KEYWORDS.some(k=>n.includes(k))||EDGE_KEYWORDS.some(k=>n.includes(k));
+        return keywords.some(k=>n.includes(k));
       });
     }
-    // Для FULL_CHECK_STATUSES — проверяем все материалы (checkMats = mats)
+    // checkRule==='all' — проверяем все материалы (checkMats = mats)
     
     if(checkMats.length>0){
       const shortages=checkMaterialsAvailable(checkMats);
@@ -5281,6 +5276,34 @@ function openKanbanSettings(){
       </label>`;
     });
   }
+  
+  // Секция: Проверка материалов при перемещении
+  const matRules=getMatCheckRules();
+  h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">📦 Проверка материалов при перемещении</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Для каждой колонки задайте какие материалы проверять перед перемещением карточки</div>`;
+  
+  cols.forEach(col=>{
+    const rule=matRules[col]||'none';
+    h+=`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;flex:1;min-width:80px">${col}</span>
+      <select onchange="setMatCheckRule('${col}',this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text2)">
+        <option value="none"${rule==='none'?' selected':''}>Без проверки</option>
+        <option value="sheets"${rule==='sheets'?' selected':''}>Листовые + кромка</option>
+        <option value="all"${rule==='all'?' selected':''}>Все материалы</option>
+      </select>
+    </div>`;
+  });
+  
+  // Ключевые слова для листовых
+  const matKeywords=getMatKeywords();
+  h+=`<div style="margin-top:12px;font-size:11px;color:var(--text3)">Ключевые слова для "Листовые + кромка":</div>`;
+  h+=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">`;
+  matKeywords.forEach((kw,i)=>{
+    h+=`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;gap:4px">${kw}<button onclick="removeMatKeyword(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px">×</button></span>`;
+  });
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:6px;margin-top:6px"><input class="finput" id="new-mat-kw" placeholder="Новое слово..." style="flex:1;font-size:12px"><button class="btn btn-ghost" onclick="addMatKeyword()" style="font-size:11px;padding:3px 10px">+</button></div>`;
+
   $('m-kb-settings-body').innerHTML=h;
   overlay.classList.add('open');
 }
@@ -5290,6 +5313,43 @@ function toggleKanbanField(key,show){
   f[key]=show;
   saveKanbanFields(f);
   renderKanban();
+}
+
+// ── Правила проверки материалов ──
+function getMatCheckRules(){
+  return getSetting('mat_check_rules',{
+    'Отправлено КП':'none','Новый':'none','Материал заказан':'none',
+    'В работе':'sheets','Готов к выдаче':'all','Отгружен':'all',
+    'Закрыт':'all','Приостановлен':'none','Рекламация':'none','Отказались':'none'
+  });
+}
+
+function setMatCheckRule(col,rule){
+  const r=getMatCheckRules();
+  r[col]=rule;
+  saveSetting('mat_check_rules',r);
+}
+
+function getMatKeywords(){
+  return getSetting('mat_keywords',['лдсп','хдф','мдф','фанера','дсп','двп','лист','кромка','кром.','abs','пвх кромка']);
+}
+
+function addMatKeyword(){
+  const kw=($('new-mat-kw')?.value||'').trim().toLowerCase();
+  if(!kw){showToast('Укажите слово');return}
+  const list=getMatKeywords();
+  if(list.includes(kw)){showToast('Уже есть');return}
+  list.push(kw);
+  saveSetting('mat_keywords',list);
+  $('new-mat-kw').value='';
+  openKanbanSettings();
+}
+
+function removeMatKeyword(i){
+  const list=getMatKeywords();
+  list.splice(i,1);
+  saveSetting('mat_keywords',list);
+  openKanbanSettings();
 }
 
 function setSourceColor(src,color){
