@@ -2500,21 +2500,40 @@ async function quickStatus(rid,newSt){
     }
   }
 
-  // ── БЛОКИРОВКА: проверяем материал перед переводом в рабочие статусы ──
+  // ── БЛОКИРОВКА: проверяем материалы по уровню ──
+  // До "В работе" — свободно (КП, Новый, Материал заказан)
+  // "В работе" — нужны листовые (ЛДСП, ХДФ, МДФ) + кромка
+  // "Готов к выдаче" и дальше — нужен полный список
   const mats=getSpecMats(o);
-  if(mats.length>0 && WRITEOFF_STATUSES.includes(newSt) && !WRITEOFF_STATUSES.includes(oldSt)){
-    // Переводят из КП/паузы в работу — нужна проверка наличия
-    // Обновляем данные склада перед проверкой
+  const WORK_STATUSES=['В работе'];
+  const FULL_CHECK_STATUSES=['Готов к выдаче','Отгружен','Закрыт'];
+  const FREE_STATUSES=['Отправлено КП','Новый','Материал заказан'];
+  
+  if(mats.length>0 && !FREE_STATUSES.includes(newSt)){
     await loadSkladSilent();
-    const shortages=checkMaterialsAvailable(mats);
-    if(shortages.length>0){
-      // Блокируем — откатываем select обратно
-      showMaterialBlockModal(shortages, rid);
-      // Обновляем пометку в комментарии
-      const warnings=shortages.map(s=>'⚠ '+s.name+': есть '+s.have+', нужно '+s.need);
-      await addMaterialWarningToComment(o.id, rid, warnings);
-      render(); // перерисуем чтобы select вернулся на старый статус
-      return; // НЕ меняем статус
+    
+    let checkMats=mats;
+    
+    if(WORK_STATUSES.includes(newSt)){
+      // Для "В работе" — только листовые и кромка
+      const SHEET_KEYWORDS=['лдсп','хдф','мдф','фанера','дсп','двп','лист'];
+      const EDGE_KEYWORDS=['кромка','кром.','abs','пвх кромка'];
+      checkMats=mats.filter(m=>{
+        const n=(m.name||'').toLowerCase();
+        return SHEET_KEYWORDS.some(k=>n.includes(k))||EDGE_KEYWORDS.some(k=>n.includes(k));
+      });
+    }
+    // Для FULL_CHECK_STATUSES — проверяем все материалы (checkMats = mats)
+    
+    if(checkMats.length>0){
+      const shortages=checkMaterialsAvailable(checkMats);
+      if(shortages.length>0){
+        showMaterialBlockModal(shortages, rid);
+        const warnings=shortages.map(s=>'⚠ '+s.name+': есть '+s.have+', нужно '+s.need);
+        await addMaterialWarningToComment(o.id, rid, warnings);
+        render();
+        return;
+      }
     }
   }
 
@@ -3291,7 +3310,7 @@ const treeOpen={groups:{},subs:{}};
 let currentSkladTab='stock';
 
 async function loadSklad(){
-  $('sklad-cards').innerHTML='<div class="loading">Загрузка...</div>';
+  sync('loading','Загрузка склада...');
   try{
     const [iRes,mRes,tRes]=await Promise.all([
       sb.from('sklad_items').select('*').order('name'),
@@ -3303,15 +3322,54 @@ async function loadSklad(){
     skladItems=iRes.data||[];
     skladLog=mRes.data||[];
     matTypes=tRes.data||[];
+    // Авто-объединение дубликатов
+    await autoMergeSkladDuplicates();
     fillMatTypeSelects();
     renderSkladCards();
     renderSkladBase();
     renderSkladLog();
     fillSkladMatFilter();
     fillOrdersDatalist();
-    showToast('Склад обновлён');
+    sync('ok','K2 ✓');
   }catch(e){
+    sync('error','Ошибка склада');
     $('sklad-cards').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>';
+  }
+}
+
+async function autoMergeSkladDuplicates(){
+  // Находим дубликаты по точному имени
+  const byName={};
+  skladItems.forEach(i=>{
+    const n=(i.name||'').trim().toLowerCase();
+    if(!byName[n]) byName[n]=[];
+    byName[n].push(i);
+  });
+  
+  for(const [name,items] of Object.entries(byName)){
+    if(items.length<2) continue;
+    // Оставляем первый, остальные вливаем в него
+    const keep=items[0];
+    for(let j=1;j<items.length;j++){
+      const dup=items[j];
+      try{
+        // Переносим движения
+        await sb.from('sklad_moves').update({item_id:keep.item_id}).eq('item_id',dup.item_id);
+        // Удаляем дубль
+        await sb.from('sklad_items').delete().eq('id',dup.id);
+        console.log('Auto-merged sklad: "'+dup.name+'" → "'+keep.name+'"');
+      }catch(e){console.log('Auto-merge error:',e)}
+    }
+  }
+  
+  // Перезагружаем если были мерджи
+  const totalDups=Object.values(byName).filter(a=>a.length>1).length;
+  if(totalDups>0){
+    const {data:iData}=await sb.from('sklad_items').select('*').order('name');
+    const {data:mData}=await sb.from('sklad_moves').select('*').order('id');
+    if(iData) skladItems=iData;
+    if(mData) skladLog=mData;
+    showToast('🔗 Объединено '+totalDups+' дубликат(ов) на складе');
   }
 }
 
@@ -4427,6 +4485,7 @@ function setExpPeriod(mode){
 }
 
 async function loadExpenses(){
+  sync('loading','Загрузка расходов...');
   try{
     const [eRes,cRes]=await Promise.all([
       sb.from('expenses').select('*').order('expense_date',{ascending:false}),
@@ -4437,7 +4496,8 @@ async function loadExpenses(){
     fillExpCatFilter();
     if(!expensesLoaded){ setExpPeriod('month'); expensesLoaded=true; }
     else renderExpenses();
-  }catch(e){ showToast('Ошибка: '+e.message) }
+    sync('ok','K2 ✓');
+  }catch(e){ sync('error','Ошибка'); showToast('Ошибка: '+e.message) }
 }
 
 function getExpFiltered(){
@@ -6949,12 +7009,14 @@ function renderDashboard(){
 let clients=[], clientEditId=null;
 
 async function loadClients(){
+  sync('loading','Загрузка клиентов...');
   try{
     const {data,error}=await sb.from('clients').select('*').order('name');
     if(error) throw error;
     clients=data||[];
     renderClients();
-  }catch(e){$('crm-body').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>'}
+    sync('ok','K2 ✓');
+  }catch(e){sync('error','Ошибка');$('crm-body').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>'}
 }
 
 function getClientStats(cl){
