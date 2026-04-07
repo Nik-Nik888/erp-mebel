@@ -66,6 +66,11 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .kanban-card.dragging{opacity:0.4;transform:scale(0.95)}
 .kanban-col.drag-over{background:var(--accent-light);border:2px dashed var(--accent)}
 .gantt-row:hover{background:var(--surface2)!important}
+.refresh-btn{transition:color 0.2s;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;padding:0!important}
+.refresh-btn.loading{animation:spin-refresh 0.7s linear infinite;color:var(--amber)!important}
+.refresh-btn.done{color:var(--accent)!important}
+.refresh-btn.fail{color:var(--red)!important}
+@keyframes spin-refresh{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .sidebar-logo{padding:0 20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
 .sidebar-logo .name{font-size:15px;font-weight:600;color:#fff}
 .sidebar-logo .sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
@@ -181,11 +186,6 @@ tbody tr.overdue:hover td{background:#fff0f0}
 .ftextarea{resize:vertical;min-height:64px}
 
 /* SYNC / LOADER */
-.sync-bar{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3)}
-.saw{display:inline-block;width:22px;height:22px;position:relative}
-.saw svg{width:22px;height:22px}
-.saw.spin svg{animation:sawspin 0.6s linear infinite}
-@keyframes sawspin{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:11px 16px;border-radius:var(--rs);font-size:13px;z-index:999;opacity:0;transform:translateY(8px);transition:all 0.3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
 
@@ -355,20 +355,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <div class="page-sub" id="dash-date">—</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <div class="sync-bar">
-            <div class="saw" id="saw-loader">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="3.5" fill="var(--text3)"/>
-                <circle cx="12" cy="12" r="6" fill="none" stroke="var(--text3)" stroke-width="1.5"/>
-                <path d="M12 2L13.8 5.5L12 5L10.2 5.5Z" fill="var(--text3)"/>
-                <path d="M12 22L10.2 18.5L12 19L13.8 18.5Z" fill="var(--text3)"/>
-                <path d="M2 12L5.5 10.2L5 12L5.5 13.8Z" fill="var(--text3)"/>
-                <path d="M22 12L18.5 13.8L19 12L18.5 10.2Z" fill="var(--text3)"/>
-              </svg>
-            </div>
-            <span class="stxt" id="stxt">—</span>
-          </div>
-          <button class="btn btn-ghost" onclick="loadOrders();loadSkladSilent();loadClientsSilent();renderDashboard()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();await loadSkladSilent();await loadClientsSilent();renderDashboard()})">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
         </div>
       </div>
@@ -421,7 +408,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Заказы</div><div class="page-sub">Канбан-доска</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="loadOrders()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadOrders())">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
           <button class="btn btn-primary" onclick="openAdd()">+ Новый заказ</button>
         </div>
@@ -552,7 +539,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Склад</div><div class="page-sub">Материалы и движение</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap" id="sklad-header-btns">
-          <button class="btn btn-ghost" onclick="loadSklad()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadSklad())">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
           <button class="btn btn-ghost" id="btn-sklad-add-item" onclick="openSkladItem()" style="display:none">+ Позиция</button>
           <button class="btn btn-ghost" id="btn-sklad-add-group" onclick="openMatTypes()" style="display:none">+ Группа</button>
@@ -624,7 +611,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Расходы</div><div class="page-sub">Учёт затрат производства</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="loadExpenses()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadExpenses())">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
           <button class="btn btn-ghost" onclick="openExpCategories()">⚙ Категории</button>
           <button class="btn btn-primary" onclick="openExpense()">+ Расход</button>
@@ -707,7 +694,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Клиенты</div><div class="page-sub">База контактов</div></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost" onclick="loadClients()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadClients())">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
           <button class="btn btn-primary" onclick="openClient()">+ Клиент</button>
         </div>
@@ -742,6 +729,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Производство</div><div class="page-sub">Gantt-диаграмма</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();renderGantt()})">↻</button>
           <button class="btn btn-ghost" onclick="ganttPrev()">←</button>
           <span id="gantt-period-label" style="font-size:13px;font-weight:600;min-width:100px;text-align:center"></span>
           <button class="btn btn-ghost" onclick="ganttNext()">→</button>
@@ -774,7 +762,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Цех</div><div class="page-sub">Управление этапами</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="loadOrders().then(()=>renderWorkshop())">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();renderWorkshop()})">↻</button>
           <select class="fsel" id="ws-filter" onchange="renderWorkshop()" style="font-size:13px">
             <option value="">Все участки</option>
           </select>
@@ -788,7 +776,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Аналитика</div><div class="page-sub">Отчёты и статистика</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="renderAnalytics()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>renderAnalytics())">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
           <label style="font-size:12px;color:var(--text3)">Период:</label>
           <input type="date" class="fsel" id="a-from" onchange="renderAnalytics()" style="font-family:'Geologica',sans-serif">
@@ -865,7 +853,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Пользователи</div><div class="page-sub">Управление доступом</div></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost" onclick="loadUsers()">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadUsers())">↻</button>
           <button class="btn btn-primary" onclick="openAddUser()">+ Пользователь</button>
         </div>
       </div>
@@ -1509,16 +1497,27 @@ function pDate(v){ if(!v)return null; const d=new Date(v); return isNaN(d)?null:
 function badgeClass(st){ return{'Отправлено КП':'b-kp',Новый:'b-new','Материал заказан':'b-kp','В работе':'b-work','Готов к выдаче':'b-ready',Отгружен:'b-ship',Закрыт:'b-done',Приостановлен:'b-pause',Рекламация:'b-refuse',Отказались:'b-refuse'}[st]||'b-done' }
 function showToast(msg){ const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500) }
 function sync(state,txt){
-  const saw=$('saw-loader'), stxt=$('stxt');
-  if(saw){
-    saw.classList.toggle('spin', state==='loading');
-    const color = state==='loading'?'var(--amber)':state==='ok'?'var(--accent)':'var(--red)';
-    saw.querySelectorAll('circle,path').forEach(el=>{
-      if(el.hasAttribute('fill')&&el.getAttribute('fill')!=='none') el.setAttribute('fill',color);
-      if(el.hasAttribute('stroke')&&el.getAttribute('stroke')!=='none') el.setAttribute('stroke',color);
-    });
+  // Используется только при первой загрузке (initApp)
+  console.log('Sync:',state,txt);
+}
+
+async function refreshWith(btn,fn){
+  if(btn.classList.contains('loading')) return; // уже обновляется
+  btn.classList.remove('done','fail');
+  btn.classList.add('loading');
+  btn.textContent='↻';
+  try{
+    await fn();
+    btn.classList.remove('loading');
+    btn.classList.add('done');
+    btn.textContent='✓';
+    setTimeout(()=>{btn.classList.remove('done');btn.textContent='↻'},2000);
+  }catch(e){
+    btn.classList.remove('loading');
+    btn.classList.add('fail');
+    btn.textContent='✗';
+    setTimeout(()=>{btn.classList.remove('fail');btn.textContent='↻'},3000);
   }
-  if(stxt) stxt.textContent=txt;
 }
 
 // ── NAV ───────────────────────────────────────────────
@@ -1665,7 +1664,6 @@ function updateStats(){
 // LOAD ORDERS (Supabase)
 // ══════════════════════════════════════════════════════
 async function loadOrders(){
-  sync('loading','Загрузка...');
   try{
     const {data,error} = await sb.from('orders').select('*').order('id',{ascending:false});
     if(error) throw error;
@@ -1680,9 +1678,7 @@ async function loadOrders(){
     fillManagerFilter();
     setPeriod('all');
     render();
-    sync('ok','K2 ✓');
   }catch(e){
-    sync('error','Ошибка: '+e.message);
     $('kanban-body').innerHTML='<div class="empty-state">Не удалось загрузить: '+e.message+'</div>';
   }
 }
@@ -3305,7 +3301,6 @@ const treeOpen={groups:{},subs:{}};
 let currentSkladTab='stock';
 
 async function loadSklad(){
-  sync('loading','Загрузка склада...');
   try{
     const [iRes,mRes,tRes]=await Promise.all([
       sb.from('sklad_items').select('*').order('name'),
@@ -3325,9 +3320,7 @@ async function loadSklad(){
     renderSkladLog();
     fillSkladMatFilter();
     fillOrdersDatalist();
-    sync('ok','K2 ✓');
   }catch(e){
-    sync('error','Ошибка склада');
     $('sklad-cards').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>';
   }
 }
@@ -4480,7 +4473,6 @@ function setExpPeriod(mode){
 }
 
 async function loadExpenses(){
-  sync('loading','Загрузка расходов...');
   try{
     const [eRes,cRes]=await Promise.all([
       sb.from('expenses').select('*').order('expense_date',{ascending:false}),
@@ -4491,8 +4483,7 @@ async function loadExpenses(){
     fillExpCatFilter();
     if(!expensesLoaded){ setExpPeriod('month'); expensesLoaded=true; }
     else renderExpenses();
-    sync('ok','K2 ✓');
-  }catch(e){ sync('error','Ошибка'); showToast('Ошибка: '+e.message) }
+  }catch(e){ showToast('Ошибка: '+e.message) }
 }
 
 function getExpFiltered(){
@@ -7069,14 +7060,12 @@ function renderDashboard(){
 let clients=[], clientEditId=null;
 
 async function loadClients(){
-  sync('loading','Загрузка клиентов...');
   try{
     const {data,error}=await sb.from('clients').select('*').order('name');
     if(error) throw error;
     clients=data||[];
     renderClients();
-    sync('ok','K2 ✓');
-  }catch(e){sync('error','Ошибка');$('crm-body').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>'}
+  }catch(e){$('crm-body').innerHTML='<div class="empty-state">Ошибка: '+e.message+'</div>'}
 }
 
 function getClientStats(cl){
