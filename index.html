@@ -768,6 +768,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <select class="fsel" id="ws-filter" onchange="renderWorkshop()" style="font-size:13px">
             <option value="">Все участки</option>
           </select>
+          <button class="btn btn-ghost" onclick="openWsSettings()" style="font-size:14px;padding:4px 8px" title="Настройки цеха">⚙</button>
           <button class="btn btn-ghost" id="ws-logout-btn" onclick="wsLogout()" style="display:none;color:var(--red);font-size:11px">Завершить смену</button>
         </div>
       </div>
@@ -5232,7 +5233,7 @@ function renderWorksForm(works,stages){
   const badge=$('f-works-count');
   if(badge) badge.textContent=totalSelected;
   
-  let h='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Отметьте виды работ которые нужны для этого заказа. Только отмеченные будут доступны рабочим на планшете.</div>';
+  let h='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Отметьте виды работ и укажите количество. Только отмеченные будут доступны рабочим на планшете.</div>';
   
   let hasAnyWorks=false;
   
@@ -5241,24 +5242,37 @@ function renderWorksForm(works,stages){
     if(!stageWorks.length) return;
     hasAnyWorks=true;
     
-    const selectedIds=works[st.key]||[];
-    const allSelected=stageWorks.every(r=>selectedIds.includes(r.id));
+    const stageData=works[st.key]||[];
+    // Поддержка обоих форматов: [{id,qty}] и [id,id]
+    const getWorkData=(rId)=>{
+      if(!stageData.length) return null;
+      if(typeof stageData[0]==='object') return stageData.find(w=>w.id===rId)||null;
+      return stageData.includes(rId)?{id:rId,qty:1}:null;
+    };
+    const selectedCount=stageWorks.filter(r=>getWorkData(r.id)).length;
+    const stageTotal=stageWorks.reduce((s,r)=>{const d=getWorkData(r.id);return d?s+(parseFloat(r.rate)||0)*(d.qty||1):s},0);
     
     h+=`<div style="margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:6px;padding:4px 0;margin-bottom:4px">
         <span style="font-size:13px">${st.icon}</span>
         <span style="font-size:12px;font-weight:600;color:${st.color}">${st.name}</span>
-        <span style="font-size:10px;color:var(--text3)">${selectedIds.length}/${stageWorks.length}</span>
-        <button type="button" onclick="toggleAllWorks('${st.key}',${!allSelected})" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px;margin-left:auto;font-family:'Geologica',sans-serif;color:var(--text3)">${allSelected?'Снять все':'Выбрать все'}</button>
+        <span style="font-size:10px;color:var(--text3)">${selectedCount}/${stageWorks.length}</span>
+        ${stageTotal?`<span style="font-size:10px;font-weight:600;color:var(--accent-text)">${stageTotal.toLocaleString('ru-RU')} ₽</span>`:''}
       </div>`;
     
     stageWorks.forEach(r=>{
-      const checked=selectedIds.includes(r.id);
-      h+=`<label style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--rs);cursor:pointer;font-size:12px;background:${checked?st.color+'08':''};" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${checked?st.color+'08':''}'">
-        <input type="checkbox" ${checked?'checked':''} onchange="toggleOrderWork('${st.key}',${r.id},this.checked)" style="margin:0">
-        <span style="flex:1">${r.work_name}</span>
-        <span style="font-size:11px;color:var(--text3)">${(parseFloat(r.rate)||0).toLocaleString('ru-RU')} ₽ ${r.unit||''}</span>
-      </label>`;
+      const wd=getWorkData(r.id);
+      const checked=!!wd;
+      const qty=wd?wd.qty||1:1;
+      const lineTotal=checked?(parseFloat(r.rate)||0)*qty:0;
+      h+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--rs);font-size:12px;background:${checked?st.color+'08':''}">
+        <input type="checkbox" ${checked?'checked':''} onchange="toggleOrderWork('${st.key}',${r.id},this.checked)" style="margin:0;flex-shrink:0">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.work_name}</span>
+        <input type="number" value="${qty}" min="0.5" step="0.5" onchange="updateOrderWorkQty('${st.key}',${r.id},this.value)" style="width:45px;border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:11px;text-align:center;font-family:'Geologica',sans-serif;outline:none;background:var(--surface)${!checked?';opacity:0.3':''}">
+        <span style="font-size:10px;color:var(--text3);min-width:45px">${r.unit||''}</span>
+        <span style="font-size:10px;color:var(--text3);min-width:35px;text-align:right">×${(parseFloat(r.rate)||0)}</span>
+        ${checked?`<span style="font-size:11px;font-weight:500;color:var(--accent-text);min-width:50px;text-align:right">${lineTotal.toLocaleString('ru-RU')}₽</span>`:''}
+      </div>`;
     });
     h+=`</div>`;
   });
@@ -5275,26 +5289,46 @@ function toggleOrderWork(stageKey,rateId,checked){
   try{works=JSON.parse($('f-works-data').value||'{}')}catch(e){}
   
   if(!works[stageKey]) works[stageKey]=[];
+  // Нормализуем в новый формат [{id,qty}]
+  works[stageKey]=works[stageKey].map(w=>typeof w==='object'?w:{id:w,qty:1});
   
   if(checked){
-    if(!works[stageKey].includes(rateId)) works[stageKey].push(rateId);
+    if(!works[stageKey].find(w=>w.id===rateId)) works[stageKey].push({id:rateId,qty:1});
   } else {
-    works[stageKey]=works[stageKey].filter(id=>id!==rateId);
+    works[stageKey]=works[stageKey].filter(w=>w.id!==rateId);
   }
-  
-  // Убираем пустые массивы
   if(!works[stageKey].length) delete works[stageKey];
   
   $('f-works-data').value=JSON.stringify(works);
+  updateWorksCount(works);
+  if(editId) saveWorksNow(works);
+  // Перерендерим
+  const stages={};try{Object.assign(stages,JSON.parse($('f-stages-data').value||'{}'))}catch(e){}
+  renderWorksForm(works,stages);
+}
+
+function updateOrderWorkQty(stageKey,rateId,qty){
+  let works={};
+  try{works=JSON.parse($('f-works-data').value||'{}')}catch(e){}
+  if(!works[stageKey]) works[stageKey]=[];
+  works[stageKey]=works[stageKey].map(w=>typeof w==='object'?w:{id:w,qty:1});
   
-  // Обновляем badge
+  const item=works[stageKey].find(w=>w.id===rateId);
+  if(item) item.qty=parseFloat(qty)||1;
+  else works[stageKey].push({id:rateId,qty:parseFloat(qty)||1});
+  
+  $('f-works-data').value=JSON.stringify(works);
+  if(editId) saveWorksNow(works);
+  // Перерендерим
+  const stages={};try{Object.assign(stages,JSON.parse($('f-stages-data').value||'{}'))}catch(e){}
+  renderWorksForm(works,stages);
+}
+
+function updateWorksCount(works){
   let total=0;
   Object.values(works).forEach(arr=>{if(Array.isArray(arr)) total+=arr.length});
   const badge=$('f-works-count');
   if(badge) badge.textContent=total;
-  
-  // Автосохранение
-  if(editId) saveWorksNow(works);
 }
 
 function toggleAllWorks(stageKey,selectAll){
@@ -5302,17 +5336,14 @@ function toggleAllWorks(stageKey,selectAll){
   try{works=JSON.parse($('f-works-data').value||'{}')}catch(e){}
   
   if(selectAll){
-    works[stageKey]=payRates.filter(r=>r.stage_key===stageKey).map(r=>r.id);
+    works[stageKey]=payRates.filter(r=>r.stage_key===stageKey).map(r=>({id:r.id,qty:1}));
   } else {
     delete works[stageKey];
   }
   
   $('f-works-data').value=JSON.stringify(works);
   if(editId) saveWorksNow(works);
-  
-  // Перерендерим
-  const stages={};
-  try{Object.assign(stages,JSON.parse($('f-stages-data').value||'{}'))}catch(e){}
+  const stages={};try{Object.assign(stages,JSON.parse($('f-stages-data').value||'{}'))}catch(e){}
   renderWorksForm(works,stages);
 }
 
@@ -7384,9 +7415,80 @@ function filterChatOrders(q){
 // ══════════════════════════════════════════════════════
 let wsWorker=null; // текущий рабочий на смене
 
+function getWsVisibleStages(){
+  return getSetting('ws_visible_stages',null);
+}
+
+function getWsStages(){
+  const visible=getWsVisibleStages();
+  if(!visible) return PROD_STAGES;
+  return PROD_STAGES.filter(s=>visible.includes(s.key));
+}
+
+function openWsSettings(){
+  let ov=$('m-ws-settings');
+  if(!ov){
+    ov=document.createElement('div');ov.className='overlay';ov.id='m-ws-settings';
+    ov.innerHTML=`<div class="modal" style="max-width:400px"><div class="modal-hd"><div class="modal-title">⚙ Настройки цеха</div><button class="modal-close" onclick="$('m-ws-settings').classList.remove('open')">×</button></div><div class="modal-body" id="m-ws-settings-body"></div></div>`;
+    document.body.appendChild(ov);
+  }
+  const visible=getWsVisibleStages();
+  let h='<div style="font-size:12px;color:var(--text3);margin-bottom:12px">Выберите этапы которые будут видны в Цехе.</div>';
+  PROD_STAGES.forEach(st=>{
+    const checked=!visible||visible.includes(st.key);
+    h+=`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleWsStage('${st.key}',this.checked)" style="margin:0;width:16px;height:16px">
+      <span style="font-size:15px">${st.icon}</span>
+      <span style="flex:1">${st.name}</span>
+    </label>`;
+  });
+  h+=`<div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn btn-ghost" onclick="setWsAllStages()" style="flex:1;font-size:11px;justify-content:center">Все</button>
+    <button class="btn btn-ghost" onclick="setWsProductionOnly()" style="flex:1;font-size:11px;justify-content:center">Только производство</button>
+  </div>`;
+  $('m-ws-settings-body').innerHTML=h;
+  ov.classList.add('open');
+}
+
+function toggleWsStage(key,show){
+  let visible=getWsVisibleStages()||PROD_STAGES.map(s=>s.key);
+  if(show){if(!visible.includes(key))visible.push(key)}
+  else{visible=visible.filter(k=>k!==key)}
+  saveSetting('ws_visible_stages',visible);
+  updateWsFilter();openWsSettings();
+}
+
+function setWsAllStages(){
+  saveSetting('ws_visible_stages',PROD_STAGES.map(s=>s.key));
+  updateWsFilter();openWsSettings();
+}
+
+function setWsProductionOnly(){
+  const prodKeys=['material','raskroy','kromka','prisadka','sborka','upakovka','otgruzka'];
+  saveSetting('ws_visible_stages',PROD_STAGES.filter(s=>prodKeys.includes(s.key)).map(s=>s.key));
+  updateWsFilter();openWsSettings();
+}
+
+function updateWsFilter(){
+  const sel=$('ws-filter');
+  if(!sel) return;
+  const cur=sel.value;
+  const stages=getWsStages();
+  sel.innerHTML='<option value="">Все участки</option>';
+  stages.forEach(st=>{
+    const o=document.createElement('option');o.value=st.key;o.textContent=st.icon+' '+st.name;
+    if(st.key===cur) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
 function renderWorkshop(){
-  // Если не загружены данные зарплаты — загрузим
-  if(!payrollLoaded) loadPayroll().then(()=>renderWorkshop());
+  // Если сотрудники не загружены — ждём
+  if(!payWorkers.length&&!payrollLoaded){
+    loadPayroll().then(()=>{payrollLoaded=true;renderWorkshop()});
+    $('ws-body').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Загрузка...</div>';
+    return;
+  }
   
   if(!wsWorker){
     renderWsLogin();
@@ -7402,7 +7504,7 @@ function renderWorkshop(){
   
   const sel=$('ws-filter');
   if(sel&&sel.options.length<=1){
-    PROD_STAGES.forEach(st=>{
+    getWsStages().forEach(st=>{
       const o=document.createElement('option');o.value=st.key;o.textContent=st.icon+' '+st.name;
       sel.appendChild(o);
     });
@@ -7444,6 +7546,10 @@ function renderWorkshop(){
     cards.push({order:o,current,prevDone,nextStage,isOverdue,done,total,stages});
   });
   
+  // Фильтр по видимым этапам цеха
+  const wsStageKeys=getWsStages().map(s=>s.key);
+  cards=cards.filter(c=>wsStageKeys.includes(c.current.key));
+  
   if(filter) cards=cards.filter(c=>c.current.key===filter);
   
   cards.sort((a,b)=>{
@@ -7469,8 +7575,14 @@ function renderWorkshop(){
     // Виды работ для текущего этапа — только назначенные менеджером
     const allStageWorks=payRates.filter(r=>r.stage_key===c.current.key);
     const orderWorks=getOrderWorks(o);
-    const assignedIds=orderWorks[c.current.key]||[];
-    const stageWorks=assignedIds.length?allStageWorks.filter(r=>assignedIds.includes(r.id)):[];
+    const assignedData=orderWorks[c.current.key]||[];
+    // Поддержка обоих форматов
+    const getAssigned=(rId)=>{
+      if(!assignedData.length) return null;
+      if(typeof assignedData[0]==='object') return assignedData.find(w=>w.id===rId);
+      return assignedData.includes(rId)?{id:rId,qty:1}:null;
+    };
+    const stageWorks=assignedData.length?allStageWorks.filter(r=>getAssigned(r.id)):[];
     
     h+=`<div style="background:var(--surface);border:1px solid ${c.isOverdue?'var(--red)':'var(--border)'};border-radius:var(--r);padding:16px;margin-bottom:12px;${c.isOverdue?'border-left:4px solid var(--red);background:var(--red-light)':'border-left:4px solid '+c.current.color}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -7503,15 +7615,18 @@ function renderWorkshop(){
       h+=`<div style="margin-bottom:10px">
         <div style="font-size:11px;color:var(--amber);margin-bottom:6px;font-weight:500">Отметьте работу которую выполняете:</div>`;
       stageWorks.forEach(r=>{
+        const wd=getAssigned(r.id);
+        const qty=wd?wd.qty||1:1;
+        const lineTotal=(parseFloat(r.rate)||0)*qty;
         h+=`<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:4px;cursor:pointer;font-size:13px">
-          <input type="checkbox" class="ws-work-cb" data-order="${o.order_num}" data-rate-id="${r.id}" data-rate="${r.rate}" data-name="${r.work_name}" style="margin:0;width:18px;height:18px">
+          <input type="checkbox" class="ws-work-cb" data-order="${o.order_num}" data-rate-id="${r.id}" data-rate="${lineTotal}" data-name="${r.work_name}" style="margin:0;width:18px;height:18px">
           <span style="flex:1">${r.work_name}</span>
-          <span style="font-weight:600;color:var(--accent-text)">${(parseFloat(r.rate)||0).toLocaleString('ru-RU')} ₽</span>
-          <span style="font-size:10px;color:var(--text3)">${r.unit||''}</span>
+          <span style="font-size:11px;color:var(--text3)">${qty} ${r.unit||'шт'} × ${(parseFloat(r.rate)||0)} ₽</span>
+          <span style="font-weight:600;color:var(--accent-text)">${lineTotal.toLocaleString('ru-RU')} ₽</span>
         </label>`;
       });
       h+=`</div>`;
-    } else if(!assignedIds.length&&allStageWorks.length){
+    } else if(!assignedData.length&&allStageWorks.length){
       h+=`<div style="font-size:11px;color:var(--text3);padding:8px;text-align:center">Менеджер не назначил виды работ для этого заказа</div>`;
     }
     
@@ -8624,24 +8739,50 @@ async function loadClientsSilent(){
 }
 
 // ── OVERDUE & LOW STOCK NOTIFICATIONS ──────────────────
-function checkOverdueNotify(){
+async function checkOverdueNotify(){
   const today=new Date();today.setHours(0,0,0,0);
-  const key='k2_overdue_notified_'+today.toISOString().split('T')[0];
-  if(localStorage.getItem(key)) return; // уже уведомляли сегодня
+  const todayKey=today.toISOString().split('T')[0];
+  
+  // Проверяем что сейчас >= 10:00 по Москве
+  const mskNow=new Date().toLocaleString('en-US',{timeZone:'Europe/Moscow',hour:'numeric',hour12:false});
+  const hour=parseInt(mskNow)||0;
+  if(hour<10) return;
+  
+  // Проверяем НАПРЯМУЮ в Supabase — уже отправляли сегодня?
+  try{
+    const {data}=await sb.from('app_settings').select('value').eq('key','overdue_last_sent').single();
+    if(data){
+      const val=data.value;
+      const stored=(typeof val==='string'&&val.startsWith('"'))?JSON.parse(val):val;
+      if(stored===todayKey) return; // уже отправлено с другого устройства
+    }
+  }catch(e){} // записи нет — продолжаем
+  
+  // Сразу помечаем как отправленное ДО отправки — чтобы другие устройства не дублировали
+  try{
+    await sb.from('app_settings').upsert({key:'overdue_last_sent',value:JSON.stringify(todayKey),updated_at:new Date().toISOString()},{onConflict:'key'});
+  }catch(e){}
+  
   const overdue=orders.filter(o=>{
     const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
     const s=(o.status||'').trim();
     return d<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
   });
-  if(overdue.length){
-    overdue.slice(0,5).forEach(o=>{
-      const d=pDate(o.deadline);
-      tgNotify('overdue',{order_num:o.order_num,client:o.client,deadline:d?d.toLocaleDateString('ru-RU'):'—',status:o.status});
-    });
-    if(overdue.length>5) tgSend('⚠️ ...и ещё '+(overdue.length-5)+' просроченных заказов');
-    localStorage.setItem(key,'1');
-  }
+  if(!overdue.length) return;
+  
+  let msg='⚠️ <b>Просроченные заказы ('+overdue.length+')</b>\n';
+  overdue.slice(0,10).forEach(o=>{
+    const d=pDate(o.deadline);
+    const days=Math.floor((today-d)/(86400000));
+    msg+='\n📋 '+o.order_num+' — '+(o.client||'—')+'\n';
+    msg+='   Дедлайн: '+(d?d.toLocaleDateString('ru-RU'):'—')+' ('+days+' дн. назад)\n';
+    msg+='   Статус: '+o.status;
+  });
+  if(overdue.length>10) msg+='\n\n...и ещё '+(overdue.length-10)+' заказов';
+  tgSend(msg);
 }
+
+setInterval(()=>{checkOverdueNotify()},30*60*1000);
 
 function checkLowStockNotify(){
   const key='k2_lowstock_notified_'+new Date().toISOString().split('T')[0];
@@ -8726,11 +8867,20 @@ async function initApp(user){
   try{
     await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent(), loadAppSettings()]);
     loadProdStages();
+    // Предзагрузка расценок и сотрудников для Цеха и карточки заказа
+    try{
+      const [rR,uR,wR]=await Promise.all([
+        sb.from('work_rates').select('*').order('stage_key').order('sort_order'),
+        sb.from('rate_units').select('*').order('id'),
+        sb.from('workers').select('*').order('name')
+      ]);
+      payRates=rR.data||[];rateUnits=uR.data||[];payWorkers=wR.data||[];
+    }catch(e){}
     sync('ok','K2 ✓');
     await loadChatMessages();
     subscribeChatRealtime();chatLoaded=true;updateChatOrderFilter();
     renderDashboard();
-    renderKanban(); // перерендерим канбан чтобы значки чата появились
+    renderKanban();
     showChatFab();
     initPushNotifications();
     // Блокируем поворот экрана на мобильных
