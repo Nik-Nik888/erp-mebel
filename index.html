@@ -5867,64 +5867,44 @@ document.addEventListener('touchmove',()=>{
 },true);
 
 // Desktop Drag & Drop
-let draggedOrderNum=null;
-let kanbanDragging=false;
+var draggedOrderNum=null;
 
 function kanbanDragStart(e,el){
   draggedOrderNum=el.dataset.id;
   el.classList.add('dragging');
   e.dataTransfer.effectAllowed='move';
-  kanbanDragging=true;
 }
 function kanbanDragEnd(el){
   el.classList.remove('dragging');
-  kanbanDragging=false;
   document.querySelectorAll('.kanban-col').forEach(c=>c.classList.remove('drag-over'));
 }
 function kanbanDragOver(e,col){e.preventDefault();col.classList.add('drag-over')}
 function kanbanDragLeave(col){col.classList.remove('drag-over')}
 
-// Глобальный автоскролл — работает даже когда курсор за пределами колонок
-let _scrollInterval=null;
-document.addEventListener('dragover',function(e){
-  if(!kanbanDragging) return;
-  e.preventDefault();
-  const kanban=$('kanban-body')?.querySelector('.kanban');
-  if(!kanban) return;
-  const rect=kanban.getBoundingClientRect();
-  const x=e.clientX;
-  const zone=150;
-  const maxSpeed=30;
-  
-  // Левый край канбана
-  if(x<rect.left+zone && x>=rect.left){
-    const pct=1-(x-rect.left)/zone;
-    kanban.scrollLeft-=Math.round(maxSpeed*pct)+2;
+// Автоскролл канбана — при ЛЮБОМ drag у края окна
+(function(){
+  var scrolling=0;
+  var raf=null;
+  function doScroll(){
+    if(!scrolling){raf=null;return}
+    var kb=document.getElementById('kanban-body');
+    var k=kb&&kb.firstElementChild;
+    if(k){k.scrollLeft+=scrolling}
+    raf=requestAnimationFrame(doScroll);
   }
-  // Правый край канбана ИЛИ правый край окна
-  else if(x>rect.right-zone){
-    const pct=Math.min(1,1-(rect.right-x)/zone);
-    kanban.scrollLeft+=Math.round(maxSpeed*pct)+2;
-  }
-  // За правым краем канбана (курсор у края окна)
-  else if(x>window.innerWidth-zone){
-    kanban.scrollLeft+=maxSpeed;
-  }
-});
-
-// Непрерывный скролл пока карточка у края — через interval
-document.addEventListener('drag',function(e){
-  if(!kanbanDragging||!e.clientX) return;
-  const kanban=$('kanban-body')?.querySelector('.kanban');
-  if(!kanban) return;
-  const rect=kanban.getBoundingClientRect();
-  const x=e.clientX;
-  if(x>rect.right-80||x>window.innerWidth-80){
-    kanban.scrollLeft+=15;
-  } else if(x<rect.left+80){
-    kanban.scrollLeft-=15;
-  }
-});
+  document.addEventListener('dragover',function(e){
+    e.preventDefault();
+    var x=e.clientX;
+    var w=window.innerWidth;
+    var oldScrolling=scrolling;
+    if(x>w-150) scrolling=Math.round(20*((x-(w-150))/150))+5;
+    else if(x<150) scrolling=-Math.round(20*((150-x)/150))-5;
+    else scrolling=0;
+    if(scrolling&&!raf) raf=requestAnimationFrame(doScroll);
+  });
+  document.addEventListener('dragend',function(){scrolling=0});
+  document.addEventListener('drop',function(){scrolling=0});
+})();
 
 async function kanbanDrop(e,col){
   e.preventDefault();col.classList.remove('drag-over');
