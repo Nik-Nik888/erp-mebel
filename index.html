@@ -2214,26 +2214,19 @@ async function saveOrder(){
   const btn=$('save-btn'); btn.textContent='Сохраняю...'; btn.disabled=true;
   const sum=parseFloat($('f-sum').value)||0;
   const prep=parseFloat($('f-prepay').value)||0;
-  // Строим спецификацию из материалов формы (или берём существующий JSON из КП)
+  // Строим спецификацию из материалов формы
   const formMats=getOrderMatsFromForm();
-  let specValue=$('f-spec-json').value||'';
+  let specValue='';
   if(formMats.length>0){
-    // Если есть существующий КП-JSON — обновляем в нём материалы
-    // Если нет — создаём новый
-    try{
-      const existing=specValue?JSON.parse(specValue):null;
-      if(existing&&existing.kp){
-        existing.mats=formMats;
-        specValue=JSON.stringify(existing);
-      } else {
-        specValue=buildSpecJson();
-      }
-    }catch(e){
-      specValue=buildSpecJson();
-    }
-  } else if(!specValue){
-    specValue='';
+    specValue=JSON.stringify({
+      kp:true, direct:true,
+      date:$('f-date').value||new Date().toISOString().split('T')[0],
+      coef:1, disc:0, prepayPct:50,
+      mats:formMats, works:[],
+      total:'', profit:'', margin:''
+    });
   }
+  // Если материалов нет — specValue остаётся пустой строкой = очищаем спецификацию
   const row={
     order_num: $('f-num').value.trim()||nextOrderNum(),
     order_date: $('f-date').value||null,
@@ -2256,6 +2249,9 @@ async function saveOrder(){
     if(editId){
       const {error}=await sb.from('orders').update(row).eq('id',editId);
       if(error) throw error;
+      // Обновляем локальный объект
+      const local=orders.find(x=>x.id===editId);
+      if(local) Object.assign(local,row);
       showToast('Заказ обновлён');
     } else {
       const {error,data:inserted}=await sb.from('orders').insert(row).select();
@@ -2361,15 +2357,19 @@ async function confirmDeleteOrder(){
   const o=orders.find(x=>x.id===editId);
   const rid=o?o.order_num:'';
   try{
-    // Удаляем связанные движения на складе
     if(rid){
+      // Удаляем связанные данные
       await sb.from('sklad_moves').delete().eq('order_num',rid);
+      await sb.from('payroll_entries').delete().eq('order_num',rid);
+      await sb.from('order_files').delete().eq('order_num',rid);
       skladLog=skladLog.filter(r=>r.order_num!==rid);
     }
+    // Удаляем платежи по order_id и order_num
+    await sb.from('payments').delete().eq('order_id',editId);
+    if(rid) await sb.from('payments').delete().eq('order_num',rid);
     // Удаляем заказ
     const {error}=await sb.from('orders').delete().eq('id',editId);
     if(error) throw error;
-    // Убираем модалки
     const block=$('m-block'); if(block) block.classList.remove('open');
     closeOrder();
     await loadOrders();
