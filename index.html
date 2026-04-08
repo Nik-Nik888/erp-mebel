@@ -256,6 +256,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
   .overlay{align-items:flex-end;padding:0}
   .modal{max-height:96vh;border-radius:var(--r) var(--r) 0 0;width:100%;max-width:100%}
   .fg{grid-template-columns:1fr}
+  .dash-2col{grid-template-columns:1fr!important}
+  .dash-3col{grid-template-columns:1fr!important}
   [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
   .desk-table{display:none!important}
   .mob-cards{display:block!important}
@@ -357,50 +359,65 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <div class="page-sub" id="dash-date">—</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();await loadSkladSilent();await loadClientsSilent();renderDashboard()})">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();await loadSkladSilent();await loadClientsSilent();await loadPayroll();renderDashboard()})">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
         </div>
       </div>
 
-      <!-- KPI -->
-      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
-        <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Активных заказов</div><div class="val" id="d-active">—</div><div class="hint">в работе</div></div>
-        <div class="stat" onclick="setTab('overdue');showPage('orders')" style="cursor:pointer;border-color:var(--red)"><div class="lbl">⚠ Просрочено</div><div class="val red" id="d-overdue">—</div><div class="hint">нажмите для списка</div></div>
-        <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Готовы к выдаче</div><div class="val green" id="d-ready">—</div><div class="hint">ожидают клиента</div></div>
-        <div class="stat"><div class="lbl">Получено сегодня</div><div class="val" id="d-today-pay">—</div><div class="hint">оплаты</div></div>
-        <div class="stat"><div class="lbl">Получено за месяц</div><div class="val green" id="d-month-pay">—</div><div class="hint">всего</div></div>
-        <div class="stat" onclick="showPage('crm')" style="cursor:pointer"><div class="lbl">Клиентов</div><div class="val" id="d-clients" style="color:var(--blue)">—</div><div class="hint">база</div></div>
+      <!-- СРОЧНОЕ -->
+      <div id="d-urgent" style="margin-bottom:14px"></div>
+
+      <!-- KPI карточки -->
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(105px,1fr))">
+        <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">В работе</div><div class="val" id="d-active">—</div></div>
+        <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Просрочено</div><div class="val red" id="d-overdue">—</div></div>
+        <div class="stat"><div class="lbl">Готово к выдаче</div><div class="val green" id="d-ready">—</div></div>
+        <div class="stat"><div class="lbl">Ожидают оплаты</div><div class="val" id="d-unpaid" style="color:var(--amber)">—</div></div>
+        <div class="stat"><div class="lbl">Доход за месяц</div><div class="val green" id="d-month-income">—</div></div>
+        <div class="stat"><div class="lbl">Расходы за месяц</div><div class="val red" id="d-month-expense">—</div></div>
       </div>
 
-      <!-- Два блока -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <!-- Последние заказы -->
+      <!-- Два блока: внимание + деньги -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" class="dash-2col">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:12px;font-weight:600;color:var(--text2)">📋 Последние заказы</div>
-            <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="showPage('orders')">Все →</button>
-          </div>
-          <div id="d-recent-orders"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px">⚠ Требуют внимания</div>
+          <div id="d-attention" style="max-height:200px;overflow-y:auto"></div>
         </div>
-
-        <!-- Просроченные -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:12px;font-weight:600;color:var(--red)">⚠ Требуют внимания</div>
-          </div>
-          <div id="d-attention"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">💰 Финансы</div>
+          <div id="d-finance"></div>
         </div>
       </div>
 
-      <!-- Воронка и склад -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <!-- Три блока: производство + смены + склад -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px" class="dash-3col">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
-          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">📊 Заказы по статусам</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🏭 Производство</div>
+          <div id="d-production"></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">👷 На смене</div>
+          <div id="d-shifts"></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📦 Склад</div>
+          <div id="d-low-stock"></div>
+        </div>
+      </div>
+
+      <!-- Воронка + напоминания + последние сообщения -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px" class="dash-3col">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📊 Заказы по статусам</div>
           <div id="d-funnel"></div>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
-          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">📦 Склад — заканчивается</div>
-          <div id="d-low-stock"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🔔 Напоминания</div>
+          <div id="d-reminders"></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;overflow:hidden">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">💬 Последние сообщения</div>
+          <div id="d-last-chat"></div>
         </div>
       </div>
     </div>
@@ -1074,6 +1091,16 @@ tbody tr.overdue:hover td{background:#fff0f0}
         Новая предоплата: <b id="mp-new" style="color:var(--accent)">—</b>
         <span id="mp-warn" style="color:var(--red);font-size:11px;display:none"> — превышает сумму!</span>
       </div>
+      <div class="f" style="margin-top:8px">
+        <label class="flabel">Дата оплаты</label>
+        <input class="finput" type="date" id="mp-date" style="font-family:'Geologica',sans-serif">
+      </div>
+      <div class="f" style="margin-top:4px">
+        <label class="flabel">Комментарий</label>
+        <input class="finput" id="mp-note" placeholder="Нал / Безнал / Аванс...">
+      </div>
+      <!-- История платежей -->
+      <div id="mp-history" style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px"></div>
     </div>
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closePrepay()">Отмена</button><button class="btn btn-primary" id="mp-save-btn" onclick="savePrepay()">Сохранить</button></div>
   </div>
@@ -2565,9 +2592,10 @@ async function quickStatus(rid,newSt){
   }
 
   // ── БЛОКИРОВКА: проверяем материалы по правилам из настроек ──
+  const SKIP_CHECK_STATUSES=['Отказались','Приостановлен','Рекламация'];
   const mats=getSpecMats(o);
   const matRules=getMatCheckRules();
-  const checkRule=matRules[newSt]||'none';
+  const checkRule=SKIP_CHECK_STATUSES.includes(newSt)?'none':(matRules[newSt]||'none');
   
   if(mats.length>0 && checkRule!=='none'){
     await loadSkladSilent();
@@ -2718,7 +2746,11 @@ function openPrepay(rid){
   $('mp-btn-add').style.color='var(--accent-text)';
   $('mp-btn-sub').style.background=''; $('mp-btn-sub').style.color='';
   $('mp-input-label').textContent='Добавить сумму (₽)';
+  $('mp-date').value=new Date().toISOString().split('T')[0];
+  $('mp-note').value='';
   $('m-prepay').classList.add('open');
+  // Загружаем историю платежей
+  loadPaymentHistory(rid,o.id);
 }
 function closePrepay(){ $('m-prepay').classList.remove('open'); prepayId=null }
 function previewPrepay(){
@@ -2740,7 +2772,18 @@ async function savePrepay(){
   newPrepay=Math.max(0,newPrepay);
   if(sum>0&&newPrepay>sum){showToast('Сумма превышает договор');return}
   const newDopay=sum>0?Math.max(0,sum-newPrepay):0;
+  const payDate=$('mp-date')?.value||new Date().toISOString().split('T')[0];
+  const note=$('mp-note')?.value||'';
   try{
+    // Записываем платёж в таблицу payments
+    await sb.from('payments').insert({
+      order_id:o.id,
+      order_num:o.order_num,
+      amount:prepayMode==='add'?delta:-delta,
+      payment_date:payDate,
+      note:note
+    });
+    // Обновляем prepay в заказе
     const {error}=await sb.from('orders').update({prepay:newPrepay,dopay:newDopay}).eq('id',o.id);
     if(error) throw error;
     o.prepay=newPrepay; o.dopay=newDopay;
@@ -2749,6 +2792,31 @@ async function savePrepay(){
     }
     closePrepay(); render(); updateStats(); showToast('Оплата обновлена');
   }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
+async function loadPaymentHistory(orderNum,orderId){
+  const hist=$('mp-history');
+  if(!hist) return;
+  hist.innerHTML='<div style="font-size:11px;color:var(--text3)">Загрузка...</div>';
+  try{
+    const {data}=await sb.from('payments').select('*').eq('order_num',orderNum).order('payment_date',{ascending:false});
+    if(!data||!data.length){
+      hist.innerHTML='<div style="font-size:11px;color:var(--text3);text-align:center">Нет истории платежей</div>';
+      return;
+    }
+    let h='<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">История платежей</div>';
+    data.forEach(p=>{
+      const d=new Date(p.payment_date);
+      const amt=parseFloat(p.amount)||0;
+      const isPlus=amt>0;
+      h+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="color:var(--text3);min-width:55px">${d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'})}</span>
+        <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.note||''}</span>
+        <span style="font-weight:600;color:${isPlus?'var(--accent-text)':'var(--red)'}">${isPlus?'+':''}${amt.toLocaleString('ru-RU')} ₽</span>
+      </div>`;
+    });
+    hist.innerHTML=h;
+  }catch(e){hist.innerHTML=''}
 }
 
 // ══════════════════════════════════════════════════════
@@ -5800,18 +5868,63 @@ document.addEventListener('touchmove',()=>{
 
 // Desktop Drag & Drop
 let draggedOrderNum=null;
+let kanbanDragging=false;
 
 function kanbanDragStart(e,el){
   draggedOrderNum=el.dataset.id;
   el.classList.add('dragging');
   e.dataTransfer.effectAllowed='move';
+  kanbanDragging=true;
 }
 function kanbanDragEnd(el){
   el.classList.remove('dragging');
+  kanbanDragging=false;
   document.querySelectorAll('.kanban-col').forEach(c=>c.classList.remove('drag-over'));
 }
 function kanbanDragOver(e,col){e.preventDefault();col.classList.add('drag-over')}
 function kanbanDragLeave(col){col.classList.remove('drag-over')}
+
+// Глобальный автоскролл — работает даже когда курсор за пределами колонок
+let _scrollInterval=null;
+document.addEventListener('dragover',function(e){
+  if(!kanbanDragging) return;
+  e.preventDefault();
+  const kanban=$('kanban-body')?.querySelector('.kanban');
+  if(!kanban) return;
+  const rect=kanban.getBoundingClientRect();
+  const x=e.clientX;
+  const zone=150;
+  const maxSpeed=30;
+  
+  // Левый край канбана
+  if(x<rect.left+zone && x>=rect.left){
+    const pct=1-(x-rect.left)/zone;
+    kanban.scrollLeft-=Math.round(maxSpeed*pct)+2;
+  }
+  // Правый край канбана ИЛИ правый край окна
+  else if(x>rect.right-zone){
+    const pct=Math.min(1,1-(rect.right-x)/zone);
+    kanban.scrollLeft+=Math.round(maxSpeed*pct)+2;
+  }
+  // За правым краем канбана (курсор у края окна)
+  else if(x>window.innerWidth-zone){
+    kanban.scrollLeft+=maxSpeed;
+  }
+});
+
+// Непрерывный скролл пока карточка у края — через interval
+document.addEventListener('drag',function(e){
+  if(!kanbanDragging||!e.clientX) return;
+  const kanban=$('kanban-body')?.querySelector('.kanban');
+  if(!kanban) return;
+  const rect=kanban.getBoundingClientRect();
+  const x=e.clientX;
+  if(x>rect.right-80||x>window.innerWidth-80){
+    kanban.scrollLeft+=15;
+  } else if(x<rect.left+80){
+    kanban.scrollLeft-=15;
+  }
+});
 
 async function kanbanDrop(e,col){
   e.preventDefault();col.classList.remove('drag-over');
@@ -8037,124 +8150,245 @@ function renderGantt(){
 // ══════════════════════════════════════════════════════
 // ДАШБОРД
 // ══════════════════════════════════════════════════════
-function renderDashboard(){
+async function renderDashboard(){
   const today=new Date();today.setHours(0,0,0,0);
+  const tomorrow=new Date(today);tomorrow.setDate(tomorrow.getDate()+1);
   const hr=new Date().getHours();
   const greeting=hr<12?'Доброе утро':hr<18?'Добрый день':'Добрый вечер';
   const name=currentProfile?.full_name||'';
   $('dash-greeting').textContent=greeting+(name?', '+name.split(' ')[0]:'')+'!';
   $('dash-date').textContent=today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   
-  const INACTIVE=['Закрыт','Отгружен','Отправлено КП','Отказались'];
-  const active=orders.filter(o=>{const s=(o.status||'').trim();return !INACTIVE.includes(s)&&s!==''});
+  const ACTIVE_ST=['Новый','Материал заказан','В работе','Готов к выдаче'];
+  const active=orders.filter(o=>ACTIVE_ST.includes((o.status||'').trim()));
   const overdue=orders.filter(o=>{
     const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
     const s=(o.status||'').trim();return d<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
   });
   const ready=orders.filter(o=>(o.status||'').trim()==='Готов к выдаче');
+  const deadlineTomorrow=orders.filter(o=>{
+    const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
+    const s=(o.status||'').trim();return d.getTime()===tomorrow.getTime()&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
+  });
+  const deadlineToday=orders.filter(o=>{
+    const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
+    const s=(o.status||'').trim();return d.getTime()===today.getTime()&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
+  });
   
-  // Оплаты сегодня (приблизительно — по дате заказа за сегодня)
-  const todayStr=today.toISOString().split('T')[0];
+  // Неоплаченные
+  const unpaid=orders.filter(o=>{
+    const sum=parseFloat(o.order_sum)||0,paid=parseFloat(o.prepay)||0;
+    const s=(o.status||'').trim();
+    return sum>0&&paid<sum&&s!=='Отказались';
+  });
+  const unpaidSum=unpaid.reduce((s,o)=>s+Math.max(0,(parseFloat(o.order_sum)||0)-(parseFloat(o.prepay)||0)),0);
+  
+  // Месяц — расходы из expenses
   const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
-  const monthOrders=orders.filter(o=>{const d=pDate(o.order_date);return d&&d>=monthStart});
-  const monthPaid=monthOrders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
-  const allPaid=orders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  const monthExpense=expenses.filter(e=>{const d=new Date(e.expense_date);return d>=monthStart}).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   
+  // Месяц — доходы из payments (загрузим асинхронно)
+  let monthIncome=0;
+  try{
+    const mStart=monthStart.toISOString().split('T')[0];
+    const {data:pmts}=await sb.from('payments').select('amount').gte('payment_date',mStart);
+    if(pmts) monthIncome=pmts.reduce((s,p)=>s+Math.max(0,parseFloat(p.amount)||0),0);
+  }catch(e){}
+  
+  // KPI
   $('d-active').textContent=active.length;
   $('d-overdue').textContent=overdue.length;
-  $('d-ready').textContent=ready.length;
-  $('d-today-pay').textContent=fmt(0); // today's pay is hard to calc without payment log
-  $('d-month-pay').textContent=fmt(monthPaid);
-  $('d-clients').textContent=clients.length;
-  
-  // Подсвечиваем просрочки
   $('d-overdue').parentElement.style.background=overdue.length?'var(--red-light)':'';
+  $('d-ready').textContent=ready.length;
+  $('d-unpaid').textContent=unpaid.length;
+  $('d-month-income').textContent=fmt(monthIncome);
+  $('d-month-expense').textContent=fmt(monthExpense);
   
-  // Последние 7 заказов
-  const recent=orders.slice(0,7);
-  if(recent.length){
-    let rh='';
-    recent.forEach(o=>{
-      const bc=badgeClass((o.status||'').trim());
-      const d=pDate(o.order_date);
-      const ds=d?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}):'—';
-      rh+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)" style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;overflow:hidden">
-        <span style="font-size:11px;font-weight:500;min-width:45px;flex-shrink:0;color:var(--text)">${o.order_num||'—'}</span>
-        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${o.client||'—'}</span>
-        <span class="badge ${bc}" style="font-size:9px;flex-shrink:0;white-space:nowrap">${(o.status||'—')}</span>
-      </div>`;
-    });
-    $('d-recent-orders').innerHTML=rh;
+  // ═══ СРОЧНОЕ (красная плашка если есть) ═══
+  const urgentItems=[];
+  if(overdue.length) urgentItems.push({icon:'🔴',text:overdue.length+' просроченных заказов',color:'var(--red)'});
+  if(deadlineToday.length) urgentItems.push({icon:'⏰',text:deadlineToday.length+' заказов — дедлайн СЕГОДНЯ',color:'var(--amber)'});
+  if(deadlineTomorrow.length) urgentItems.push({icon:'📅',text:deadlineTomorrow.length+' заказов — дедлайн завтра',color:'var(--text2)'});
+  
+  const lowStock=skladItems.filter(item=>{
+    const stock=skladStock(item.item_id);const min=parseFloat(item.min_stock)||0;
+    return min>0&&stock<=min&&!String(item.item_id||'').startsWith('pending_');
+  });
+  if(lowStock.length) urgentItems.push({icon:'📦',text:lowStock.length+' материалов заканчиваются',color:'var(--amber)'});
+  
+  if(urgentItems.length){
+    $('d-urgent').innerHTML=`<div style="background:var(--red-light);border:1px solid var(--red);border-radius:var(--r);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <span style="font-size:14px;font-weight:700;color:var(--red)">Срочно:</span>
+      ${urgentItems.map(i=>`<span style="font-size:12px;color:${i.color}">${i.icon} ${i.text}</span>`).join('<span style="color:var(--border)">·</span>')}
+    </div>`;
   } else {
-    $('d-recent-orders').innerHTML='<div style="color:var(--text3);font-size:13px">Нет заказов</div>';
+    $('d-urgent').innerHTML=`<div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--r);padding:12px;text-align:center;font-size:13px;color:var(--accent-text);font-weight:500">✓ Всё под контролем — срочных задач нет</div>`;
   }
   
-  // Требуют внимания: просрочки + неоплаченные готовые
+  // ═══ ТРЕБУЮТ ВНИМАНИЯ ═══
   const attention=[];
-  overdue.forEach(o=>attention.push({order:o,type:'overdue',text:'⏰ Просрочен'}));
-  ready.forEach(o=>{
-    const sum=parseFloat(o.order_sum)||0,paid=parseFloat(o.prepay)||0;
-    if(sum>0&&paid<sum) attention.push({order:o,type:'unpaid',text:'💰 Не оплачен'});
+  overdue.forEach(o=>{const d=pDate(o.deadline);const days=d?Math.floor((today-d)/86400000):0;attention.push({o,icon:'⏰',text:'Просрочен '+days+' дн.',color:'var(--red)'})});
+  deadlineToday.forEach(o=>attention.push({o,icon:'🔥',text:'Дедлайн сегодня!',color:'var(--amber)'}));
+  ready.forEach(o=>{const sum=parseFloat(o.order_sum)||0,paid=parseFloat(o.prepay)||0;
+    if(sum>0&&paid<sum) attention.push({o,icon:'💰',text:'Готов, не оплачен: '+fmt(sum-paid),color:'var(--amber)'});
+    else attention.push({o,icon:'✅',text:'Готов к выдаче',color:'var(--accent)'});
   });
-  orders.filter(o=>(o.status||'').trim()==='Материал заказан').forEach(o=>{
-    attention.push({order:o,type:'matorder',text:'📦 Ждёт мат.'});
-  });
+  orders.filter(o=>(o.status||'').trim()==='Материал заказан').forEach(o=>attention.push({o,icon:'📦',text:'Ждёт материал',color:'var(--blue)'}));
   
   if(attention.length){
     let ah='';
-    attention.slice(0,8).forEach(a=>{
-      const o=a.order;
-      const color=a.type==='overdue'?'var(--red)':a.type==='unpaid'?'var(--amber)':'var(--blue)';
-      ah+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)" style="display:flex;align-items:center;gap:6px;padding:7px 10px;margin-bottom:4px;background:${color}10;border-left:3px solid ${color};border-radius:0 var(--rs) var(--rs) 0;cursor:pointer;overflow:hidden">
-        <span style="font-size:11px;font-weight:500;min-width:40px;flex-shrink:0">${o.order_num||'—'}</span>
-        <span style="font-size:11px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.client||'—'}</span>
-        <span style="font-size:10px;color:${color};flex-shrink:0;white-space:nowrap">${a.text}</span>
+    attention.slice(0,10).forEach(a=>{
+      ah+=`<div onclick="showPage('orders');setTimeout(()=>openEdit('${a.o.order_num}'),200)" style="display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:3px;background:${a.color}08;border-left:3px solid ${a.color};border-radius:0 var(--rs) var(--rs) 0;cursor:pointer;font-size:11px">
+        <span>${a.icon}</span>
+        <span style="font-weight:500;min-width:45px">${a.o.order_num}</span>
+        <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.o.client||'—'}</span>
+        <span style="color:${a.color};flex-shrink:0">${a.text}</span>
       </div>`;
     });
-    if(attention.length>8) ah+=`<div style="font-size:11px;color:var(--text3);padding:4px 0">...и ещё ${attention.length-8}</div>`;
+    if(attention.length>10) ah+=`<div style="font-size:10px;color:var(--text3);padding:4px 0;text-align:center">...и ещё ${attention.length-10}</div>`;
     $('d-attention').innerHTML=ah;
   } else {
-    $('d-attention').innerHTML='<div style="color:var(--accent);font-size:13px;padding:10px 0;text-align:center">✓ Всё под контролем!</div>';
+    $('d-attention').innerHTML='<div style="color:var(--accent);font-size:12px;text-align:center;padding:10px">✓ Нет проблем</div>';
   }
   
-  // Воронка по статусам
-  const STATUS_ORDER=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
+  // ═══ ФИНАНСЫ ═══
+  const profit=monthIncome-monthExpense;
+  let fh=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+    <div style="text-align:center;padding:8px;background:var(--accent-light);border-radius:var(--rs)">
+      <div style="font-size:10px;color:var(--accent-text)">Доход</div>
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text)">${fmt(monthIncome)}</div>
+    </div>
+    <div style="text-align:center;padding:8px;background:var(--red-light);border-radius:var(--rs)">
+      <div style="font-size:10px;color:var(--red)">Расходы</div>
+      <div style="font-size:14px;font-weight:700;color:var(--red)">${fmt(monthExpense)}</div>
+    </div>
+  </div>
+  <div style="text-align:center;padding:6px;background:${profit>=0?'var(--accent-light)':'var(--red-light)'};border-radius:var(--rs);margin-bottom:8px">
+    <span style="font-size:10px;color:var(--text3)">Прибыль: </span>
+    <span style="font-size:14px;font-weight:700;color:${profit>=0?'var(--accent-text)':'var(--red)'}">${profit>=0?'+':''}${fmt(profit)}</span>
+  </div>`;
+  if(unpaid.length){
+    fh+=`<div style="font-size:11px;color:var(--amber);margin-bottom:4px">Ожидают оплаты: ${unpaid.length} заказов</div>
+    <div style="font-size:13px;font-weight:600;color:var(--amber)">${fmt(unpaidSum)} ₽ долг</div>`;
+  }
+  $('d-finance').innerHTML=fh;
+  
+  // ═══ ПРОИЗВОДСТВО ═══
+  const inWork=orders.filter(o=>(o.status||'').trim()==='В работе');
+  const matOrdered=orders.filter(o=>(o.status||'').trim()==='Материал заказан');
+  let ph='';
+  const stageCounts={};
+  inWork.forEach(o=>{
+    const stages=getOrderStages(o);
+    const activeStages=PROD_STAGES.filter(s=>!stages[s.key]||!stages[s.key].skip);
+    const cur=activeStages.find(s=>!stages[s.key]||!stages[s.key].done);
+    if(cur) stageCounts[cur.key]=(stageCounts[cur.key]||0)+1;
+  });
+  if(Object.keys(stageCounts).length){
+    ph+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+    Object.entries(stageCounts).forEach(([key,cnt])=>{
+      const st=PROD_STAGES.find(s=>s.key===key);
+      if(st) ph+=`<span style="font-size:10px;padding:3px 6px;border-radius:6px;background:${st.color}15;color:${st.color};font-weight:500">${st.icon} ${cnt}</span>`;
+    });
+    ph+='</div>';
+  }
+  ph+=`<div style="font-size:12px"><span style="font-weight:600">${inWork.length}</span> <span style="color:var(--text3)">в работе</span></div>`;
+  ph+=`<div style="font-size:12px"><span style="font-weight:600">${matOrdered.length}</span> <span style="color:var(--text3)">ждут материал</span></div>`;
+  ph+=`<div style="font-size:12px"><span style="font-weight:600">${ready.length}</span> <span style="color:var(--text3)">готовы</span></div>`;
+  $('d-production').innerHTML=ph;
+  
+  // ═══ СМЕНЫ ═══
+  const openShifts=payShifts.filter(s=>!s.ended_at);
+  if(openShifts.length){
+    let sh='';
+    openShifts.forEach(s=>{
+      const start=new Date(s.started_at);
+      const dur=Math.round((new Date()-start)/60000);
+      const hrs=Math.floor(dur/60),mins=dur%60;
+      sh+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="font-weight:500">${s.worker_name||'—'}</span>
+        <span style="flex:1;color:var(--text3)">${s.station||''}</span>
+        <span style="color:var(--accent)">${hrs}ч ${mins}м</span>
+      </div>`;
+    });
+    $('d-shifts').innerHTML=sh;
+  } else {
+    $('d-shifts').innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px">Никого на смене</div>';
+  }
+  
+  // ═══ СКЛАД ═══
+  if(lowStock.length){
+    let sh='';
+    lowStock.slice(0,6).forEach(item=>{
+      const stock=skladStock(item.item_id);
+      const empty=stock<=0;
+      sh+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="flex:1;color:${empty?'var(--red)':'var(--text)'};${empty?'font-weight:500':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>
+        <span style="font-weight:600;color:${empty?'var(--red)':'var(--amber)'}">🪣${stock}/${item.min_stock}</span>
+      </div>`;
+    });
+    if(lowStock.length>6) sh+=`<div style="font-size:10px;color:var(--text3);text-align:center;padding:2px">...ещё ${lowStock.length-6}</div>`;
+    $('d-low-stock').innerHTML=sh;
+  } else {
+    $('d-low-stock').innerHTML='<div style="color:var(--accent);font-size:12px;text-align:center;padding:10px">✓ Всё в норме</div>';
+  }
+  
+  // ═══ ВОРОНКА ═══
+  const STATUS_ORDER=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Рекламация','Отказались'];
   const statusCounts={};
   orders.forEach(o=>{const s=(o.status||'').trim();statusCounts[s]=(statusCounts[s]||0)+1});
   const maxSC=Math.max(...Object.values(statusCounts),1);
-  let fh='';
+  let ffh='';
   STATUS_ORDER.forEach(s=>{
-    const cnt=statusCounts[s]||0;
-    if(!cnt) return;
+    const cnt=statusCounts[s]||0;if(!cnt) return;
     const pct=cnt/maxSC*100;
     const bc=badgeClass(s);
-    fh+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer;overflow:hidden" onclick="setTab('${s==='all'?'all':s}');showPage('orders')">
-      <span class="badge ${bc}" style="font-size:9px;width:100px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;display:inline-block">${s}</span>
-      <div style="flex:1;background:var(--surface2);border-radius:3px;height:7px;overflow:hidden;min-width:20px"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px"></div></div>
-      <span style="font-size:12px;font-weight:600;min-width:20px;text-align:right;flex-shrink:0">${cnt}</span>
+    ffh+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer" onclick="showPage('orders')">
+      <span class="badge ${bc}" style="font-size:9px;width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center">${s}</span>
+      <div style="flex:1;background:var(--surface2);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px"></div></div>
+      <span style="font-size:11px;font-weight:600;min-width:18px;text-align:right">${cnt}</span>
     </div>`;
   });
-  $('d-funnel').innerHTML=fh||'<div style="color:var(--text3)">Нет заказов</div>';
+  $('d-funnel').innerHTML=ffh||'<div style="color:var(--text3);font-size:12px">Нет заказов</div>';
   
-  // Склад — заканчивается
-  const lowItems=skladItems.filter(item=>{
-    const stock=skladStock(item.item_id);
-    const min=parseFloat(item.min_stock)||0;
-    return min>0&&stock<=min&&!String(item.item_id||'').startsWith('pending_');
-  }).slice(0,5);
-  if(lowItems.length){
-    let sh='';
-    lowItems.forEach(item=>{
-      const stock=skladStock(item.item_id);
-      const empty=stock<=0;
-      sh+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:12px;flex:1;color:${empty?'var(--red)':'var(--text)'};${empty?'font-weight:500':''}">${item.name}</span>
-        <span style="font-size:12px;font-weight:600;color:${empty?'var(--red)':'var(--amber)'}">${stock} / ${item.min_stock} ${item.unit||'шт'}</span>
+  // ═══ НАПОМИНАНИЯ ═══
+  const todayReminders=(typeof reminders!=='undefined'?reminders:[]).filter(r=>{
+    if(r.is_done) return false;
+    const d=new Date(r.remind_at);d.setHours(0,0,0,0);
+    return d<=today;
+  });
+  if(todayReminders.length){
+    let rh='';
+    todayReminders.slice(0,5).forEach(r=>{
+      const t=new Date(r.remind_at);
+      rh+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span>🔔</span>
+        <span style="font-weight:500">${r.order_num||''}</span>
+        <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.text||''}</span>
+        <span style="color:var(--text3)">${t.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span>
       </div>`;
     });
-    $('d-low-stock').innerHTML=sh;
+    $('d-reminders').innerHTML=rh;
   } else {
-    $('d-low-stock').innerHTML='<div style="color:var(--accent);font-size:13px;padding:10px 0;text-align:center">✓ Все материалы в норме</div>';
+    $('d-reminders').innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px">Нет напоминаний</div>';
+  }
+  
+  // ═══ ПОСЛЕДНИЕ СООБЩЕНИЯ ═══
+  const lastMsgs=(typeof chatMessages!=='undefined'?chatMessages:[]).slice(-5);
+  if(lastMsgs.length){
+    let ch='';
+    lastMsgs.reverse().forEach(m=>{
+      const t=new Date(m.created_at);
+      const isMe=m.user_id===currentProfile?.id;
+      ch+=`<div style="display:flex;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="font-weight:500;color:${isMe?'var(--accent-text)':'var(--text)'};min-width:50px">${(m.user_name||'').split(' ')[0]}</span>
+        <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.text||''}</span>
+        <span style="color:var(--text3);flex-shrink:0">${t.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span>
+      </div>`;
+    });
+    $('d-last-chat').innerHTML=ch;
+  } else {
+    $('d-last-chat').innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px">Нет сообщений</div>';
   }
 }
 
