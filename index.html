@@ -56,8 +56,8 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .sidebar-toggle-bar:hover svg line{stroke:rgba(255,255,255,0.7)}
 .toggle-label{font-size:11px;color:rgba(255,255,255,0.35)}
 /* KANBAN */
-.kanban{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px;min-height:400px;scroll-snap-type:x proximity}
-.kanban-col{min-width:var(--kb-col);max-width:var(--kb-col);flex:0 0 var(--kb-col);background:var(--surface2);border-radius:var(--r);display:flex;flex-direction:column;scroll-snap-align:start}
+.kanban{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px;min-height:400px}
+.kanban-col{min-width:var(--kb-col);max-width:var(--kb-col);flex:0 0 var(--kb-col);background:var(--surface2);border-radius:var(--r);display:flex;flex-direction:column}
 @media(max-width:768px){.kanban-col{min-width:var(--kb-col-mob)!important;max-width:var(--kb-col-mob)!important;flex:0 0 var(--kb-col-mob)!important}}
 .kanban-col-hd{padding:10px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;position:sticky;top:0;background:var(--surface2);border-radius:var(--r) var(--r) 0 0;z-index:1}
 .kanban-col-body{flex:1;padding:6px;overflow-y:auto;max-height:calc(100vh - 300px)}
@@ -479,7 +479,6 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="page-header">
         <div><div class="page-title">Калькулятор КП</div><div class="page-sub">Расчёт стоимости для клиента</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="openCatalog()">Справочник цен</button>
           <button class="btn btn-ghost" onclick="kpReset()">Очистить</button>
           <button class="btn btn-ghost" onclick="kpSaveAsOrder()">Сохранить как заказ</button>
           <button class="btn btn-primary" onclick="kpPrint()">Печать / PDF</button>
@@ -2837,24 +2836,35 @@ function matPrice(name){
   // Точное совпадение в складе
   let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
   if(si&&si.buy_price) return parseFloat(si.buy_price);
-  // Поиск по вхождению (имя из склада содержится в названии или наоборот)
+  // Поиск по вхождению
   si=skladItems.find(i=>{
     const sn=(i.name||'').toLowerCase();
     return sn&&(n.includes(sn)||sn.includes(n));
   });
   if(si&&si.buy_price) return parseFloat(si.buy_price);
-  // Каталог — точное
-  const r=MAT_CATALOG.find(m=>(m.name||'').toLowerCase()===n);
-  if(r&&r.price) return r.price;
-  // Каталог — вхождение
-  const r2=MAT_CATALOG.find(m=>{
-    const mn=(m.name||'').toLowerCase();
-    return mn&&(n.includes(mn)||mn.includes(n));
-  });
-  return r2?r2.price:0;
+  return 0;
 }
 function workDefaults(name){
-  const r=WORK_CATALOG.find(w=>w.name===name); return r?[r.unit,r.price]:['шт.',0];
+  const n=(name||'').toLowerCase();
+  const r=payRates.find(w=>(w.work_name||'').toLowerCase()===n);
+  if(r) return [r.unit||'шт.',parseFloat(r.rate)||0];
+  // Частичное совпадение
+  const r2=payRates.find(w=>(w.work_name||'').toLowerCase().includes(n)||n.includes((w.work_name||'').toLowerCase()));
+  if(r2) return [r2.unit||'шт.',parseFloat(r2.rate)||0];
+  return ['шт.',0];
+}
+
+function getWorkOptions(){
+  // Работы из дерева расценок (payRates)
+  const names=new Set();
+  const opts=[];
+  payRates.forEach(r=>{
+    if(r.work_name&&!names.has(r.work_name)){
+      names.add(r.work_name);
+      opts.push({name:r.work_name,unit:r.unit||'шт.',price:parseFloat(r.rate)||0});
+    }
+  });
+  return opts;
 }
 
 function tdinput(type,val,cls){
@@ -2862,11 +2872,15 @@ function tdinput(type,val,cls){
 }
 
 function getMatOptions(){
-  // Собираем уникальные материалы: сначала из склада, потом из каталога
+  // Материалы из базы склада
   const names=new Set();
   const opts=[];
-  skladItems.forEach(i=>{if(i.name&&!names.has(i.name)){names.add(i.name);opts.push(i.name)}});
-  MAT_CATALOG.forEach(m=>{if(m.name&&!names.has(m.name)){names.add(m.name);opts.push(m.name)}});
+  skladItems.forEach(i=>{
+    if(i.name&&!String(i.item_id||'').startsWith('pending_')&&!names.has(i.name)){
+      names.add(i.name);
+      opts.push(i.name);
+    }
+  });
   return opts;
 }
 
@@ -2899,12 +2913,13 @@ function onMatInput(input,rowId){
 
 function addWork(name='',qty=1,price=0,unit=''){
   const i=kpWorks++;
-  const n=name||((WORK_CATALOG[0]||{}).name||'Распил ЛДСП/МДФ');
+  const allWorks=getWorkOptions();
+  const n=name||((allWorks[0]||{}).name||'');
   const [defUnit,defPrice]=workDefaults(n);
   const p=price||defPrice;
   const u=unit||defUnit;
   const dlId='dl-work-'+i;
-  const opts=WORK_CATALOG.map(w=>`<option value="${w.name}">`).join('');
+  const opts=allWorks.map(w=>`<option value="${w.name}">`).join('');
   const tr=document.createElement('tr'); tr.id='kw'+i;
   tr.innerHTML=`<td style="padding:0">
     <datalist id="${dlId}">${opts}</datalist>
