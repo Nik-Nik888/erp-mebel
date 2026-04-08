@@ -330,6 +330,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="10" rx="1.5"/><circle cx="5" cy="9" r="2"/><circle cx="11" cy="9" r="2"/><line x1="7" y1="9" x2="9" y2="9" stroke-width="2"/></svg><span>Цех</span></div>
 
     <div class="nav-sec">Отчёты</div>
+    <div class="nav-item" data-roles="admin,accounting,manager" onclick="showPage('payroll',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1.5"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="9" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg><span>Зарплата</span></div>
     <div class="nav-item" data-roles="admin,accounting,manager" onclick="showPage('analytics',this)">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="9" width="3" height="5" rx="0.5"/><rect x="6.5" y="5" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="12" rx="0.5"/></svg><span>Аналитика</span></div>
     <div class="nav-sec nav-admin-sec" data-roles="admin">Админ</div>
@@ -760,15 +762,47 @@ tbody tr.overdue:hover td{background:#fff0f0}
     <!-- ЦЕХ — для планшетов на производстве -->
     <div class="page" id="page-workshop">
       <div class="page-header">
-        <div><div class="page-title">Цех</div><div class="page-sub">Управление этапами</div></div>
+        <div><div class="page-title">Цех</div><div class="page-sub" id="ws-sub">Управление этапами</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();renderWorkshop()})">↻</button>
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,async()=>{await loadOrders();await loadPayroll();renderWorkshop()})">↻</button>
           <select class="fsel" id="ws-filter" onchange="renderWorkshop()" style="font-size:13px">
             <option value="">Все участки</option>
           </select>
+          <button class="btn btn-ghost" id="ws-logout-btn" onclick="wsLogout()" style="display:none;color:var(--red);font-size:11px">Завершить смену</button>
         </div>
       </div>
+      <!-- Экран входа на смену -->
+      <div id="ws-login"></div>
+      <!-- Рабочая область -->
       <div id="ws-body"></div>
+    </div>
+
+    <!-- ЗАРПЛАТА -->
+    <div class="page" id="page-payroll">
+      <div class="page-header">
+        <div><div class="page-title">Зарплата</div><div class="page-sub">Расчёт оплаты сотрудников</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadPayroll())">↻</button>
+          <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
+          <select class="fsel" id="pay-model" onchange="savePayModel();renderPayroll()" style="font-size:12px">
+            <option value="salary_plus">Оклад + процент</option>
+            <option value="piece">Чистая сделка</option>
+            <option value="brigade">Бригадный подряд</option>
+            <option value="kpi">KPI-система</option>
+            <option value="salary">Чистый оклад</option>
+          </select>
+          <input type="month" class="fsel" id="pay-month" onchange="renderPayroll()" style="font-size:12px;font-family:'Geologica',sans-serif">
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--border);overflow-x:auto">
+        <button class="btn btn-ghost" id="pay-tab-calc" onclick="showPayTab('calc')" style="border-radius:var(--rs) var(--rs) 0 0;font-size:12px;font-weight:600;white-space:nowrap">📊 Расчёт</button>
+        <button class="btn btn-ghost" id="pay-tab-workers" onclick="showPayTab('workers')" style="border-radius:var(--rs) var(--rs) 0 0;font-size:12px;white-space:nowrap">👷 Сотрудники</button>
+        <button class="btn btn-ghost" id="pay-tab-rates" onclick="showPayTab('rates')" style="border-radius:var(--rs) var(--rs) 0 0;font-size:12px;white-space:nowrap">💰 Расценки</button>
+        <button class="btn btn-ghost" id="pay-tab-entries" onclick="showPayTab('entries')" style="border-radius:var(--rs) var(--rs) 0 0;font-size:12px;white-space:nowrap">📝 Начисления</button>
+        <button class="btn btn-ghost" id="pay-tab-shifts" onclick="showPayTab('shifts')" style="border-radius:var(--rs) var(--rs) 0 0;font-size:12px;white-space:nowrap">🕐 Смены</button>
+      </div>
+      <div id="pay-body"></div>
     </div>
 
     <!-- АНАЛИТИКА -->
@@ -886,6 +920,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
   <div class="mob-more-item" onclick="showPage('crm');syncMobNav('crm');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">👥 Клиенты</div>
   <div class="mob-more-item" onclick="showPage('calendar');syncMobNav('calendar');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">📅 Производство</div>
   <div class="mob-more-item" onclick="showPage('workshop');syncMobNav('workshop');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">🏭 Цех</div>
+  <div class="mob-more-item" onclick="showPage('payroll');syncMobNav('payroll');toggleMobMore()" style="padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px">💰 Зарплата</div>
 
 </div>
 
@@ -911,7 +946,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f"><label class="flabel">Сумма заказа (₽)</label><input class="finput" type="number" id="f-sum" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Предоплата (₽)</label><input class="finput" type="number" id="f-prepay" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Остаток (авто)</label><input class="finput" type="number" id="f-dopay" readonly style="background:var(--accent-light);color:var(--accent-text);font-weight:500"></div>
-        <div class="f" style="display:none"><input type="hidden" id="f-spec"><input type="hidden" id="f-spec-json"><input type="hidden" id="f-stages-data" value="{}"></div>
+        <div class="f" style="display:none"><input type="hidden" id="f-spec"><input type="hidden" id="f-spec-json"><input type="hidden" id="f-stages-data" value="{}"><input type="hidden" id="f-works-data" value="{}"></div>
 
         <!-- Этапы производства -->
         <div class="f full" id="f-stages-section" style="display:none;margin-top:4px">
@@ -924,6 +959,18 @@ tbody tr.overdue:hover td{background:#fff0f0}
             <button type="button" onclick="event.stopPropagation();openStagesSettings()" class="btn btn-ghost" style="font-size:12px;padding:2px 8px" title="Настройки этапов">⚙</button>
           </div>
           <div id="f-stages-body"></div>
+        </div>
+
+        <!-- Виды работ -->
+        <div class="f full" id="f-works-section" style="display:none;margin-top:4px">
+          <div onclick="toggleWorksSection()" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="f-works-arrow" style="font-size:10px;color:var(--text3);transition:transform 0.2s">▶</span>
+              <label class="flabel" style="margin:0;cursor:pointer">Виды работ</label>
+              <span id="f-works-count" style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--amber-light);color:var(--amber);font-weight:500">0</span>
+            </div>
+          </div>
+          <div id="f-works-body" style="display:none"></div>
         </div>
 
         <!-- Материалы заказа -->
@@ -1552,6 +1599,7 @@ function showPage(p, el){
   if(p==='dashboard') renderDashboard();
   if(p==='calendar') renderGantt();
   if(p==='workshop') renderWorkshop();
+  if(p==='payroll') initPayroll();
 }
 function syncMobNav(p){
   document.querySelectorAll('.mnav-btn').forEach(x=>x.classList.remove('active'));
@@ -1671,9 +1719,16 @@ async function loadOrders(){
     orders = (data || []).sort((a,b)=>{
       const na=parseInt((String(a.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
       const nb=parseInt((String(b.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
-      if(na!==nb) return nb-na; // новые сверху
-      return (b.id||0)-(a.id||0); // по id как fallback
+      if(na!==nb) return nb-na;
+      return (b.id||0)-(a.id||0);
     });
+    // Защита: если статус пустой — ставим "Новый"
+    for(const o of orders){
+      if(!(o.status||'').trim()){
+        o.status='Новый';
+        sb.from('orders').update({status:'Новый'}).eq('id',o.id).then(()=>{});
+      }
+    }
     fillDataLists();
     fillManagerFilter();
     setPeriod('all');
@@ -1805,6 +1860,9 @@ function openAdd(){
   // Этапы — скрываем для нового
   $('f-stages-section').style.display='none';
   $('f-stages-data').value='{}';
+  // Виды работ — скрываем для нового
+  $('f-works-section').style.display='none';
+  $('f-works-data').value='{}';
   $('m-order').classList.add('open');history.pushState(null,'',location.href);
 }
 
@@ -1853,6 +1911,14 @@ function openEdit(rid){
   $('f-stages-body').style.display='none';
   $('f-stages-arrow').style.transform='rotate(0deg)';
   renderStagesForm(stages);
+  // Виды работ
+  $('f-works-section').style.display='';
+  const works=o.works||{};
+  $('f-works-data').value=JSON.stringify(works);
+  worksCollapsed=true;
+  $('f-works-body').style.display='none';
+  $('f-works-arrow').style.transform='rotate(0deg)';
+  renderWorksForm(works,stages);
   // Материалы тоже свёрнуты
   matsCollapsed=true;
   if($('f-mats-body'))$('f-mats-body').style.display='none';
@@ -2156,7 +2222,8 @@ async function saveOrder(){
     source: getSourceValue(),
     specification: specValue,
     comment: $('f-comment').value||'',
-    stages: JSON.parse($('f-stages-data').value||'{}')
+    stages: JSON.parse($('f-stages-data').value||'{}'),
+    works: JSON.parse($('f-works-data').value||'{}')
   };
   try{
     if(editId){
@@ -5135,6 +5202,127 @@ async function saveStagesNow(stages){
   }catch(e){console.log('Stages save error:',e)}
 }
 
+// ── Виды работ в карточке заказа ──
+let worksCollapsed=true;
+
+function toggleWorksSection(){
+  worksCollapsed=!worksCollapsed;
+  const body=$('f-works-body');
+  const arrow=$('f-works-arrow');
+  if(body) body.style.display=worksCollapsed?'none':'';
+  if(arrow) arrow.style.transform=worksCollapsed?'rotate(0deg)':'rotate(90deg)';
+}
+
+function getOrderWorks(o){
+  if(!o||!o.works) return {};
+  if(typeof o.works==='string') try{return JSON.parse(o.works)}catch(e){return {}}
+  return o.works||{};
+}
+
+function renderWorksForm(works,stages){
+  const body=$('f-works-body');
+  if(!body) return;
+  
+  // Активные этапы (не пропущенные)
+  const activeStages=PROD_STAGES.filter(st=>!stages[st.key]||!stages[st.key].skip);
+  
+  // Считаем общее кол-во выбранных работ
+  let totalSelected=0;
+  Object.values(works).forEach(arr=>{if(Array.isArray(arr)) totalSelected+=arr.length});
+  const badge=$('f-works-count');
+  if(badge) badge.textContent=totalSelected;
+  
+  let h='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Отметьте виды работ которые нужны для этого заказа. Только отмеченные будут доступны рабочим на планшете.</div>';
+  
+  let hasAnyWorks=false;
+  
+  activeStages.forEach(st=>{
+    const stageWorks=payRates.filter(r=>r.stage_key===st.key);
+    if(!stageWorks.length) return;
+    hasAnyWorks=true;
+    
+    const selectedIds=works[st.key]||[];
+    const allSelected=stageWorks.every(r=>selectedIds.includes(r.id));
+    
+    h+=`<div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 0;margin-bottom:4px">
+        <span style="font-size:13px">${st.icon}</span>
+        <span style="font-size:12px;font-weight:600;color:${st.color}">${st.name}</span>
+        <span style="font-size:10px;color:var(--text3)">${selectedIds.length}/${stageWorks.length}</span>
+        <button type="button" onclick="toggleAllWorks('${st.key}',${!allSelected})" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px;margin-left:auto;font-family:'Geologica',sans-serif;color:var(--text3)">${allSelected?'Снять все':'Выбрать все'}</button>
+      </div>`;
+    
+    stageWorks.forEach(r=>{
+      const checked=selectedIds.includes(r.id);
+      h+=`<label style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--rs);cursor:pointer;font-size:12px;background:${checked?st.color+'08':''};" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${checked?st.color+'08':''}'">
+        <input type="checkbox" ${checked?'checked':''} onchange="toggleOrderWork('${st.key}',${r.id},this.checked)" style="margin:0">
+        <span style="flex:1">${r.work_name}</span>
+        <span style="font-size:11px;color:var(--text3)">${(parseFloat(r.rate)||0).toLocaleString('ru-RU')} ₽ ${r.unit||''}</span>
+      </label>`;
+    });
+    h+=`</div>`;
+  });
+  
+  if(!hasAnyWorks){
+    h+='<div style="padding:12px;text-align:center;color:var(--text3);font-size:12px">Нет видов работ. Добавьте в Зарплата → 💰 Расценки</div>';
+  }
+  
+  body.innerHTML=h;
+}
+
+function toggleOrderWork(stageKey,rateId,checked){
+  let works={};
+  try{works=JSON.parse($('f-works-data').value||'{}')}catch(e){}
+  
+  if(!works[stageKey]) works[stageKey]=[];
+  
+  if(checked){
+    if(!works[stageKey].includes(rateId)) works[stageKey].push(rateId);
+  } else {
+    works[stageKey]=works[stageKey].filter(id=>id!==rateId);
+  }
+  
+  // Убираем пустые массивы
+  if(!works[stageKey].length) delete works[stageKey];
+  
+  $('f-works-data').value=JSON.stringify(works);
+  
+  // Обновляем badge
+  let total=0;
+  Object.values(works).forEach(arr=>{if(Array.isArray(arr)) total+=arr.length});
+  const badge=$('f-works-count');
+  if(badge) badge.textContent=total;
+  
+  // Автосохранение
+  if(editId) saveWorksNow(works);
+}
+
+function toggleAllWorks(stageKey,selectAll){
+  let works={};
+  try{works=JSON.parse($('f-works-data').value||'{}')}catch(e){}
+  
+  if(selectAll){
+    works[stageKey]=payRates.filter(r=>r.stage_key===stageKey).map(r=>r.id);
+  } else {
+    delete works[stageKey];
+  }
+  
+  $('f-works-data').value=JSON.stringify(works);
+  if(editId) saveWorksNow(works);
+  
+  // Перерендерим
+  const stages={};
+  try{Object.assign(stages,JSON.parse($('f-stages-data').value||'{}'))}catch(e){}
+  renderWorksForm(works,stages);
+}
+
+async function saveWorksNow(works){
+  if(!editId) return;
+  try{
+    await sb.from('orders').update({works}).eq('id',editId);
+  }catch(e){console.log('Works save error:',e)}
+}
+
 // ══════════════════════════════════════════════════════
 // КАНБАН-ДОСКА
 // ══════════════════════════════════════════════════════
@@ -5510,6 +5698,7 @@ function renderKanban(){
       <div class="kanban-col-body">`;
     
     colOrders.forEach(o=>{
+      try{
       const sum=parseFloat(o.order_sum)||0;
       const paid=parseFloat(o.prepay)||0;
       const deadline=pDate(o.deadline);
@@ -5555,6 +5744,7 @@ function renderKanban(){
           <button onclick="event.stopPropagation();if(!window._scrolling)addExpenseForOrder('${o.order_num}')" style="flex:1;background:var(--red-light);border:none;border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;color:var(--red);font-weight:500">+ Расход</button>
         </div>
       </div>`;
+      }catch(cardErr){console.log('Card render error:',o?.order_num,cardErr)}
     });
     
     h+=`</div></div>`;
@@ -5801,6 +5991,652 @@ async function deleteOrderFile(id,url){
     renderOrderFiles();
     showToast('Файл удалён');
   }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// ══════════════════════════════════════════════════════
+// ЗАРПЛАТА
+// ══════════════════════════════════════════════════════
+let payWorkers=[],payRates=[],payEntries=[],payTab='calc',payrollLoaded=false,rateUnits=[],payShifts=[];
+
+async function loadPayroll(){
+  const [wR,rR,eR,uR,sR]=await Promise.all([
+    sb.from('workers').select('*').order('name'),
+    sb.from('work_rates').select('*').order('stage_key').order('sort_order'),
+    sb.from('payroll_entries').select('*').order('work_date',{ascending:false}),
+    sb.from('rate_units').select('*').order('id'),
+    sb.from('shifts').select('*').order('started_at',{ascending:false}).limit(200)
+  ]);
+  payWorkers=wR.data||[];payRates=rR.data||[];payEntries=eR.data||[];rateUnits=uR.data||[];payShifts=sR.data||[];
+}
+
+async function initPayroll(){
+  if(!payrollLoaded){
+    await loadPayroll();
+    // Ставим текущий месяц
+    const now=new Date();
+    $('pay-month').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    // Загружаем модель
+    const model=getSetting('pay_model','salary_plus');
+    $('pay-model').value=model;
+    payrollLoaded=true;
+  }
+  showPayTab(payTab);
+}
+
+function savePayModel(){saveSetting('pay_model',$('pay-model').value)}
+
+function showPayTab(tab){
+  payTab=tab;
+  ['calc','workers','rates','entries','shifts'].forEach(t=>{
+    const btn=$('pay-tab-'+t);
+    if(btn){btn.style.background=t===tab?'var(--accent-light)':'';btn.style.color=t===tab?'var(--accent-text)':''}
+  });
+  if(tab==='calc') renderPayCalc();
+  else if(tab==='workers') renderPayWorkers();
+  else if(tab==='rates') renderPayRates();
+  else if(tab==='entries') renderPayEntries();
+  else if(tab==='shifts') renderPayShifts();
+}
+
+// ── Расчёт ──
+function renderPayCalc(){
+  const model=$('pay-model').value;
+  const monthVal=$('pay-month').value;
+  if(!monthVal){$('pay-body').innerHTML='<div style="padding:20px;color:var(--text3)">Выберите месяц</div>';return}
+  const [y,mo]=monthVal.split('-').map(Number);
+  const from=new Date(y,mo-1,1),to=new Date(y,mo,0,23,59,59);
+  
+  const mEntries=payEntries.filter(e=>{const d=new Date(e.work_date);return d>=from&&d<=to});
+  const activeWorkers=payWorkers.filter(w=>w.is_active);
+  
+  // Считаем рабочие дни в месяце (Пн-Пт)
+  let workDaysInMonth=0;
+  for(let d=new Date(y,mo-1,1);d<=to;d.setDate(d.getDate()+1)){
+    const dow=d.getDay();if(dow!==0&&dow!==6) workDaysInMonth++;
+  }
+  
+  // Завершённые этапы за месяц
+  const stagesDone=[];
+  orders.forEach(o=>{
+    const stages=getOrderStages(o);
+    Object.entries(stages).forEach(([key,val])=>{
+      if(val&&val.done&&val.date){
+        const d=new Date(val.date);
+        if(d>=from&&d<=to) stagesDone.push({order_num:o.order_num,client:o.client,stage_key:key,date:val.date,order_sum:parseFloat(o.order_sum)||0});
+      }
+    });
+  });
+  
+  // Закрытые заказы за месяц
+  const closedOrders=orders.filter(o=>{
+    const s=(o.status||'').trim();
+    if(s!=='Закрыт'&&s!=='Отгружен') return false;
+    const stages=getOrderStages(o);
+    const lastDone=Object.values(stages).filter(v=>v&&v.done&&v.date).map(v=>new Date(v.date)).sort((a,b)=>b-a)[0];
+    return lastDone&&lastDone>=from&&lastDone<=to;
+  });
+  
+  let h='';
+  
+  // Сводка
+  const totalPiece=mEntries.filter(e=>e.note!=='штраф'&&e.note!=='бонус').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalBonuses=mEntries.filter(e=>e.note==='бонус').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalPenalties=mEntries.filter(e=>e.note==='штраф').reduce((s,e)=>s+Math.abs(parseFloat(e.amount)||0),0);
+  const totalSalary=activeWorkers.reduce((s,w)=>s+(parseFloat(w.base_salary)||0),0);
+  
+  h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3)">Рабочих дней</div>
+      <div style="font-size:15px;font-weight:600">${workDaysInMonth}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3)">Этапов</div>
+      <div style="font-size:15px;font-weight:600">${stagesDone.length}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3)">Заказов закрыто</div>
+      <div style="font-size:15px;font-weight:600">${closedOrders.length}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3)">Оклады</div>
+      <div style="font-size:13px;font-weight:600">${totalSalary.toLocaleString('ru-RU')}₽</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--accent)">Сдельная</div>
+      <div style="font-size:13px;font-weight:600;color:var(--accent)">${totalPiece.toLocaleString('ru-RU')}₽</div>
+    </div>
+    ${totalBonuses?`<div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--accent-text)">Бонусы</div>
+      <div style="font-size:13px;font-weight:600;color:var(--accent-text)">+${totalBonuses.toLocaleString('ru-RU')}₽</div>
+    </div>`:''}
+    ${totalPenalties?`<div style="background:var(--red-light);border:1px solid var(--red);border-radius:var(--rs);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--red)">Штрафы</div>
+      <div style="font-size:13px;font-weight:600;color:var(--red)">-${totalPenalties.toLocaleString('ru-RU')}₽</div>
+    </div>`:''}
+  </div>`;
+  
+  if(!activeWorkers.length){
+    h+='<div style="padding:20px;text-align:center;color:var(--text3)">Добавьте сотрудников во вкладке "👷 Сотрудники"</div>';
+  } else {
+    activeWorkers.forEach(w=>{
+      const wEntries=mEntries.filter(e=>e.worker_id===w.id);
+      const wPiece=wEntries.filter(e=>e.note!=='штраф'&&e.note!=='бонус').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+      const wBonus=wEntries.filter(e=>e.note==='бонус').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+      const wPenalty=wEntries.filter(e=>e.note==='штраф').reduce((s,e)=>s+Math.abs(parseFloat(e.amount)||0),0);
+      const base=parseFloat(w.base_salary)||0;
+      const daysWorked=parseInt(w.days_worked)||workDaysInMonth;
+      const salaryProp=workDaysInMonth?Math.round(base*(daysWorked/workDaysInMonth)):base;
+      
+      let total=0;
+      if(model==='salary') total=salaryProp+wBonus-wPenalty;
+      else if(model==='salary_plus') total=salaryProp+wPiece+wBonus-wPenalty;
+      else if(model==='piece') total=wPiece+wBonus-wPenalty;
+      else if(model==='brigade') total=wPiece+wBonus-wPenalty;
+      else if(model==='kpi') total=salaryProp+wPiece+wBonus-wPenalty;
+      
+      const ordersCount=new Set(wEntries.filter(e=>e.order_num).map(e=>e.order_num)).size;
+      
+      h+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-size:15px;font-weight:600">${w.name}</div>
+            <div style="font-size:11px;color:var(--text3)">${w.role||'цех'} · ${ordersCount} заказов · ${wEntries.length} операций</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:18px;font-weight:700;color:var(--accent-text)">${total.toLocaleString('ru-RU')} ₽</div>
+          </div>
+        </div>`;
+      
+      // Разбивка
+      if(model!=='piece'&&model!=='brigade'){
+        h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;margin-bottom:8px">
+          <div style="background:var(--surface2);border-radius:var(--rs);padding:6px 8px;font-size:11px">
+            <div style="color:var(--text3)">Оклад</div>
+            <div style="font-weight:600">${salaryProp.toLocaleString('ru-RU')} ₽</div>
+            ${daysWorked<workDaysInMonth?`<div style="font-size:9px;color:var(--amber)">${daysWorked}/${workDaysInMonth} дней</div>`:''}
+          </div>
+          <div style="background:var(--accent-light);border-radius:var(--rs);padding:6px 8px;font-size:11px">
+            <div style="color:var(--accent-text)">Сдельная</div>
+            <div style="font-weight:600;color:var(--accent-text)">${wPiece.toLocaleString('ru-RU')} ₽</div>
+          </div>
+          ${wBonus?`<div style="background:#16a34a15;border-radius:var(--rs);padding:6px 8px;font-size:11px">
+            <div style="color:#16a34a">Бонус</div>
+            <div style="font-weight:600;color:#16a34a">+${wBonus.toLocaleString('ru-RU')} ₽</div>
+          </div>`:''}
+          ${wPenalty?`<div style="background:var(--red-light);border-radius:var(--rs);padding:6px 8px;font-size:11px">
+            <div style="color:var(--red)">Штраф</div>
+            <div style="font-weight:600;color:var(--red)">-${wPenalty.toLocaleString('ru-RU')} ₽</div>
+          </div>`:''}
+        </div>`;
+      }
+      
+      // Детализация по этапам
+      if(wEntries.filter(e=>e.note!=='штраф'&&e.note!=='бонус').length){
+        h+=`<div style="display:flex;flex-wrap:wrap;gap:3px">`;
+        wEntries.filter(e=>e.note!=='штраф'&&e.note!=='бонус').forEach(e=>{
+          const st=PROD_STAGES.find(s=>s.key===e.stage_key);
+          h+=`<span style="font-size:9px;padding:2px 5px;border-radius:4px;background:${st?st.color+'15':'var(--surface2)'};color:${st?st.color:'var(--text2)'}">${st?st.icon:''} ${e.order_num||''} ${(parseFloat(e.amount)||0).toLocaleString('ru-RU')}₽</span>`;
+        });
+        h+=`</div>`;
+      }
+      h+=`</div>`;
+    });
+    
+    // Итого
+    const grandTotal=activeWorkers.reduce((s,w)=>{
+      const wEntries=mEntries.filter(e=>e.worker_id===w.id);
+      const wPiece=wEntries.filter(e=>e.note!=='штраф'&&e.note!=='бонус').reduce((ss,e)=>ss+(parseFloat(e.amount)||0),0);
+      const wBonus=wEntries.filter(e=>e.note==='бонус').reduce((ss,e)=>ss+(parseFloat(e.amount)||0),0);
+      const wPenalty=wEntries.filter(e=>e.note==='штраф').reduce((ss,e)=>ss+Math.abs(parseFloat(e.amount)||0),0);
+      const base=parseFloat(w.base_salary)||0;
+      if(model==='salary') return s+base+wBonus-wPenalty;
+      if(model==='piece'||model==='brigade') return s+wPiece+wBonus-wPenalty;
+      return s+base+wPiece+wBonus-wPenalty;
+    },0);
+    
+    h+=`<div style="background:var(--text);color:#fff;border-radius:var(--r);padding:16px;display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+      <span style="font-size:13px;opacity:0.7">ИТОГО ЗА МЕСЯЦ</span>
+      <span style="font-size:22px;font-weight:700">${grandTotal.toLocaleString('ru-RU')} ₽</span>
+    </div>`;
+  }
+  
+  $('pay-body').innerHTML=h;
+}
+
+// ── Сотрудники ──
+function renderPayWorkers(){
+  let h=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <input class="finput" id="pw-name" placeholder="Имя сотрудника" style="flex:1;min-width:120px">
+    <select class="fsel" id="pw-role" style="font-size:12px">
+      <option value="цех">Цех</option>
+      <option value="монтаж">Монтаж</option>
+      <option value="офис">Офис</option>
+    </select>
+    <input class="finput" id="pw-salary" type="number" placeholder="Оклад ₽" style="width:80px">
+    <input class="finput" id="pw-pin" type="text" placeholder="PIN" maxlength="4" style="width:55px;text-align:center;letter-spacing:4px">
+    <button class="btn btn-primary" onclick="addWorker()">+</button>
+  </div>`;
+  
+  payWorkers.forEach(w=>{
+    h+=`<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);${w.is_active?'':'opacity:0.4'}">
+      <span style="font-size:13px;font-weight:500;flex:1">${w.name}</span>
+      <span style="font-size:10px;color:var(--text3);padding:2px 6px;border-radius:6px;background:var(--surface2)">${w.role||'цех'}</span>
+      <span style="font-size:11px;min-width:65px;text-align:right">${(parseFloat(w.base_salary)||0).toLocaleString('ru-RU')} ₽</span>
+      <span style="font-size:10px;color:var(--text3);min-width:35px;text-align:center;font-family:'JetBrains Mono',monospace">${w.pin?'••••':'—'}</span>
+      <button onclick="editWorkerPin(${w.id})" style="background:none;border:1px solid var(--border);border-radius:4px;padding:2px 5px;cursor:pointer;font-size:9px" title="Изменить PIN">🔑</button>
+      <button onclick="toggleWorkerActive(${w.id},${w.is_active?'false':'true'})" style="background:none;border:1px solid var(--border);border-radius:4px;padding:2px 5px;cursor:pointer;font-size:9px">${w.is_active?'🟢':'⏸'}</button>
+      <button onclick="deleteWorker(${w.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px">×</button>
+    </div>`;
+  });
+  if(!payWorkers.length) h+='<div style="padding:20px;text-align:center;color:var(--text3)">Нет сотрудников</div>';
+  $('pay-body').innerHTML=h;
+}
+
+async function addWorker(){
+  const name=$('pw-name').value.trim();
+  if(!name){showToast('Укажите имя');return}
+  const pin=$('pw-pin')?.value?.trim()||'';
+  try{
+    await sb.from('workers').insert({name,role:$('pw-role').value,base_salary:parseFloat($('pw-salary').value)||0,pin});
+    $('pw-name').value='';$('pw-salary').value='';if($('pw-pin'))$('pw-pin').value='';
+    await loadPayroll();renderPayWorkers();showToast('Сотрудник добавлен');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function editWorkerPin(id){
+  const pin=prompt('Введите новый PIN-код (4 цифры):');
+  if(pin===null) return;
+  if(pin&&(pin.length<1||pin.length>6)){showToast('PIN от 1 до 6 символов');return}
+  try{
+    await sb.from('workers').update({pin}).eq('id',id);
+    const w=payWorkers.find(ww=>ww.id===id);if(w) w.pin=pin;
+    renderPayWorkers();showToast('PIN обновлён');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function toggleWorkerActive(id,active){
+  try{await sb.from('workers').update({is_active:active}).eq('id',id);await loadPayroll();renderPayWorkers()}catch(e){}
+}
+
+async function deleteWorker(id){
+  if(!confirm('Удалить сотрудника?')) return;
+  try{await sb.from('workers').delete().eq('id',id);await loadPayroll();renderPayWorkers();showToast('Удалён')}catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// ── Расценки (дерево: Этап → Виды работ) ──
+function renderPayRates(){
+  const units=rateUnits.map(u=>u.name);
+  
+  let h=`<div style="font-size:12px;color:var(--text3);margin-bottom:12px">Этапы берутся из настроек заказов. Для каждого этапа добавьте виды работ с расценками.</div>`;
+  
+  // Управление единицами измерения
+  h+=`<div style="display:flex;gap:6px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:11px;color:var(--text3)">Единицы:</span>
+    ${units.map(u=>`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);border:1px solid var(--border)">${u}</span>`).join('')}
+    <input class="finput" id="new-rate-unit" placeholder="Новая ед.изм..." style="width:100px;font-size:11px">
+    <button class="btn btn-ghost" onclick="addRateUnit()" style="font-size:10px;padding:2px 8px">+</button>
+  </div>`;
+  
+  // Дерево этапов
+  PROD_STAGES.forEach(st=>{
+    const stageWorks=payRates.filter(r=>r.stage_key===st.key);
+    const stageTotal=stageWorks.reduce((s,r)=>s+(parseFloat(r.rate)||0),0);
+    const isOpen=stageWorks.length>0;
+    
+    h+=`<div style="border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px;overflow:hidden">
+      <!-- Заголовок этапа -->
+      <div onclick="toggleRateStage('${st.key}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${st.color}08;cursor:pointer;border-left:3px solid ${st.color}">
+        <span id="rate-arrow-${st.key}" style="font-size:10px;color:var(--text3);transition:transform 0.2s;transform:rotate(${isOpen?'90':'0'}deg)">▶</span>
+        <span style="font-size:15px">${st.icon}</span>
+        <span style="font-size:13px;font-weight:600;flex:1;color:${st.color}">${st.name}</span>
+        <span style="font-size:11px;color:var(--text3)">${stageWorks.length} работ</span>
+        ${stageTotal?`<span style="font-size:12px;font-weight:600;color:var(--accent-text)">${stageTotal.toLocaleString('ru-RU')} ₽</span>`:''}
+      </div>
+      <!-- Виды работ -->
+      <div id="rate-body-${st.key}" style="display:${isOpen?'block':'none'};padding:6px 12px 10px;background:var(--surface)">`;
+    
+    stageWorks.forEach(r=>{
+      h+=`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.work_name}</span>
+        <input type="number" value="${r.rate||0}" onchange="updateWorkRate(${r.id},'rate',this.value)" style="width:65px;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:11px;text-align:right;font-family:'Geologica',sans-serif;outline:none">
+        <select onchange="updateWorkRate(${r.id},'unit',this.value)" style="font-size:10px;border:1px solid var(--border);border-radius:4px;padding:3px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text2);max-width:90px">
+          ${units.map(u=>`<option value="${u}"${r.unit===u?' selected':''}>${u}</option>`).join('')}
+        </select>
+        <button onclick="deleteWorkRate(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px">×</button>
+      </div>`;
+    });
+    
+    // Форма добавления
+    h+=`<div style="display:flex;gap:4px;margin-top:6px;align-items:center">
+        <input class="finput" id="new-work-${st.key}" placeholder="Вид работы..." style="flex:1;font-size:11px;padding:4px 8px">
+        <input class="finput" id="new-rate-${st.key}" type="number" placeholder="₽" style="width:55px;font-size:11px;padding:4px 6px">
+        <select id="new-unit-${st.key}" style="font-size:10px;border:1px solid var(--border);border-radius:4px;padding:3px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text2)">
+          ${units.map(u=>`<option value="${u}">${u}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" onclick="addWorkRate('${st.key}')" style="font-size:10px;padding:3px 10px">+</button>
+      </div>
+      </div>
+    </div>`;
+  });
+  
+  $('pay-body').innerHTML=h;
+}
+
+function toggleRateStage(key){
+  const body=$('rate-body-'+key);
+  const arrow=$('rate-arrow-'+key);
+  if(!body) return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  if(arrow) arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+}
+
+async function addWorkRate(stageKey){
+  const name=$('new-work-'+stageKey)?.value?.trim();
+  if(!name){showToast('Укажите вид работы');return}
+  const rate=parseFloat($('new-rate-'+stageKey)?.value)||0;
+  const unit=$('new-unit-'+stageKey)?.value||'за заказ';
+  const maxSort=payRates.filter(r=>r.stage_key===stageKey).reduce((m,r)=>Math.max(m,r.sort_order||0),0);
+  try{
+    const {data,error}=await sb.from('work_rates').insert({stage_key:stageKey,work_name:name,rate,unit,sort_order:maxSort+1}).select();
+    if(error) throw error;
+    if(data&&data[0]) payRates.push(data[0]);
+    renderPayRates();
+    showToast('Работа "'+name+'" добавлена');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function updateWorkRate(id,field,val){
+  try{
+    const upd={};
+    upd[field]=field==='rate'?parseFloat(val)||0:val;
+    await sb.from('work_rates').update(upd).eq('id',id);
+    const r=payRates.find(rr=>rr.id===id);
+    if(r) r[field]=upd[field];
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function deleteWorkRate(id){
+  if(!confirm('Удалить вид работы?')) return;
+  try{
+    await sb.from('work_rates').delete().eq('id',id);
+    payRates=payRates.filter(r=>r.id!==id);
+    renderPayRates();
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function addRateUnit(){
+  const name=($('new-rate-unit')?.value||'').trim();
+  if(!name){showToast('Укажите единицу');return}
+  try{
+    const {error}=await sb.from('rate_units').insert({name});
+    if(error) throw error;
+    rateUnits.push({name});
+    $('new-rate-unit').value='';
+    renderPayRates();
+    showToast('Единица "'+name+'" добавлена');
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// ── Начисления ──
+function renderPayEntries(){
+  const activeWorkers=payWorkers.filter(w=>w.is_active);
+  const monthVal=$('pay-month').value;
+  
+  let h=`<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Добавление сдельных начислений, бонусов и штрафов</div>`;
+  
+  // Сдельное начисление
+  h+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px">💰 Сдельное начисление</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <select class="fsel" id="pe-worker" style="font-size:12px;min-width:120px">
+        <option value="">Сотрудник</option>
+        ${activeWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}
+      </select>
+      <select class="fsel" id="pe-order" style="font-size:12px;max-width:100px">
+        <option value="">Заказ</option>
+        ${orders.slice(0,30).map(o=>`<option value="${o.order_num}">${o.order_num}</option>`).join('')}
+      </select>
+      <select class="fsel" id="pe-stage" onchange="onPayStageChange()" style="font-size:12px;min-width:110px">
+        <option value="">Этап</option>
+        ${PROD_STAGES.map(s=>`<option value="${s.key}">${s.icon} ${s.name}</option>`).join('')}
+      </select>
+    </div>
+    <!-- Виды работ этапа (появляются после выбора этапа) -->
+    <div id="pe-works-list" style="margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--text3)">Итого:</span>
+      <input class="finput" id="pe-amount" type="number" placeholder="₽" style="width:80px;font-size:13px;font-weight:600">
+      <button class="btn btn-primary" onclick="addPayEntry()" style="font-size:12px;padding:5px 14px">+ Начислить</button>
+    </div>
+  </div>`;
+  
+  // Бонус / Штраф
+  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="background:#16a34a10;border:1px solid #16a34a33;border-radius:var(--rs);padding:10px">
+      <div style="font-size:11px;font-weight:600;color:#16a34a;margin-bottom:6px">🎁 Бонус</div>
+      <div style="display:flex;gap:4px">
+        <select class="fsel" id="pe-bonus-worker" style="font-size:11px;flex:1">
+          <option value="">Кому</option>
+          ${activeWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}
+        </select>
+        <input class="finput" id="pe-bonus-amount" type="number" placeholder="₽" style="width:60px;font-size:11px">
+        <button class="btn btn-ghost" onclick="addBonusPenalty('бонус')" style="font-size:11px;padding:3px 8px;color:#16a34a">+</button>
+      </div>
+    </div>
+    <div style="background:var(--red-light);border:1px solid rgba(163,45,45,0.2);border-radius:var(--rs);padding:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--red);margin-bottom:6px">⚠ Штраф</div>
+      <div style="display:flex;gap:4px">
+        <select class="fsel" id="pe-penalty-worker" style="font-size:11px;flex:1">
+          <option value="">Кому</option>
+          ${activeWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}
+        </select>
+        <input class="finput" id="pe-penalty-amount" type="number" placeholder="₽" style="width:60px;font-size:11px">
+        <button class="btn btn-ghost" onclick="addBonusPenalty('штраф')" style="font-size:11px;padding:3px 8px;color:var(--red)">+</button>
+      </div>
+    </div>
+  </div>`;
+  
+  // Список начислений за месяц
+  let filtered=payEntries;
+  if(monthVal){
+    const [y2,m2]=monthVal.split('-').map(Number);
+    const from2=new Date(y2,m2-1,1),to2=new Date(y2,m2,0,23,59,59);
+    filtered=payEntries.filter(e=>{const d=new Date(e.work_date);return d>=from2&&d<=to2});
+  }
+  
+  if(filtered.length){
+    h+=`<div style="font-size:12px;font-weight:600;margin-bottom:6px">Журнал за месяц (${filtered.length})</div>`;
+    filtered.slice(0,50).forEach(e=>{
+      const w=payWorkers.find(ww=>ww.id===e.worker_id);
+      const st=PROD_STAGES.find(s=>s.key===e.stage_key);
+      const isBonus=e.note==='бонус';
+      const isPenalty=e.note==='штраф';
+      const color=isPenalty?'var(--red)':isBonus?'#16a34a':'var(--text)';
+      h+=`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="min-width:50px;color:var(--text3);font-size:11px">${new Date(e.work_date).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})}</span>
+        <span style="font-weight:500;min-width:80px">${w?w.name:'—'}</span>
+        <span style="min-width:24px">${isPenalty?'⚠':isBonus?'🎁':st?st.icon:''}</span>
+        <span style="flex:1;color:var(--text2)">${e.order_num||''}</span>
+        <span style="font-weight:600;min-width:70px;text-align:right;color:${color}">${isPenalty?'-':''}${Math.abs(parseFloat(e.amount)||0).toLocaleString('ru-RU')} ₽</span>
+        <button onclick="deletePayEntry(${e.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px">×</button>
+      </div>`;
+    });
+  } else {
+    h+='<div style="padding:20px;text-align:center;color:var(--text3)">Нет начислений за этот месяц</div>';
+  }
+  
+  $('pay-body').innerHTML=h;
+}
+
+async function addBonusPenalty(type){
+  const isBonus=type==='бонус';
+  const workerId=parseInt($(isBonus?'pe-bonus-worker':'pe-penalty-worker').value);
+  const amount=parseFloat($(isBonus?'pe-bonus-amount':'pe-penalty-amount').value)||0;
+  if(!workerId){showToast('Выберите сотрудника');return}
+  if(!amount){showToast('Укажите сумму');return}
+  try{
+    await sb.from('payroll_entries').insert({
+      worker_id:workerId,
+      amount:isBonus?amount:-amount,
+      note:type,
+      work_date:new Date().toISOString().split('T')[0]
+    });
+    await loadPayroll();renderPayEntries();
+    showToast((isBonus?'🎁 Бонус':'⚠ Штраф')+' '+amount+' ₽ начислен');
+    $(isBonus?'pe-bonus-amount':'pe-penalty-amount').value='';
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+// ── Смены ──
+function renderPayShifts(){
+  const monthVal=$('pay-month').value;
+  let filtered=payShifts;
+  
+  if(monthVal){
+    const [y,m]=monthVal.split('-').map(Number);
+    const from=new Date(y,m-1,1),to=new Date(y,m,0,23,59,59);
+    filtered=payShifts.filter(s=>{const d=new Date(s.started_at);return d>=from&&d<=to});
+  }
+  
+  let h=`<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+    <select class="fsel" id="shift-filter-worker" onchange="renderPayShifts()" style="font-size:12px">
+      <option value="">Все сотрудники</option>
+      ${payWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}
+    </select>
+    <span style="font-size:12px;color:var(--text3)">${filtered.length} смен</span>
+  </div>`;
+  
+  const filterW=parseInt($('shift-filter-worker')?.value)||0;
+  if(filterW) filtered=filtered.filter(s=>s.worker_id===filterW);
+  
+  // Сводка по сотрудникам
+  const byWorker={};
+  filtered.forEach(s=>{
+    const wn=s.worker_name||'—';
+    if(!byWorker[wn]) byWorker[wn]={totalMin:0,shifts:0,earned:0};
+    byWorker[wn].totalMin+=(s.duration_min||0);
+    byWorker[wn].shifts++;
+    byWorker[wn].earned+=(parseFloat(s.earned)||0);
+  });
+  
+  if(Object.keys(byWorker).length){
+    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:14px">`;
+    Object.entries(byWorker).forEach(([name,d])=>{
+      const hrs=Math.floor(d.totalMin/60);
+      const mins=d.totalMin%60;
+      h+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px">
+        <div style="font-size:13px;font-weight:600">${name}</div>
+        <div style="font-size:11px;color:var(--text3)">${d.shifts} смен · ${hrs}ч ${mins}мин</div>
+        <div style="font-size:12px;font-weight:600;color:var(--accent-text);margin-top:2px">${d.earned.toLocaleString('ru-RU')} ₽</div>
+      </div>`;
+    });
+    h+=`</div>`;
+  }
+  
+  // Таблица смен
+  if(filtered.length){
+    filtered.forEach(s=>{
+      const start=new Date(s.started_at);
+      const end=s.ended_at?new Date(s.ended_at):null;
+      const dur=s.duration_min||0;
+      const hrs=Math.floor(dur/60);
+      const mins=dur%60;
+      const isOpen=!s.ended_at;
+      const dateStr=start.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});
+      const startTime=start.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+      const endTime=end?end.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'—';
+      
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;${isOpen?'background:var(--accent-light);padding:8px;border-radius:var(--rs);margin-bottom:4px':''}">
+        <span style="min-width:55px;color:var(--text3)">${dateStr}</span>
+        <span style="font-weight:500;min-width:90px">${s.worker_name||'—'}</span>
+        <span style="min-width:70px;color:var(--text2)">${s.station||'—'}</span>
+        <span style="min-width:50px;text-align:center">${startTime}</span>
+        <span style="color:var(--text3)">→</span>
+        <span style="min-width:50px;text-align:center">${isOpen?'<span style="color:var(--accent);font-weight:600">сейчас</span>':endTime}</span>
+        <span style="min-width:55px;text-align:right;font-weight:500;color:${isOpen?'var(--accent-text)':'var(--text)'}">${isOpen?'···':hrs+'ч '+mins+'м'}</span>
+        <span style="min-width:60px;text-align:right;font-weight:500">${s.stages_done||0} эт.</span>
+        <span style="min-width:65px;text-align:right;font-weight:600;color:var(--accent-text)">${(parseFloat(s.earned)||0).toLocaleString('ru-RU')} ₽</span>
+      </div>`;
+    });
+  } else {
+    h+='<div style="padding:20px;text-align:center;color:var(--text3)">Нет смен за этот период</div>';
+  }
+  
+  $('pay-body').innerHTML=h;
+}
+
+function onPayStageChange(){
+  const stageKey=$('pe-stage').value;
+  const list=$('pe-works-list');
+  if(!list) return;
+  if(!stageKey){list.innerHTML='';$('pe-amount').value='';return}
+  
+  const works=payRates.filter(r=>r.stage_key===stageKey);
+  if(!works.length){
+    list.innerHTML='<div style="font-size:11px;color:var(--text3);padding:4px 0">Нет видов работ для этого этапа. Добавьте в "💰 Расценки".</div>';
+    $('pe-amount').value='';
+    return;
+  }
+  
+  let h='<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Выберите виды работ:</div>';
+  works.forEach(r=>{
+    h+=`<label style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--rs);cursor:pointer;font-size:12px" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="pe-work-cb" data-rate="${r.rate||0}" data-id="${r.id}" data-name="${r.work_name}" onchange="calcPayTotal()" checked style="margin:0">
+      <span style="flex:1">${r.work_name}</span>
+      <span style="color:var(--accent-text);font-weight:500;min-width:50px;text-align:right">${(parseFloat(r.rate)||0).toLocaleString('ru-RU')} ₽</span>
+      <span style="font-size:10px;color:var(--text3)">${r.unit||''}</span>
+    </label>`;
+  });
+  list.innerHTML=h;
+  calcPayTotal();
+}
+
+function calcPayTotal(){
+  let total=0;
+  document.querySelectorAll('.pe-work-cb:checked').forEach(cb=>{
+    total+=parseFloat(cb.dataset.rate)||0;
+  });
+  $('pe-amount').value=total||'';
+}
+
+function autoCalcEntry(){
+  onPayStageChange();
+}
+
+async function addPayEntry(){
+  const worker_id=parseInt($('pe-worker').value);
+  if(!worker_id){showToast('Выберите сотрудника');return}
+  const amount=parseFloat($('pe-amount').value)||0;
+  if(!amount){showToast('Укажите сумму');return}
+  const stageKey=$('pe-stage').value||null;
+  const orderNum=$('pe-order').value||null;
+  
+  // Собираем выбранные виды работ
+  const selectedWorks=[];
+  document.querySelectorAll('.pe-work-cb:checked').forEach(cb=>{
+    selectedWorks.push(cb.dataset.name);
+  });
+  const note=selectedWorks.length?selectedWorks.join(', '):'';
+  
+  try{
+    await sb.from('payroll_entries').insert({
+      worker_id,
+      order_num:orderNum,
+      stage_key:stageKey,
+      amount,
+      note,
+      work_date:new Date().toISOString().split('T')[0]
+    });
+    await loadPayroll();renderPayEntries();showToast('Начислено '+amount.toLocaleString('ru-RU')+' ₽');
+    $('pe-amount').value='';
+    $('pe-works-list').innerHTML='';
+  }catch(e){showToast('Ошибка: '+e.message)}
+}
+
+async function deletePayEntry(id){
+  if(!confirm('Удалить начисление?')) return;
+  try{await sb.from('payroll_entries').delete().eq('id',id);await loadPayroll();renderPayEntries()}catch(e){}
 }
 
 // ══════════════════════════════════════════════════════
@@ -6546,12 +7382,24 @@ function filterChatOrders(q){
 // ══════════════════════════════════════════════════════
 // ЦЕХ — интерфейс для планшетов на участках
 // ══════════════════════════════════════════════════════
+let wsWorker=null; // текущий рабочий на смене
+
 function renderWorkshop(){
+  // Если не загружены данные зарплаты — загрузим
+  if(!payrollLoaded) loadPayroll().then(()=>renderWorkshop());
+  
+  if(!wsWorker){
+    renderWsLogin();
+    return;
+  }
+  $('ws-sub').textContent='Смена: '+wsWorker.name;
+  $('ws-logout-btn').style.display='inline-flex';
+  $('ws-login').innerHTML='';
+  
   const filter=$('ws-filter')?.value||'';
   const today=new Date();today.setHours(0,0,0,0);
   const INACTIVE=['Закрыт','Отгружен','Отказались','Отправлено КП'];
   
-  // Заполняем фильтр участками
   const sel=$('ws-filter');
   if(sel&&sel.options.length<=1){
     PROD_STAGES.forEach(st=>{
@@ -6560,26 +7408,21 @@ function renderWorkshop(){
     });
   }
   
-  // Активные заказы
   let active=orders.filter(o=>{
     const s=(o.status||'').trim();
     return !INACTIVE.includes(s)&&s!=='';
   });
   
-  // Для каждого заказа определяем текущий этап
   let cards=[];
   active.forEach(o=>{
     const stages=getOrderStages(o);
     const activeStages=PROD_STAGES.filter(s=>!stages[s.key]||!stages[s.key].skip);
-    
-    // Текущий этап
     let current=null;
     for(const st of activeStages){
       if(!stages[st.key]||!stages[st.key].done){current=st;break}
     }
-    if(!current) return; // все этапы завершены
+    if(!current) return;
     
-    // Предыдущий завершённый
     let prevDone=null;
     for(let i=PROD_STAGES.indexOf(current)-1;i>=0;i--){
       const ps=PROD_STAGES[i];
@@ -6587,7 +7430,6 @@ function renderWorkshop(){
       if(stages[ps.key]&&stages[ps.key].done){prevDone=ps;break}
     }
     
-    // Следующий этап
     let nextStage=null;
     let foundCurrent=false;
     for(const st of activeStages){
@@ -6602,10 +7444,8 @@ function renderWorkshop(){
     cards.push({order:o,current,prevDone,nextStage,isOverdue,done,total,stages});
   });
   
-  // Фильтр по участку
   if(filter) cards=cards.filter(c=>c.current.key===filter);
   
-  // Сортировка: просроченные сверху, потом по дедлайну
   cards.sort((a,b)=>{
     if(a.isOverdue&&!b.isOverdue) return -1;
     if(!a.isOverdue&&b.isOverdue) return 1;
@@ -6626,9 +7466,13 @@ function renderWorkshop(){
     const dlStr=dl?dl.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}):'—';
     const pct=c.total?Math.round(c.done/c.total*100):0;
     
+    // Виды работ для текущего этапа — только назначенные менеджером
+    const allStageWorks=payRates.filter(r=>r.stage_key===c.current.key);
+    const orderWorks=getOrderWorks(o);
+    const assignedIds=orderWorks[c.current.key]||[];
+    const stageWorks=assignedIds.length?allStageWorks.filter(r=>assignedIds.includes(r.id)):[];
+    
     h+=`<div style="background:var(--surface);border:1px solid ${c.isOverdue?'var(--red)':'var(--border)'};border-radius:var(--r);padding:16px;margin-bottom:12px;${c.isOverdue?'border-left:4px solid var(--red);background:var(--red-light)':'border-left:4px solid '+c.current.color}">
-      
-      <!-- Заголовок -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div>
           <div style="font-size:16px;font-weight:600">${o.order_num} — ${o.client||'—'}</div>
@@ -6640,7 +7484,6 @@ function renderWorkshop(){
         </div>
       </div>
       
-      <!-- Прогресс -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
         <div style="flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden">
           <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px"></div>
@@ -6648,30 +7491,46 @@ function renderWorkshop(){
         <span style="font-size:12px;color:var(--text3);font-weight:500">${c.done}/${c.total}</span>
       </div>
       
-      <!-- Текущий этап — большая кнопка -->
-      <div style="background:${c.current.color}15;border:2px solid ${c.current.color};border-radius:var(--r);padding:16px;text-align:center;margin-bottom:10px">
-        <div style="font-size:24px;margin-bottom:4px">${c.current.icon}</div>
-        <div style="font-size:16px;font-weight:600;color:${c.current.color};margin-bottom:8px">${c.current.name}</div>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button onclick="wsMarkDone('${o.order_num}','${c.current.key}')" style="padding:12px 32px;font-size:15px;font-weight:600;background:${c.current.color};color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:'Geologica',sans-serif;min-width:140px">✓ Завершить</button>
-        </div>
+      <!-- Текущий этап -->
+      <div style="background:${c.current.color}15;border:2px solid ${c.current.color};border-radius:var(--r);padding:14px;margin-bottom:10px">
+        <div style="text-align:center;margin-bottom:10px">
+          <span style="font-size:24px">${c.current.icon}</span>
+          <div style="font-size:16px;font-weight:600;color:${c.current.color}">${c.current.name}</div>
+        </div>`;
+    
+    // Виды работ — только назначенные, без галочек по умолчанию
+    if(stageWorks.length){
+      h+=`<div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--amber);margin-bottom:6px;font-weight:500">Отметьте работу которую выполняете:</div>`;
+      stageWorks.forEach(r=>{
+        h+=`<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:4px;cursor:pointer;font-size:13px">
+          <input type="checkbox" class="ws-work-cb" data-order="${o.order_num}" data-rate-id="${r.id}" data-rate="${r.rate}" data-name="${r.work_name}" style="margin:0;width:18px;height:18px">
+          <span style="flex:1">${r.work_name}</span>
+          <span style="font-weight:600;color:var(--accent-text)">${(parseFloat(r.rate)||0).toLocaleString('ru-RU')} ₽</span>
+          <span style="font-size:10px;color:var(--text3)">${r.unit||''}</span>
+        </label>`;
+      });
+      h+=`</div>`;
+    } else if(!assignedIds.length&&allStageWorks.length){
+      h+=`<div style="font-size:11px;color:var(--text3);padding:8px;text-align:center">Менеджер не назначил виды работ для этого заказа</div>`;
+    }
+    
+    h+=`<button onclick="wsMarkDone('${o.order_num}','${c.current.key}')" style="width:100%;padding:14px;font-size:16px;font-weight:600;background:${c.current.color};color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:'Geologica',sans-serif">✓ Завершить${stageWorks.length?' и начислить':''}</button>
       </div>
       
-      <!-- Мини-этапы -->
       <div style="display:flex;gap:3px;flex-wrap:wrap">`;
     
-    const activeStages=PROD_STAGES.filter(s=>!c.stages[s.key]||!c.stages[s.key].skip);
-    activeStages.forEach(st=>{
+    const activeStages2=PROD_STAGES.filter(s=>!c.stages[s.key]||!c.stages[s.key].skip);
+    activeStages2.forEach(st=>{
       const d=c.stages[st.key];
-      const isDone=d&&d.done;
-      const isCur=st.key===c.current.key;
-      const bg=isDone?st.color:isCur?st.color+'33':'var(--surface2)';
-      const txtCol=isDone?'#fff':isCur?st.color:'var(--text3)';
-      h+=`<div style="padding:3px 6px;border-radius:4px;font-size:10px;background:${bg};color:${txtCol};font-weight:${isCur?'600':'400'}" title="${st.name}">${st.icon}</div>`;
+      const isDone2=d&&d.done;
+      const isCur2=st.key===c.current.key;
+      const bg2=isDone2?st.color:isCur2?st.color+'33':'var(--surface2)';
+      const txtCol2=isDone2?'#fff':isCur2?st.color:'var(--text3)';
+      h+=`<div style="padding:3px 6px;border-radius:4px;font-size:10px;background:${bg2};color:${txtCol2};font-weight:${isCur2?'600':'400'}" title="${st.name}">${st.icon}</div>`;
     });
     
     h+=`</div>
-      
       ${c.prevDone?`<div style="font-size:10px;color:var(--text3);margin-top:8px">Предыдущий: ${c.prevDone.icon} ${c.prevDone.name} ✓</div>`:''}
       ${c.nextStage?`<div style="font-size:10px;color:var(--text3)">Следующий: ${c.nextStage.icon} ${c.nextStage.name}</div>`:''}
     </div>`;
@@ -6680,14 +7539,128 @@ function renderWorkshop(){
   $('ws-body').innerHTML=h;
 }
 
+function renderWsLogin(){
+  $('ws-sub').textContent='Вход на смену';
+  $('ws-logout-btn').style.display='none';
+  $('ws-body').innerHTML='';
+  
+  const activeWorkers=payWorkers.filter(w=>w.is_active);
+  
+  let h=`<div style="max-width:400px;margin:40px auto;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">👷</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:6px">Начало смены</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:24px">Выберите себя и введите PIN-код</div>
+    
+    <select class="fsel" id="ws-worker-select" style="width:100%;font-size:15px;padding:12px;margin-bottom:12px;text-align:center" onchange="$('ws-pin').focus()">
+      <option value="">— Выберите сотрудника —</option>
+      ${activeWorkers.map(w=>`<option value="${w.id}">${w.name} (${w.role||'цех'})</option>`).join('')}
+    </select>
+    
+    <input type="password" id="ws-pin" placeholder="PIN-код" maxlength="6" 
+      onkeydown="if(event.key==='Enter')wsLogin()"
+      style="width:100%;font-size:24px;text-align:center;letter-spacing:12px;padding:14px;border:2px solid var(--border);border-radius:var(--r);outline:none;font-family:'JetBrains Mono',monospace;box-sizing:border-box;background:var(--surface);color:var(--text)">
+    
+    <button onclick="wsLogin()" style="width:100%;margin-top:12px;padding:14px;font-size:16px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:'Geologica',sans-serif">Войти в смену →</button>
+    
+    <div id="ws-login-error" style="margin-top:10px;color:var(--red);font-size:13px;display:none"></div>
+  </div>`;
+  
+  $('ws-login').innerHTML=h;
+}
+
+let wsCurrentShiftId=null;
+
+function wsLogin(){
+  const wId=parseInt($('ws-worker-select')?.value);
+  const pin=$('ws-pin')?.value||'';
+  
+  if(!wId){
+    $('ws-login-error').textContent='Выберите сотрудника';
+    $('ws-login-error').style.display='block';
+    return;
+  }
+  
+  const worker=payWorkers.find(w=>w.id===wId);
+  if(!worker){showToast('Сотрудник не найден');return}
+  
+  if(worker.pin&&worker.pin!==pin){
+    $('ws-login-error').textContent='Неверный PIN-код';
+    $('ws-login-error').style.display='block';
+    $('ws-pin').value='';
+    $('ws-pin').focus();
+    if(navigator.vibrate) navigator.vibrate(200);
+    return;
+  }
+  
+  wsWorker=worker;
+  
+  // Определяем участок из URL или фильтра
+  const urlParams=new URLSearchParams(window.location.search);
+  const station=urlParams.get('station')||$('ws-filter')?.value||'';
+  const stationName=station?PROD_STAGES.find(s=>s.key===station)?.name||station:'Все';
+  
+  // Создаём запись смены
+  sb.from('shifts').insert({
+    worker_id:worker.id,
+    worker_name:worker.name,
+    station:stationName,
+    started_at:new Date().toISOString()
+  }).select().then(({data})=>{
+    if(data&&data[0]) wsCurrentShiftId=data[0].id;
+  });
+  
+  showToast('👷 Смена начата — '+worker.name);
+  renderWorkshop();
+}
+
+async function wsLogout(){
+  if(!confirm('Завершить смену?')) return;
+  
+  // Закрываем запись смены
+  if(wsCurrentShiftId){
+    const now=new Date();
+    const shift=payShifts.find(s=>s.id===wsCurrentShiftId);
+    const startedAt=shift?new Date(shift.started_at):now;
+    const durationMin=Math.round((now-startedAt)/60000);
+    
+    // Считаем заработок за смену
+    const todayStr=now.toISOString().split('T')[0];
+    const shiftEarned=payEntries.filter(e=>
+      e.worker_id===wsWorker.id&&e.work_date===todayStr&&e.note!=='бонус'&&e.note!=='штраф'
+    ).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+    
+    // Считаем этапов завершено
+    const shiftStages=payEntries.filter(e=>
+      e.worker_id===wsWorker.id&&e.work_date===todayStr&&e.stage_key
+    ).length;
+    
+    try{
+      await sb.from('shifts').update({
+        ended_at:now.toISOString(),
+        duration_min:durationMin,
+        stages_done:shiftStages,
+        earned:shiftEarned
+      }).eq('id',wsCurrentShiftId);
+    }catch(e){console.log('Shift close error:',e)}
+    
+    const hrs=Math.floor(durationMin/60);
+    const mins=durationMin%60;
+    showToast('Смена завершена — '+wsWorker.name+' ('+hrs+'ч '+mins+'мин, '+shiftEarned.toLocaleString('ru-RU')+' ₽)');
+  } else {
+    showToast('Смена завершена — '+wsWorker.name);
+  }
+  
+  wsWorker=null;
+  wsCurrentShiftId=null;
+  renderWorkshop();
+}
+
 async function wsMarkDone(orderNum,stageKey){
   const o=findO(orderNum);if(!o) return;
   let stages=getOrderStages(o);
   
-  // Отмечаем этап
   stages[stageKey]={done:true,date:new Date().toISOString()};
   
-  // Автоотмечаем предыдущие
   for(const st of PROD_STAGES){
     if(st.key===stageKey) break;
     if(stages[st.key]&&stages[st.key].skip) continue;
@@ -6701,21 +7674,37 @@ async function wsMarkDone(orderNum,stageKey){
     await sb.from('orders').update({stages}).eq('id',o.id);
     showToast(PROD_STAGES.find(s=>s.key===stageKey)?.icon+' Этап завершён');
     
-    // Автосмена статуса канбана если есть привязка
+    // АВТО-НАЧИСЛЕНИЕ ЗАРПЛАТЫ
+    if(wsWorker){
+      const checkboxes=document.querySelectorAll('.ws-work-cb[data-order="'+orderNum+'"]');
+      let totalPay=0;
+      const workNames=[];
+      checkboxes.forEach(cb=>{
+        if(cb.checked){
+          totalPay+=parseFloat(cb.dataset.rate)||0;
+          workNames.push(cb.dataset.name);
+        }
+      });
+      
+      if(totalPay>0){
+        try{
+          await sb.from('payroll_entries').insert({
+            worker_id:wsWorker.id,
+            order_num:orderNum,
+            stage_key:stageKey,
+            amount:totalPay,
+            note:workNames.join(', '),
+            work_date:new Date().toISOString().split('T')[0]
+          });
+          showToast('💰 Начислено '+totalPay.toLocaleString('ru-RU')+' ₽ → '+wsWorker.name);
+        }catch(e){console.log('Payroll auto error:',e)}
+      }
+    }
+    
+    // Автосмена статуса канбана
     const stage=PROD_STAGES.find(s=>s.key===stageKey);
-    if(stage){
-      // Найти следующий этап с привязкой к канбану
-      let nextKanban='';
-      let foundCurrent=false;
-      for(const st of PROD_STAGES){
-        if(st.key===stageKey){foundCurrent=true;continue}
-        if(foundCurrent&&!stages[st.key]?.skip&&st.kanban){nextKanban=st.kanban;break}
-      }
-      // Или если текущий этап привязан — проверяем нужно ли двинуть
-      if(stage.kanban){
-        // Все этапы до следующего kanban-привязанного завершены
-        // Ничего не делаем — статус уже был установлен при входе в эту колонку
-      }
+    if(stage&&stage.kanban){
+      // статус уже был установлен при входе в колонку
     }
     
     renderWorkshop();
