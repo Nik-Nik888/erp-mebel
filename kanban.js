@@ -488,8 +488,16 @@ async function kanbanDrop(e,col){
   const newStatus=col.dataset.status;
   const o=findO(draggedOrderNum);
   if(!o||(o.status||'').trim()===newStatus) return;
+  // Сохраняем позицию скролла
+  const kanban=$('kanban-body')?.firstElementChild;
+  const scrollPos=kanban?kanban.scrollLeft:0;
   await quickStatus(draggedOrderNum,newStatus);
   renderKanban();
+  // Восстанавливаем позицию скролла после полного рендера
+  setTimeout(()=>{
+    const k=$('kanban-body')?.firstElementChild;
+    if(k) k.scrollLeft=scrollPos;
+  },50);
 }
 
 // Mobile Touch Drag & Drop — long press to activate
@@ -565,8 +573,11 @@ async function kanbanTouchEnd(e,el){
       const orderNum=touchDragEl.dataset.id;
       const o=findO(orderNum);
       if(o&&(o.status||'').trim()!==newStatus){
+        const kanban=$('kanban-body')?.firstElementChild;
+        const scrollPos=kanban?kanban.scrollLeft:0;
         await quickStatus(orderNum,newStatus);
         renderKanban();
+        setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=scrollPos},50);
       }
     }
   } else if(!touchMoved&&!touchDragActive){

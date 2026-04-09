@@ -44,7 +44,12 @@ async function autoMergeSkladDuplicates(){
   
   for(const [name,items] of Object.entries(byName)){
     if(items.length<2) continue;
-    // Оставляем первый, остальные вливаем в него
+    // Оставляем НЕ-pending позицию (предпочтительно), остальные вливаем
+    items.sort((a,b)=>{
+      const ap=String(a.item_id||'').startsWith('pending_')?1:0;
+      const bp=String(b.item_id||'').startsWith('pending_')?1:0;
+      return ap-bp;
+    });
     const keep=items[0];
     for(let j=1;j<items.length;j++){
       const dup=items[j];
@@ -663,6 +668,14 @@ async function saveSkladItem(){
       if(isPending&&oldItemId){
         await sb.from('sklad_moves').update({item_id:newItemId}).eq('item_id',oldItemId);
         skladLog.forEach(r=>{if(r.item_id===oldItemId) r.item_id=newItemId});
+      }
+      // Добавляем начальный остаток если указан (при оформлении pending)
+      if(initStock>0){
+        await sb.from('sklad_moves').insert({
+          move_date:new Date().toISOString().split('T')[0],
+          move_type:'in', item_id:newItemId, qty:initStock,
+          unit:item.unit, price:item.buy_price, comment:isPending?'Начальный остаток (оформление)':'Приход'
+        });
       }
     } else {
       const {error}=await sb.from('sklad_items').insert(item);

@@ -348,6 +348,7 @@ function addOrderMat(name='', qty=1, price=0){
       <span style="font-size:10px;color:var(--text3)">=</span>
       <span class="omat-sum" id="omat-sum-${i}" style="font-size:11px;font-weight:500;color:var(--accent-text);flex:1;text-align:right">${matSum?matSum.toLocaleString('ru-RU')+'₽':'—'}</span>
       <span class="omat-stock" id="omat-stock-${i}" style="font-size:10px;color:var(--text3)">${stock!=='—'?(stock>0?'✓'+stock:'⚠0'):'—'}</span>
+      <button type="button" onclick="quickAddStock(${i})" title="Оприходовать на склад" style="background:var(--accent-light);border:1px solid var(--accent);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px;color:var(--accent-text);font-family:'Geologica',sans-serif;font-weight:500">+📦</button>
     </div>`;
   wrap.appendChild(row);
   expandMatsSection();
@@ -362,6 +363,49 @@ function getMatStock(matName){
   if(!si) si=skladItems.find(i=>{const sn=(i.name||'').toLowerCase();return sn&&(n.includes(sn)||sn.includes(n))});
   if(!si) return '—';
   return skladStock(si.item_id);
+}
+
+async function quickAddStock(idx){
+  const row=$('omat-'+idx);
+  if(!row) return;
+  const name=(row.querySelector('.omat-name')?.value||'').trim();
+  if(!name){showToast('Укажите материал');return}
+  const qty=prompt('Приход "'+name+'" — введите количество:');
+  if(!qty||parseFloat(qty)<=0) return;
+  const amount=parseFloat(qty);
+  
+  // Находим или создаём позицию на складе
+  const n=name.toLowerCase();
+  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
+  if(!si){
+    // Создаём новую позицию
+    const {data,error}=await sb.from('sklad_items').insert({item_id:name,name:name,type:'лист',unit:'шт',min_stock:0,buy_price:0}).select();
+    if(error){showToast('Ошибка: '+error.message);return}
+    if(data&&data[0]) si=data[0];
+    skladItems.push(si);
+  }
+  
+  // Оформляем приход
+  const orderNum=$('f-num')?.value||'';
+  const moveRow={
+    move_date:new Date().toISOString().split('T')[0],
+    move_type:'in',
+    item_id:si.item_id,
+    qty:amount,
+    unit:si.unit||'шт',
+    price:parseFloat(row.querySelector('.omat-price')?.value)||0,
+    order_num:orderNum,
+    comment:'Приход из карточки заказа'
+  };
+  try{
+    await sb.from('sklad_moves').insert(moveRow);
+    skladLog.push(moveRow);
+    // Обновляем отображение остатка
+    const stockEl=$('omat-stock-'+idx);
+    const newStock=skladStock(si.item_id);
+    if(stockEl) stockEl.innerHTML=newStock>0?'✓'+newStock:'⚠0';
+    showToast('📦 Приход: '+name+' +'+amount);
+  }catch(e){showToast('Ошибка: '+e.message)}
 }
 
 function onOrderMatChange(input, idx){
