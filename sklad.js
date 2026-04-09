@@ -131,7 +131,7 @@ function renderSkladKpi(){
       <div style="font-size:15px;font-weight:600">${totalPositions}</div>
     </div>
     <div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--rs);padding:8px 10px;text-align:center">
-      <div style="font-size:9px;color:var(--accent-text)">Стоимость склада</div>
+      <div style="font-size:9px;color:var(--accent-text)">В наличии на складе</div>
       <div style="font-size:14px;font-weight:700;color:var(--accent-text)">${totalValue?Math.round(totalValue).toLocaleString('ru-RU')+' ₽':'0 ₽'}</div>
     </div>
     ${lowCount?`<div style="background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--rs);padding:8px 10px;text-align:center;cursor:pointer" onclick="$('sklad-sort').value='alert';renderSkladCards()">
@@ -244,10 +244,11 @@ function renderSkladCards(){
         const itemValue=price*item._stock;
         html+=`<div style="display:flex;gap:6px;align-items:center;${bg}border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;margin-top:4px">
           ${item._isEmpty||item._isLow?`<span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>`:''}
-          <span style="font-size:12px;flex:1;color:var(--text)">${item.name||'—'}</span>
-          <span style="font-size:12px;font-weight:700;color:${color};min-width:35px;text-align:right">${item._stock}</span>
+          <span style="font-size:12px;flex:1;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name||'—'}</span>
+          <span style="font-size:12px;font-weight:700;color:${color};min-width:28px;text-align:right">${item._stock}</span>
           <span style="font-size:10px;color:var(--text3)">${item.unit||'шт'}</span>
-          ${itemValue?`<span style="font-size:10px;color:var(--text3);min-width:55px;text-align:right">${Math.round(itemValue).toLocaleString('ru-RU')}₽</span>`:''}
+          ${price?`<span style="font-size:9px;color:var(--text3)">×${price.toLocaleString('ru-RU')}</span>`:''}
+          ${itemValue?`<span style="font-size:10px;font-weight:500;color:var(--accent-text);min-width:50px;text-align:right">${Math.round(itemValue).toLocaleString('ru-RU')}₽</span>`:''}
           <button onclick="openSkladMove('in','${iid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;font-weight:600;font-family:'Geologica',sans-serif">+</button>
           <button onclick="openSkladMove('out','${iid}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;font-weight:600;font-family:'Geologica',sans-serif">−</button>
         </div>`;
@@ -331,13 +332,15 @@ function renderSkladBase(){
       const isEmpty=stock<=0, isLow=!isEmpty&&min>0&&stock<=min;
       const color=isEmpty?'var(--red)':isLow?'var(--amber)':'var(--text3)';
       const price=parseFloat(item.buy_price)||0;
+      const itemValue=price*stock;
       const bg=isPending?'background:var(--amber-light);':isEmpty?'background:var(--red-light);':'background:var(--surface);';
       html+=`<div style="display:flex;gap:6px;align-items:center;${bg}border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;margin-top:4px">
         ${isPending?'<span style="font-size:12px" title="Ожидает подтверждения">⏳</span>':''}
-        <span style="font-size:12px;flex:1;font-weight:${isEmpty||isPending?'500':'400'};color:${isEmpty?'var(--red)':'var(--text)'}">${item.name||'—'}</span>
+        <span style="font-size:12px;flex:1;font-weight:${isEmpty||isPending?'500':'400'};color:${isEmpty?'var(--red)':'var(--text)'};min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name||'—'}</span>
+        <span style="font-size:12px;font-weight:700;color:${color};min-width:28px;text-align:right">${isEmpty?'0':stock}</span>
         <span style="font-size:10px;color:var(--text3)">${item.unit||'шт'}</span>
-        ${price?`<span style="font-size:10px;color:var(--text2)">${price.toLocaleString('ru-RU')}₽</span>`:''}
-        <span style="font-size:12px;font-weight:700;color:${color};min-width:40px;text-align:right">${isEmpty?'0':stock}</span>
+        ${price?`<span style="font-size:9px;color:var(--text3)">×${price.toLocaleString('ru-RU')}</span>`:''}
+        ${itemValue?`<span style="font-size:10px;font-weight:500;color:var(--accent-text);min-width:50px;text-align:right">${Math.round(itemValue).toLocaleString('ru-RU')}₽</span>`:''}
         <button onclick='openSkladItem(${JSON.stringify(item).replace(/'/g,"&#39;")})' style="background:${isPending?'var(--amber)':'var(--surface2)'};color:${isPending?'#fff':'var(--text2)'};border:1px solid ${isPending?'var(--amber)':'var(--border)'};border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'Geologica',sans-serif;font-weight:${isPending?'600':'400'}">${isPending?'✓ Оформить':'Изм.'}</button>
       </div>`;
     });
