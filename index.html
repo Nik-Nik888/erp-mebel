@@ -91,7 +91,8 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .page-title{font-size:22px;font-weight:600}
 .page-sub{font-size:13px;color:var(--text3);margin-top:2px}
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
-.sklad-sticky-hdr{position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:8px;margin:-28px -28px 12px;padding:28px 28px 8px;border-bottom:1px solid var(--border)}
+.sklad-sticky-hdr{position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:12px}
+@media(min-width:641px){#page-sklad{overflow-y:auto;max-height:calc(100vh - 40px);margin:-28px;padding:28px}}
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;font-family:'Geologica',sans-serif}
@@ -249,7 +250,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
   .app{flex-direction:column}
   .main{padding:10px 8px;padding-bottom:70px;overflow-x:hidden;max-width:100vw;box-sizing:border-box}
   .page{max-width:100%;overflow-x:hidden}
-  .sklad-sticky-hdr{margin:-10px -8px 10px;padding:10px 8px 6px}
+  .sklad-sticky-hdr{position:static}
   .stats{grid-template-columns:repeat(2,1fr);gap:8px}
   .stat{padding:10px 12px}
   .stat .val{font-size:20px}
