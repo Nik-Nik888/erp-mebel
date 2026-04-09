@@ -370,41 +370,122 @@ async function quickAddStock(idx){
   if(!row) return;
   const name=(row.querySelector('.omat-name')?.value||'').trim();
   if(!name){showToast('Укажите материал');return}
-  const qty=prompt('Приход "'+name+'" — введите количество:');
-  if(!qty||parseFloat(qty)<=0) return;
-  const amount=parseFloat(qty);
+  const price=parseFloat(row.querySelector('.omat-price')?.value)||0;
+  const orderNum=$('f-num')?.value||'';
   
-  // Находим или создаём позицию на складе
-  const n=name.toLowerCase();
-  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
-  if(!si){
-    // Создаём новую позицию
-    const {data,error}=await sb.from('sklad_items').insert({item_id:name,name:name,type:'лист',unit:'шт',min_stock:0,buy_price:0}).select();
-    if(error){showToast('Ошибка: '+error.message);return}
-    if(data&&data[0]) si=data[0];
-    skladItems.push(si);
+  // Открываем модалку оформления
+  let ov=$('m-quick-stock');
+  if(!ov){
+    ov=document.createElement('div');ov.className='overlay';ov.id='m-quick-stock';
+    ov.innerHTML=`<div class="modal" style="max-width:420px"><div class="modal-hd"><div class="modal-title">📦 Оприходовать материал</div><button class="modal-close" onclick="$('m-quick-stock').classList.remove('open')">×</button></div><div class="modal-body" id="m-qs-body"></div><div class="modal-ft" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" onclick="$('m-quick-stock').classList.remove('open')">Отмена</button><button class="btn btn-primary" id="qs-save-btn" onclick="saveQuickStock()">Сохранить</button></div></div>`;
+    document.body.appendChild(ov);
   }
   
-  // Оформляем приход
-  const orderNum=$('f-num')?.value||'';
-  const moveRow={
-    move_date:new Date().toISOString().split('T')[0],
-    move_type:'in',
-    item_id:si.item_id,
-    qty:amount,
-    unit:si.unit||'шт',
-    price:parseFloat(row.querySelector('.omat-price')?.value)||0,
-    order_num:orderNum,
-    comment:'Приход из карточки заказа'
-  };
+  // Проверяем есть ли уже на складе
+  const n=name.toLowerCase();
+  const existing=skladItems.find(i=>(i.name||'').toLowerCase()===n);
+  const isPending=existing&&String(existing.item_id||'').startsWith('pending_');
+  
+  let h=`<input type="hidden" id="qs-idx" value="${idx}">
+    <input type="hidden" id="qs-order" value="${orderNum}">
+    <div class="fg">
+      <div class="f full"><label class="flabel">Название</label><input class="finput" id="qs-name" value="${name}"></div>
+      <div class="f"><label class="flabel">Тип</label>
+        <select class="fsel2" id="qs-type">
+          <option value="лист">🪵 лист</option>
+          <option value="кромка">🔲 кромка</option>
+          <option value="фурнитура">🔩 фурнитура</option>
+          <option value="расходник">🧰 расходник</option>
+          <option value="прочее">📦 прочее</option>
+        </select>
+      </div>
+      <div class="f"><label class="flabel">Ед. учёта</label>
+        <select class="fsel2" id="qs-unit">
+          <option value="шт">шт</option>
+          <option value="пог.м">пог.м</option>
+          <option value="кв.м">кв.м</option>
+          <option value="л">л</option>
+          <option value="кг">кг</option>
+        </select>
+      </div>
+      <div class="f"><label class="flabel">Цена закупки (₽)</label><input class="finput" type="number" id="qs-price" value="${price}" min="0"></div>
+      <div class="f"><label class="flabel">Мин. остаток</label><input class="finput" type="number" id="qs-min" value="5" min="0"></div>
+      <div class="f"><label class="flabel">Количество прихода</label><input class="finput" type="number" id="qs-qty" value="1" min="0.5" step="0.5" style="font-weight:600;font-size:16px"></div>
+    </div>`;
+  
+  if(existing&&!isPending){
+    h+=`<div style="margin-top:8px;padding:8px;background:var(--accent-light);border-radius:var(--rs);font-size:11px;color:var(--accent-text)">✓ Позиция уже есть на складе. Будет оформлен приход.</div>`;
+  }
+  
+  $('m-qs-body').innerHTML=h;
+  
+  // Подставляем тип из существующей позиции
+  if(existing){
+    $('qs-type').value=existing.type||'лист';
+    $('qs-unit').value=existing.unit||'шт';
+    if(existing.min_stock) $('qs-min').value=existing.min_stock;
+  }
+  // Автоопределение типа по названию
+  const nl=name.toLowerCase();
+  if(nl.includes('кромка')||nl.includes('abs')) $('qs-type').value='кромка';
+  else if(nl.includes('петл')||nl.includes('ручк')||nl.includes('минификс')||nl.includes('направляющ')||nl.includes('клипса')||nl.includes('держат')) $('qs-type').value='фурнитура';
+  // Автоопределение единицы
+  if(nl.includes('кромка')||nl.includes('пог')) $('qs-unit').value='пог.м';
+  
+  ov.classList.add('open');
+  setTimeout(()=>$('qs-qty')?.focus(),100);
+}
+
+async function saveQuickStock(){
+  const name=$('qs-name').value.trim();
+  const qty=parseFloat($('qs-qty').value)||0;
+  if(!name){showToast('Укажите название');return}
+  if(qty<=0){showToast('Укажите количество');return}
+  
+  const type=$('qs-type').value;
+  const unit=$('qs-unit').value;
+  const price=parseFloat($('qs-price').value)||0;
+  const minStock=parseFloat($('qs-min').value)||0;
+  const orderNum=$('qs-order').value;
+  const idx=$('qs-idx').value;
+  
+  // Находим или создаём позицию
+  const n=name.toLowerCase();
+  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
+  const isPending=si&&String(si.item_id||'').startsWith('pending_');
+  
   try{
+    if(!si){
+      // Создаём новую
+      const {data,error}=await sb.from('sklad_items').insert({item_id:name,name,type,unit,min_stock:minStock,buy_price:price}).select();
+      if(error) throw error;
+      if(data&&data[0]){si=data[0];skladItems.push(si)}
+    } else if(isPending){
+      // Оформляем pending
+      await sb.from('sklad_items').update({item_id:name,name,type,unit,min_stock:minStock,buy_price:price}).eq('id',si.id);
+      await sb.from('sklad_moves').update({item_id:name}).eq('item_id',si.item_id);
+      si.item_id=name;si.name=name;si.type=type;si.unit=unit;si.min_stock=minStock;si.buy_price=price;
+    } else {
+      // Обновляем цену если указана
+      if(price) await sb.from('sklad_items').update({buy_price:price}).eq('id',si.id);
+    }
+    
+    // Оформляем приход
+    const moveRow={
+      move_date:new Date().toISOString().split('T')[0],
+      move_type:'in',item_id:si.item_id,qty,unit:si.unit||unit,
+      price,order_num:orderNum,comment:'Приход из карточки заказа'
+    };
     await sb.from('sklad_moves').insert(moveRow);
     skladLog.push(moveRow);
-    // Обновляем отображение остатка
+    
+    // Обновляем остаток в карточке заказа
     const stockEl=$('omat-stock-'+idx);
     const newStock=skladStock(si.item_id);
-    if(stockEl) stockEl.innerHTML=newStock>0?'✓'+newStock:'⚠0';
-    showToast('📦 Приход: '+name+' +'+amount);
+    if(stockEl) stockEl.innerHTML=newStock>0?'<span style="color:var(--accent)">✓'+newStock+'</span>':'⚠0';
+    
+    $('m-quick-stock').classList.remove('open');
+    showToast('📦 '+name+' +'+qty+' — оприходовано');
   }catch(e){showToast('Ошибка: '+e.message)}
 }
 

@@ -92,7 +92,7 @@ body{font-family:'Geologica',sans-serif;background:var(--bg);color:var(--text);m
 .page-sub{font-size:13px;color:var(--text3);margin-top:2px}
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
 .sklad-sticky-hdr{position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:12px}
-@media(min-width:641px){#page-sklad{overflow-y:auto;max-height:calc(100vh - 40px);margin:-28px;padding:28px}}
+@media(min-width:641px){#page-sklad.active{overflow-y:auto;height:calc(100vh - 56px)}}
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;font-family:'Geologica',sans-serif}
@@ -1201,7 +1201,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
       <div class="modal-title" id="sklad-item-title">Новая позиция</div>
       <button class="modal-close" onclick="closeSkladItem()">×</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="max-height:60vh;overflow-y:auto">
       <div class="fg">
         <div class="f full"><label class="flabel">Название</label><input class="finput" id="si-name" placeholder="ЛДСП Дуб Сонома 16мм"></div>
         <div class="f">
