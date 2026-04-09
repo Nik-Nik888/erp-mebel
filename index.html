@@ -556,20 +556,26 @@ tbody tr.overdue:hover td{background:#fff0f0}
 
     <!-- СКЛАД -->
     <div class="page" id="page-sklad">
-      <div class="page-header">
-        <div><div class="page-title">Склад</div><div class="page-sub">Материалы и движение</div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap" id="sklad-header-btns">
-          <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadSklad())">↻</button>
-          <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
-          <button class="btn btn-ghost" id="btn-sklad-add-item" onclick="openSkladItem()" style="display:none">+ Позиция</button>
-          <button class="btn btn-ghost" id="btn-sklad-add-group" onclick="openMatTypes()" style="display:none">+ Группа</button>
-          <button class="btn btn-primary" id="btn-sklad-prikhod" onclick="openSkladMove('in')">+ Приход</button>
+      <div style="position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:8px">
+        <div class="page-header">
+          <div><div class="page-title">Склад</div><div class="page-sub">Материалы и движение</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="sklad-header-btns">
+            <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadSklad())">↻</button>
+            <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
+            <button class="btn btn-ghost" id="btn-sklad-add-item" onclick="openSkladItem()" style="display:none">+ Позиция</button>
+            <button class="btn btn-ghost" id="btn-sklad-add-group" onclick="openMatTypes()" style="display:none">+ Группа</button>
+            <button class="btn btn-primary" id="btn-sklad-prikhod" onclick="openSkladMove('in')">+ Приход</button>
+          </div>
         </div>
-      </div>
-      <div class="tabs" style="margin-bottom:16px">
-        <div class="tab active" id="stab-stock" onclick="setSkladTab('stock',this)">В наличии</div>
-        <div class="tab" id="stab-base" onclick="setSkladTab('base',this)">База материалов</div>
-        <div class="tab" id="stab-log" onclick="setSkladTab('log',this)">Журнал</div>
+        <!-- KPI карточки склада -->
+        <div id="sklad-kpi" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px"></div>
+        <!-- Ожидают оформления -->
+        <div id="sklad-pending-bar" style="display:none"></div>
+        <div class="tabs" style="margin-bottom:0">
+          <div class="tab active" id="stab-stock" onclick="setSkladTab('stock',this)">В наличии</div>
+          <div class="tab" id="stab-base" onclick="setSkladTab('base',this)">База материалов</div>
+          <div class="tab" id="stab-log" onclick="setSkladTab('log',this)">Журнал</div>
+        </div>
       </div>
       <div id="sklad-tab-stock">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">

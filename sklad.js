@@ -23,6 +23,7 @@ async function loadSklad(){
     // Авто-объединение дубликатов
     await autoMergeSkladDuplicates();
     fillMatTypeSelects();
+    renderSkladKpi();
     renderSkladCards();
     renderSkladBase();
     renderSkladLog();
@@ -103,6 +104,65 @@ function setSkladTab(tab,el){
   if(tab==='log') renderSkladLog();
 }
 
+function renderSkladKpi(){
+  const kpi=$('sklad-kpi');
+  if(!kpi) return;
+  
+  // Считаем статистику
+  let totalPositions=0, totalStock=0, totalValue=0, lowCount=0, emptyCount=0, pendingCount=0;
+  
+  skladItems.forEach(item=>{
+    const isPending=String(item.item_id||'').startsWith('pending_');
+    if(isPending){pendingCount++;return}
+    if(!(item.name||'').trim()) return;
+    totalPositions++;
+    const stock=skladStock(item.item_id);
+    const price=parseFloat(item.buy_price)||0;
+    const min=parseFloat(item.min_stock)||0;
+    totalStock+=stock;
+    totalValue+=stock*price;
+    if(stock<=0) emptyCount++;
+    else if(min>0&&stock<=min) lowCount++;
+  });
+  
+  kpi.innerHTML=`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3)">Позиций</div>
+      <div style="font-size:15px;font-weight:600">${totalPositions}</div>
+    </div>
+    <div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--rs);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--accent-text)">Стоимость склада</div>
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text)">${totalValue?Math.round(totalValue).toLocaleString('ru-RU')+' ₽':'0 ₽'}</div>
+    </div>
+    ${lowCount?`<div style="background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--rs);padding:8px 10px;text-align:center;cursor:pointer" onclick="$('sklad-sort').value='alert';renderSkladCards()">
+      <div style="font-size:9px;color:var(--amber)">Заканчивается</div>
+      <div style="font-size:15px;font-weight:600;color:var(--amber)">${lowCount}</div>
+    </div>`:''}
+    ${emptyCount?`<div style="background:var(--red-light);border:1px solid var(--red);border-radius:var(--rs);padding:8px 10px;text-align:center;cursor:pointer" onclick="$('sklad-sort').value='alert';renderSkladCards()">
+      <div style="font-size:9px;color:var(--red)">Нет в наличии</div>
+      <div style="font-size:15px;font-weight:600;color:var(--red)">${emptyCount}</div>
+    </div>`:''}
+    ${!lowCount&&!emptyCount?`<div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--rs);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--accent-text)">Статус</div>
+      <div style="font-size:12px;font-weight:600;color:var(--accent-text)">✓ Всё в норме</div>
+    </div>`:''}
+  `;
+  
+  // Ожидают оформления
+  const bar=$('sklad-pending-bar');
+  if(!bar) return;
+  if(pendingCount>0){
+    bar.style.display='';
+    bar.innerHTML=`<div style="background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--rs);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:pointer" onclick="setSkladTab('base',document.getElementById('stab-base'))">
+      <span style="font-size:12px;color:var(--amber);font-weight:500">📦 Ожидают оформления: <b>${pendingCount}</b> позиций</span>
+      <span style="font-size:11px;color:var(--amber)">Перейти →</span>
+    </div>`;
+  } else {
+    bar.style.display='none';
+    bar.innerHTML='';
+  }
+}
+
 function renderSkladCards(){
   const container=$('sklad-cards');
   const q=($('sklad-search')?.value||'').toLowerCase().trim();
@@ -151,6 +211,7 @@ function renderSkladCards(){
     const gLabel=getTypeLabel(g);
     const gIcon=getTypeIcon(g);
     const gColor=GROUP_COLORS[g]||matTypes.find(t=>t.name===g)?.color||'#6b6a64';
+    const gValue=allItems.reduce((s,i)=>s+(i._stock*(parseFloat(i.buy_price)||0)),0);
     const gKey='g_'+g;
     if(!(gKey in treeOpen.groups)) treeOpen.groups[gKey]=true;
     const gOpen=treeOpen.groups[gKey];
@@ -160,7 +221,7 @@ function renderSkladCards(){
         <span style="font-size:20px">${gIcon}</span>
         <div style="flex:1">
           <div style="font-size:14px;font-weight:600;color:var(--text)">${gLabel.replace(gIcon,'').trim()}</div>
-          <div style="font-size:11px;color:var(--text3)">${allItems.length} в наличии${alerts?' · <span style="color:var(--red)">'+alerts+' заканчивается</span>':''}</div>
+          <div style="font-size:11px;color:var(--text3)">${allItems.length} в наличии${alerts?' · <span style="color:var(--red)">'+alerts+' заканчивается</span>':''}${gValue?' · <span style="color:var(--accent-text)">'+Math.round(gValue).toLocaleString('ru-RU')+' ₽</span>':''}</div>
         </div>
         <span class="tree-arrow" style="font-size:12px;color:var(--text3);transition:transform 0.2s;${gOpen?'transform:rotate(90deg)':''}">▶</span>
       </div>
@@ -180,11 +241,13 @@ function renderSkladCards(){
         const color=item._isEmpty?'var(--red)':item._isLow?'var(--amber)':'var(--accent-text)';
         const bg=item._isEmpty?'background:var(--red-light);':item._isLow?'background:var(--amber-light);':'background:var(--surface);';
         const price=parseFloat(item.buy_price)||0;
+        const itemValue=price*item._stock;
         html+=`<div style="display:flex;gap:6px;align-items:center;${bg}border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;margin-top:4px">
           ${item._isEmpty||item._isLow?`<span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>`:''}
           <span style="font-size:12px;flex:1;color:var(--text)">${item.name||'—'}</span>
           <span style="font-size:12px;font-weight:700;color:${color};min-width:35px;text-align:right">${item._stock}</span>
           <span style="font-size:10px;color:var(--text3)">${item.unit||'шт'}</span>
+          ${itemValue?`<span style="font-size:10px;color:var(--text3);min-width:55px;text-align:right">${Math.round(itemValue).toLocaleString('ru-RU')}₽</span>`:''}
           <button onclick="openSkladMove('in','${iid}')" style="background:var(--accent-light);color:var(--accent-text);border:none;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;font-weight:600;font-family:'Geologica',sans-serif">+</button>
           <button onclick="openSkladMove('out','${iid}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;font-weight:600;font-family:'Geologica',sans-serif">−</button>
         </div>`;
