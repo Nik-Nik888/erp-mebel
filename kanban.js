@@ -42,8 +42,10 @@ async function saveSetting(key,value){
   _appSettings[key]=value;
   localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
   try{
-    await sb.from('app_settings').delete().eq('key',key);
-    const {error}=await sb.from('app_settings').insert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()});
+    const {error}=await sb.from('app_settings').upsert(
+      {key, value:JSON.stringify(value), updated_at:new Date().toISOString()},
+      {onConflict:'key'}
+    );
     if(error) console.log('Settings save error:',error.message);
   }catch(e){console.log('Settings save error:',e)}
 }

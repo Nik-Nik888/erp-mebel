@@ -105,7 +105,7 @@ async function processImport(){
       const mats=parseK3Text(fullText);
       console.log('Parsed materials:',mats);
       if(!mats.length) throw new Error('Не удалось найти материалы в PDF. Откройте консоль (F12) чтобы увидеть извлечённый текст.');
-      mats.forEach(m=>addOrderMat(m.name,m.qty,m.price));
+      mats.forEach(m=>addOrderMat(m.name,m.qty,matPrice(m.name)||m.price));
       calcOrderSum();
       setImportStatus(`✅ Из PDF загружено ${mats.length} материал(ов)`,'ok');
       setTimeout(()=>closeSpecImport(),1500);
@@ -129,7 +129,7 @@ async function processImport(){
       if(!jsonMatch) throw new Error('Не удалось распознать');
       const mats=JSON.parse(jsonMatch[0]);
       if(!mats.length) throw new Error('Материалов не найдено');
-      mats.forEach(m=>addOrderMat(m.name,m.qty||1,m.price||matPrice(m.name)||0));
+      mats.forEach(m=>addOrderMat(m.name,m.qty||1,matPrice(m.name)||m.price||0));
       calcOrderSum();
       setImportStatus(`✅ Распознано ${mats.length} материал(ов)`,'ok');
       setTimeout(()=>closeSpecImport(),1500);
@@ -261,7 +261,7 @@ function processTextImport(){
     const k3mats=parseK3Text(text);
     if(k3mats.length){
       k3mats.forEach(m=>{
-        const p=m.price||matPrice(m.name)||0;
+        const p=matPrice(m.name)||m.price||0;
         addOrderMat(m.name,m.qty,p);
       });
       calcOrderSum();
@@ -290,7 +290,7 @@ function processTextImport(){
         }
       }
       
-      const p=price||matPrice(name)||0;
+      const p=matPrice(name)||price||0;
       addOrderMat(name, qty, p);
       count++;
     });
