@@ -50,7 +50,7 @@ async function saveSetting(key,value){
 
 // ── Поля отображения на карточке ──
 function getKanbanFields(){
-  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,date:false,expenses:false,comment:false,chat:true});
+  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,address:false,date:false,expenses:false,comment:false,chat:true});
 }
 function saveKanbanFields(f){saveSetting('kanban_fields',f)}
 
@@ -80,7 +80,7 @@ function openKanbanSettings(){
   
   // Секция 1: Что показывать на карточке
   let h=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Поля на карточке</div>`;
-  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',date:'Дата создания',comment:'Комментарий',chat:'💬 Чат (если есть)'};
+  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',address:'Адрес',date:'Дата создания',comment:'Комментарий',chat:'💬 Чат (если есть)'};
   Object.entries(FIELD_LABELS).forEach(([key,label])=>{
     h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
       <input type="checkbox" ${fields[key]?'checked':''} onchange="toggleKanbanField('${key}',this.checked)" style="margin:0"> ${label}
@@ -399,6 +399,7 @@ function renderKanban(){
           </div>
         </div>
         <div style="font-weight:500;margin-bottom:2px">${o.client||'—'}</div>
+        ${fields.address&&o.address?`<div style="font-size:10px;color:var(--text3)">📍 ${o.address}</div>`:''}
         ${fields.phone&&o.phone?`<div style="font-size:10px;color:var(--text3)">📱 ${o.phone}</div>`:''}
         ${fields.description&&o.description?`<div style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${o.description}</div>`:''}
         ${fields.date&&orderDate?`<div style="font-size:10px;color:var(--text3)">📅 ${orderDate.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'})}</div>`:''}
