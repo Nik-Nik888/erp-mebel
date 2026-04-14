@@ -2,17 +2,18 @@
 // LOAD ORDERS (Supabase)
 // ══════════════════════════════════════════════════════
 async function loadOrders(){
+  // Сохраняем позицию скролла канбана
+  const kanban=$('kanban-body')?.firstElementChild;
+  const savedScroll=kanban?kanban.scrollLeft:0;
   try{
     const {data,error} = await sb.from('orders').select('*').order('id',{ascending:false});
     if(error) throw error;
-    // Сортируем: сначала по номеру заказа (З-XXX) по убыванию
     orders = (data || []).sort((a,b)=>{
       const na=parseInt((String(a.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
       const nb=parseInt((String(b.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
       if(na!==nb) return nb-na;
       return (b.id||0)-(a.id||0);
     });
-    // Защита: если статус пустой — ставим "Новый"
     for(const o of orders){
       if(!(o.status||'').trim()){
         o.status='Новый';
@@ -23,6 +24,10 @@ async function loadOrders(){
     fillManagerFilter();
     setPeriod('all');
     render();
+    // Восстанавливаем позицию скролла
+    if(savedScroll>0){
+      setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=savedScroll},50);
+    }
   }catch(e){
     $('kanban-body').innerHTML='<div class="empty-state">Не удалось загрузить: '+e.message+'</div>';
   }
@@ -130,7 +135,7 @@ function openAdd(){
   $('reminder-btn').style.display='none';
   $('f-num').value=nextOrderNum();
   $('f-num').readOnly=false;
-  ['f-date','f-client','f-phone','f-desc','f-ddl','f-manager','f-spec','f-comment'].forEach(f=>{const el=$(f);if(el)el.value=''});
+  ['f-date','f-client','f-phone','f-address','f-desc','f-ddl','f-manager','f-spec','f-comment'].forEach(f=>{const el=$(f);if(el)el.value=''});
   $('f-spec-json').value='';
   updateSourceSelects();
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
@@ -167,6 +172,7 @@ function openEdit(rid){
   $('f-num').value=o.order_num||''; $('f-num').readOnly=true;
   $('f-client').value=o.client||'';
   $('f-phone').value=o.phone||'';
+  $('f-address').value=o.address||'';
   $('f-desc').value=o.description||'';
   $('f-manager').value=o.manager||'';
   $('f-comment').value=o.comment||'';
@@ -620,6 +626,7 @@ async function saveOrder(){
     order_date: $('f-date').value||null,
     client: $('f-client').value||'',
     phone: $('f-phone').value||'',
+    address: $('f-address').value||'',
     description: $('f-desc').value||'',
     deadline: $('f-ddl').value||null,
     status: $('f-status').value||'',
@@ -692,7 +699,10 @@ async function saveOrder(){
       await autoCreateClient(row.client,row.phone,row.source,row.manager);
     }
     closeOrder();
+    const _kb=$('kanban-body')?.firstElementChild;
+    const _scrollPos=_kb?_kb.scrollLeft:0;
     await loadOrders();
+    setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=_scrollPos},50);
   }catch(e){ showToast('Ошибка: '+e.message) }
   btn.textContent=editId?'Сохранить':'Добавить заказ'; btn.disabled=false;
 }
@@ -763,7 +773,10 @@ async function confirmDeleteOrder(){
     auditLog('delete','order',rid,{client:o?.client,status:o?.status,sum:o?.order_sum});
     const block=$('m-block'); if(block) block.classList.remove('open');
     closeOrder();
+    const _kbDel=$('kanban-body')?.firstElementChild;
+    const _scrollDel=_kbDel?_kbDel.scrollLeft:0;
     await loadOrders();
+    setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=_scrollDel},50);
     showToast('Заказ '+rid+' удалён');
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
@@ -1181,7 +1194,10 @@ async function savePrepay(){
       tgNotify('payment',{order_num:o.order_num,client:o.client,amount:delta.toLocaleString('ru-RU'),total:newPrepay.toLocaleString('ru-RU'),sum:sum?sum.toLocaleString('ru-RU'):'—'});
     }
     auditLog('payment','order',o.order_num,{amount:prepayMode==='add'?delta:-delta,total:newPrepay,note});
+    const _kbPay=$('kanban-body')?.firstElementChild;
+    const _scrollPay=_kbPay?_kbPay.scrollLeft:0;
     closePrepay(); render(); updateStats(); showToast('Оплата обновлена');
+    setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=_scrollPay},50);
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
 
