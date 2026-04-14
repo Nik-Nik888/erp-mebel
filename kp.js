@@ -13,14 +13,8 @@ function initKp(){
 function matPrice(name){
   if(!name) return 0;
   const n=name.toLowerCase().replace(/\s*\([\d.,]+\s*кв\.?м\s*→.*\)/i,'').trim();
-  // Точное совпадение в складе
-  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
-  if(si&&si.buy_price) return parseFloat(si.buy_price);
-  // Поиск по вхождению
-  si=skladItems.find(i=>{
-    const sn=(i.name||'').toLowerCase();
-    return sn&&(n.includes(sn)||sn.includes(n));
-  });
+  // Только точное совпадение названия на складе
+  const si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
   if(si&&si.buy_price) return parseFloat(si.buy_price);
   return 0;
 }

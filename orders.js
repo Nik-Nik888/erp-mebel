@@ -365,8 +365,7 @@ function addOrderMat(name='', qty=1, price=0){
 function getMatStock(matName){
   if(!matName) return '—';
   const n=(matName||'').toLowerCase().replace(/\s*\([\d.,]+\s*кв\.?м\s*→.*\)/i,'').trim();
-  let si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
-  if(!si) si=skladItems.find(i=>{const sn=(i.name||'').toLowerCase();return sn&&(n.includes(sn)||sn.includes(n))});
+  const si=skladItems.find(i=>(i.name||'').toLowerCase()===n);
   if(!si) return '—';
   return skladStock(si.item_id);
 }

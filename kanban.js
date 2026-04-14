@@ -68,29 +68,54 @@ function getKanbanColumns(){
 }
 function saveKanbanColumns(cols){saveSetting('kanban_columns',cols)}
 
+// ── Pending (draft) state for settings modal ──
+let _pendingFields=null;
+let _pendingCols=null;
+let _pendingSrcColors=null;
+let _pendingMatRules=null;
+let _pendingMatKeywords=null;
+
+function _initPending(){
+  _pendingFields={...getKanbanFields()};
+  _pendingCols=[...getKanbanColumns()];
+  _pendingSrcColors={...getSourceColors()};
+  _pendingMatRules={...getMatCheckRules()};
+  _pendingMatKeywords=[...getMatKeywords()];
+}
+
 function openKanbanSettings(){
-  const cols=getKanbanColumns();
-  const fields=getKanbanFields();
+  _initPending();
   const allStatuses=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
   
   let overlay=$('m-kb-settings');
   if(!overlay){
     overlay=document.createElement('div');overlay.className='overlay';overlay.id='m-kb-settings';
-    overlay.innerHTML=`<div class="modal" style="max-width:440px"><div class="modal-hd"><div class="modal-title">Настройки канбана</div><button class="modal-close" onclick="$('m-kb-settings').classList.remove('open')">×</button></div><div class="modal-body" id="m-kb-settings-body" style="max-height:70vh;overflow-y:auto"></div><div class="modal-ft"><div style="display:flex;gap:8px;width:100%"><input class="finput" id="kb-new-col" placeholder="Новый этап..."><button class="btn btn-primary" onclick="addKanbanColumn()">+ Добавить</button></div></div></div>`;
+    overlay.innerHTML=`<div class="modal" style="max-width:440px"><div class="modal-hd"><div class="modal-title">Настройки канбана</div><button class="modal-close" onclick="$('m-kb-settings').classList.remove('open')">×</button></div><div class="modal-body" id="m-kb-settings-body" style="max-height:70vh;overflow-y:auto"></div><div class="modal-ft" style="flex-direction:column;gap:8px"><div style="display:flex;gap:8px;width:100%"><input class="finput" id="kb-new-col" placeholder="Новый этап..."><button class="btn btn-ghost" onclick="addKanbanColumn()">+ Добавить</button></div><button class="btn btn-primary" id="kb-save-all-btn" onclick="saveAllKanbanSettings()" style="width:100%;justify-content:center;padding:10px;font-size:14px">💾 Сохранить настройки</button></div></div>`;
     document.body.appendChild(overlay);
   }
   
+  _renderKbSettingsBody();
+  overlay.classList.add('open');
+}
+
+function _renderKbSettingsBody(){
+  const allStatuses=['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
+  const fields=_pendingFields;
+  const cols=_pendingCols;
+  const srcColors=_pendingSrcColors;
+  const matRules=_pendingMatRules;
+  const matKeywords=_pendingMatKeywords;
+
   // Секция 1: Что показывать на карточке
   let h=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Поля на карточке</div>`;
   const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',address:'Адрес',date:'Дата создания',comment:'Комментарий',chat:'💬 Чат (если есть)'};
   Object.entries(FIELD_LABELS).forEach(([key,label])=>{
     h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
-      <input type="checkbox" ${fields[key]?'checked':''} onchange="toggleKanbanField('${key}',this.checked)" style="margin:0"> ${label}
+      <input type="checkbox" ${fields[key]?'checked':''} onchange="_pendingFields['${key}']=this.checked" style="margin:0"> ${label}
     </label>`;
   });
   
   // Секция 2: Цвета источников
-  const srcColors=getSourceColors();
   const allSources=Object.keys(srcColors);
   h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">🎨 Источники заказов</div>`;
   allSources.forEach(src=>{
@@ -98,10 +123,10 @@ function openKanbanSettings(){
     const DEFAULT_SOURCES=['Авито','Instagram','ВКонтакте','Телеграм','Обзвон','Рекомендация','Повторный','Другое'];
     const isCustom=!DEFAULT_SOURCES.includes(src);
     h+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-      <input type="color" value="${c}" onchange="setSourceColor('${src}',this.value)" style="width:28px;height:24px;border:none;padding:0;cursor:pointer;background:none">
+      <input type="color" value="${c}" onchange="_pendingSrcColors['${src}']=this.value" style="width:28px;height:24px;border:none;padding:0;cursor:pointer;background:none">
       <span style="font-size:13px;flex:1">${src}</span>
       <span style="font-size:10px;padding:2px 8px;border-radius:8px;background:${c}18;color:${c};font-weight:500">${src}</span>
-      ${isCustom?`<button onclick="removeSource('${src}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>`:'<span style="width:20px"></span>'}
+      ${isCustom?`<button onclick="delete _pendingSrcColors['${src}'];_renderKbSettingsBody()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>`:'<span style="width:20px"></span>'}
     </div>`;
   });
   h+=`<div style="display:flex;gap:6px;margin-top:8px;align-items:center">
@@ -110,7 +135,7 @@ function openKanbanSettings(){
     <button class="btn btn-primary" onclick="addSource()" style="padding:4px 12px">+</button>
   </div>`;
   
-  // Секция 2: Колонки
+  // Секция 3: Колонки
   h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">🗂 Колонки (этапы)</div>`;
   h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Порядок и видимость колонок</div>`;
   cols.forEach((col,i)=>{
@@ -133,8 +158,7 @@ function openKanbanSettings(){
     });
   }
   
-  // Секция: Проверка материалов при перемещении
-  const matRules=getMatCheckRules();
+  // Секция 4: Проверка материалов при перемещении
   h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">📦 Проверка материалов при перемещении</div>`;
   h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Для каждой колонки задайте какие материалы проверять перед перемещением карточки</div>`;
   
@@ -142,7 +166,7 @@ function openKanbanSettings(){
     const rule=matRules[col]||'none';
     h+=`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:12px;flex:1;min-width:80px">${col}</span>
-      <select onchange="setMatCheckRule('${col}',this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text2)">
+      <select onchange="_pendingMatRules['${col}']=this.value" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:'Geologica',sans-serif;background:var(--surface);color:var(--text2)">
         <option value="none"${rule==='none'?' selected':''}>Без проверки</option>
         <option value="sheets"${rule==='sheets'?' selected':''}>Листовые + кромка</option>
         <option value="all"${rule==='all'?' selected':''}>Все материалы</option>
@@ -151,24 +175,63 @@ function openKanbanSettings(){
   });
   
   // Ключевые слова для листовых
-  const matKeywords=getMatKeywords();
   h+=`<div style="margin-top:12px;font-size:11px;color:var(--text3)">Ключевые слова для "Листовые + кромка":</div>`;
   h+=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">`;
   matKeywords.forEach((kw,i)=>{
-    h+=`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;gap:4px">${kw}<button onclick="removeMatKeyword(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px">×</button></span>`;
+    h+=`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;gap:4px">${kw}<button onclick="_pendingMatKeywords.splice(${i},1);_renderKbSettingsBody()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px">×</button></span>`;
   });
   h+=`</div>`;
   h+=`<div style="display:flex;gap:6px;margin-top:6px"><input class="finput" id="new-mat-kw" placeholder="Новое слово..." style="flex:1;font-size:12px"><button class="btn btn-ghost" onclick="addMatKeyword()" style="font-size:11px;padding:3px 10px">+</button></div>`;
 
   $('m-kb-settings-body').innerHTML=h;
-  overlay.classList.add('open');
 }
 
-function toggleKanbanField(key,show){
-  const f=getKanbanFields();
-  f[key]=show;
-  saveKanbanFields(f);
+// ── Сохранение ВСЕХ настроек одной кнопкой ──
+async function saveAllKanbanSettings(){
+  const btn=$('kb-save-all-btn');
+  btn.textContent='⏳ Сохранение...'; btn.disabled=true;
+  
+  const settings={
+    kanban_fields:_pendingFields,
+    kanban_columns:_pendingCols,
+    source_colors:_pendingSrcColors,
+    mat_check_rules:_pendingMatRules,
+    mat_keywords:_pendingMatKeywords
+  };
+  
+  let hasError=false;
+  for(const [key,value] of Object.entries(settings)){
+    _appSettings[key]=value;
+    try{
+      const {error}=await sb.from('app_settings').upsert(
+        {key, value:JSON.stringify(value), updated_at:new Date().toISOString()},
+        {onConflict:'key'}
+      );
+      if(error){console.log('Settings save error ['+key+']:',error.message);hasError=true}
+    }catch(e){console.log('Settings save error ['+key+']:',e);hasError=true}
+  }
+  
+  localStorage.setItem('k2_app_settings',JSON.stringify(_appSettings));
+  updateSourceSelects();
   renderKanban();
+  
+  if(hasError){
+    btn.textContent='⚠️ Ошибка — попробуйте ещё раз';
+    btn.disabled=false;
+    setTimeout(()=>{btn.textContent='💾 Сохранить настройки'},3000);
+  } else {
+    btn.textContent='✅ Сохранено!';
+    setTimeout(()=>{
+      btn.textContent='💾 Сохранить настройки'; btn.disabled=false;
+      $('m-kb-settings').classList.remove('open');
+    },1000);
+    showToast('Настройки сохранены');
+  }
+}
+
+// ── Действия в модалке — только меняют pending state ──
+function toggleKanbanField(key,show){
+  _pendingFields[key]=show;
 }
 
 // ── Правила проверки материалов ──
@@ -181,9 +244,7 @@ function getMatCheckRules(){
 }
 
 function setMatCheckRule(col,rule){
-  const r=getMatCheckRules();
-  r[col]=rule;
-  saveSetting('mat_check_rules',r);
+  _pendingMatRules[col]=rule;
 }
 
 function getMatKeywords(){
@@ -193,53 +254,34 @@ function getMatKeywords(){
 function addMatKeyword(){
   const kw=($('new-mat-kw')?.value||'').trim().toLowerCase();
   if(!kw){showToast('Укажите слово');return}
-  const list=getMatKeywords();
-  if(list.includes(kw)){showToast('Уже есть');return}
-  list.push(kw);
-  saveSetting('mat_keywords',list);
-  $('new-mat-kw').value='';
-  openKanbanSettings();
+  if(_pendingMatKeywords.includes(kw)){showToast('Уже есть');return}
+  _pendingMatKeywords.push(kw);
+  _renderKbSettingsBody();
 }
 
 function removeMatKeyword(i){
-  const list=getMatKeywords();
-  list.splice(i,1);
-  saveSetting('mat_keywords',list);
-  openKanbanSettings();
+  _pendingMatKeywords.splice(i,1);
+  _renderKbSettingsBody();
 }
 
 function setSourceColor(src,color){
-  const c=getSourceColors();
-  c[src]=color;
-  saveSourceColors(c);
-  renderKanban();
-  openKanbanSettings();
+  _pendingSrcColors[src]=color;
 }
 
 function addSource(){
   const name=$('new-src-name').value.trim();
   const color=$('new-src-color').value||'#8b5cf6';
   if(!name){showToast('Укажите название');return}
-  const c=getSourceColors();
-  if(c[name]){showToast('Такой источник уже есть');return}
-  c[name]=color;
-  saveSourceColors(c);
-  // Добавляем в select источников в модалке заказа
-  updateSourceSelects();
-  $('new-src-name').value='';
-  openKanbanSettings();
-  renderKanban();
+  if(_pendingSrcColors[name]){showToast('Такой источник уже есть');return}
+  _pendingSrcColors[name]=color;
+  _renderKbSettingsBody();
   showToast('Источник "'+name+'" добавлен');
 }
 
 function removeSource(src){
   if(!confirm('Удалить источник "'+src+'"?')) return;
-  const c=getSourceColors();
-  delete c[src];
-  saveSourceColors(c);
-  updateSourceSelects();
-  openKanbanSettings();
-  renderKanban();
+  delete _pendingSrcColors[src];
+  _renderKbSettingsBody();
 }
 
 function updateSourceSelects(){
@@ -259,42 +301,31 @@ function updateSourceSelects(){
 }
 
 function toggleKanbanCol(col,show){
-  let cols=getKanbanColumns();
-  if(show&&!cols.includes(col)) cols.push(col);
-  else if(!show) cols=cols.filter(c=>c!==col);
-  saveKanbanColumns(cols);
-  openKanbanSettings();
-  renderKanban();
+  if(show&&!_pendingCols.includes(col)) _pendingCols.push(col);
+  else if(!show) _pendingCols=_pendingCols.filter(c=>c!==col);
+  _renderKbSettingsBody();
 }
 
 function moveKanbanCol(idx,dir){
-  let cols=getKanbanColumns();
   const newIdx=idx+dir;
-  if(newIdx<0||newIdx>=cols.length) return;
-  [cols[idx],cols[newIdx]]=[cols[newIdx],cols[idx]];
-  saveKanbanColumns(cols);
-  openKanbanSettings();
-  renderKanban();
+  if(newIdx<0||newIdx>=_pendingCols.length) return;
+  [_pendingCols[idx],_pendingCols[newIdx]]=[_pendingCols[newIdx],_pendingCols[idx]];
+  _renderKbSettingsBody();
 }
 
 function removeKanbanCol(col){
   if(!confirm('Удалить этап "'+col+'"?')) return;
-  let cols=getKanbanColumns().filter(c=>c!==col);
-  saveKanbanColumns(cols);
-  openKanbanSettings();
-  renderKanban();
+  _pendingCols=_pendingCols.filter(c=>c!==col);
+  _renderKbSettingsBody();
 }
 
 function addKanbanColumn(){
   const name=$('kb-new-col').value.trim();
   if(!name){showToast('Укажите название');return}
-  let cols=getKanbanColumns();
-  if(cols.includes(name)){showToast('Такой этап уже есть');return}
-  cols.push(name);
-  saveKanbanColumns(cols);
+  if(_pendingCols.includes(name)){showToast('Такой этап уже есть');return}
+  _pendingCols.push(name);
   $('kb-new-col').value='';
-  openKanbanSettings();
-  renderKanban();
+  _renderKbSettingsBody();
   showToast('Этап "'+name+'" добавлен');
 }
 
