@@ -192,8 +192,8 @@ function openEdit(rid){
   $('f-sum').value=sum||'';
   $('f-prepay').value=prep||'';
   $('f-dopay').value=sum>0?Math.max(0,sum-prep):'';
-  const ddl=pDate(o.deadline); $('f-ddl').value=ddl?ddl.toISOString().split('T')[0]:'';
-  const dt=pDate(o.order_date); $('f-date').value=dt?dt.toISOString().split('T')[0]:'';
+  const ddl=pDate(o.deadline); $('f-ddl').value=ddl?localDateStr(ddl):'';
+  const dt=pDate(o.order_date); $('f-date').value=dt?localDateStr(dt):'';
   $('f-status').value=(o.status||'').trim()||'Новый';
   setSourceValue(o.source||'Авито');
   // Файлы — показываем и загружаем
@@ -303,6 +303,7 @@ async function suggestNewMaterials(mats){
 }
 
 // ── ORDER MATERIAL PICKER ─────────────────────────────
+let _pendingMoveOrderNum=null, _pendingMoveStatus=null;
 let orderMatCounter=0;
 
 function addOrderMat(name='', qty=1, price=0){
@@ -478,7 +479,7 @@ async function saveQuickStock(){
     
     // Оформляем приход
     const moveRow={
-      move_date:new Date().toISOString().split('T')[0],
+      move_date:localDateStr(new Date()),
       move_type:'in',item_id:si.item_id,qty,unit:si.unit||unit,
       price,order_num:orderNum,comment:'Приход из карточки заказа'
     };
@@ -582,7 +583,7 @@ function buildSpecJson(){
   if(!mats.length) return '';
   return JSON.stringify({
     kp:true, direct:true,
-    date:$('f-date').value||new Date().toISOString().split('T')[0],
+    date:$('f-date').value||localDateStr(new Date()),
     coef:1, disc:0, prepayPct:50,
     mats:mats, works:[],
     total:'', profit:'', margin:''
@@ -617,6 +618,8 @@ async function saveOrder(){
     const payCheckCols=getPaymentCheckCols();
     if(payCheckCols[newStatus] && sum>0 && prep<sum){
       const debt=sum-prep;
+      _pendingMoveOrderNum=oldOrder.order_num;
+      _pendingMoveStatus=newStatus;
       let overlay=$('m-block');
       if(!overlay){
         overlay=document.createElement('div');
@@ -642,9 +645,10 @@ async function saveOrder(){
             <div style="font-size:17px;font-weight:600;color:var(--red)">${debt.toLocaleString('ru-RU')} ₽</div>
           </div>
         </div>
+        <div style="margin-bottom:10px;font-size:12px;color:var(--accent);text-align:center">После оплаты заказ автоматически перейдёт в «${newStatus}»</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="document.getElementById('m-block').classList.remove('open');openPrepay('${oldOrder.order_num}')" style="flex:1;justify-content:center">Внести оплату →</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Отмена</button>
+          <button class="btn btn-ghost" onclick="_pendingMoveOrderNum=null;_pendingMoveStatus=null;document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Отмена</button>
         </div>`;
       overlay.classList.add('open');
       btn.textContent='Сохранить'; btn.disabled=false;
@@ -657,7 +661,7 @@ async function saveOrder(){
   if(formMats.length>0){
     specValue=JSON.stringify({
       kp:true, direct:true,
-      date:$('f-date').value||new Date().toISOString().split('T')[0],
+      date:$('f-date').value||localDateStr(new Date()),
       coef:1, disc:0, prepayPct:50,
       mats:formMats, works:[],
       total:'', profit:'', margin:''
@@ -855,7 +859,7 @@ async function reserveMaterials(orderNum, mats){
     const stock=skladStock(itemId);
     if(stock<mat.qty) warnings.push(mat.name+': в наличии '+stock+', нужно '+mat.qty);
     moves.push({
-      move_date:new Date().toISOString().split('T')[0],
+      move_date:localDateStr(new Date()),
       move_type:'reserve',
       item_id:itemId,
       qty:mat.qty,
@@ -888,7 +892,7 @@ async function convertReserveToOut(orderNum, mats){
     const stock=skladStock(itemId);
     if(stock<mat.qty) warnings.push('⚠ '+mat.name+': в наличии '+stock+', нужно '+mat.qty+' — ЗАКАЖИТЕ!');
     moves.push({
-      move_date:new Date().toISOString().split('T')[0],
+      move_date:localDateStr(new Date()),
       move_type:'out',
       item_id:itemId,
       qty:mat.qty,
@@ -1003,12 +1007,14 @@ async function quickStatus(rid,newSt){
     const paid=parseFloat(o.prepay)||0;
     if(sum>0 && paid<sum){
       const debt=sum-paid;
+      _pendingMoveOrderNum=rid;
+      _pendingMoveStatus=newSt;
       let overlay=$('m-block');
       if(!overlay){
         overlay=document.createElement('div');
         overlay.className='overlay';
         overlay.id='m-block';
-        overlay.innerHTML=`<div class="modal" style="max-width:480px"><div class="modal-hd"><div class="modal-title">Нехватка материала</div><button class="modal-close" onclick="this.closest('.overlay').classList.remove('open')">×</button></div><div class="modal-body" id="m-block-body"></div></div>`;
+        overlay.innerHTML=`<div class="modal" style="max-width:480px"><div class="modal-hd"><div class="modal-title">Проверка оплаты</div><button class="modal-close" onclick="this.closest('.overlay').classList.remove('open')">×</button></div><div class="modal-body" id="m-block-body"></div></div>`;
         document.body.appendChild(overlay);
       }
       $('m-block-body').innerHTML=`
@@ -1028,9 +1034,10 @@ async function quickStatus(rid,newSt){
             <div style="font-size:17px;font-weight:600;color:var(--red)">${debt.toLocaleString('ru-RU')} ₽</div>
           </div>
         </div>
+        <div style="margin-bottom:10px;font-size:12px;color:var(--accent);text-align:center">После оплаты заказ автоматически перейдёт в «${newSt}»</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="document.getElementById('m-block').classList.remove('open');openPrepay('${rid}')" style="flex:1;justify-content:center">Внести оплату →</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Закрыть</button>
+          <button class="btn btn-ghost" onclick="_pendingMoveOrderNum=null;_pendingMoveStatus=null;document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Отмена</button>
         </div>`;
       overlay.classList.add('open');
       render();
@@ -1100,7 +1107,7 @@ async function quickStatus(rid,newSt){
           const itemId=findSkladItemId(mat.name);
           if(!itemId) continue;
           moves.push({
-            move_date:new Date().toISOString().split('T')[0],
+            move_date:localDateStr(new Date()),
             move_type:'in', item_id:itemId, qty:mat.qty, unit:'шт',
             price:0, order_num:rid, comment:'Возврат — клиент отказался'
           });
@@ -1193,7 +1200,7 @@ function openPrepay(rid){
   $('mp-btn-add').style.color='var(--accent-text)';
   $('mp-btn-sub').style.background=''; $('mp-btn-sub').style.color='';
   $('mp-input-label').textContent='Добавить сумму (₽)';
-  $('mp-date').value=new Date().toISOString().split('T')[0];
+  $('mp-date').value=localDateStr(new Date());
   $('mp-note').value='';
   $('m-prepay').classList.add('open');
   // Загружаем историю платежей
@@ -1219,7 +1226,7 @@ async function savePrepay(){
   newPrepay=Math.max(0,newPrepay);
   if(sum>0&&newPrepay>sum){showToast('Сумма превышает договор');return}
   const newDopay=sum>0?Math.max(0,sum-newPrepay):0;
-  const payDate=$('mp-date')?.value||new Date().toISOString().split('T')[0];
+  const payDate=$('mp-date')?.value||localDateStr(new Date());
   const note=$('mp-note')?.value||'';
   try{
     // Записываем платёж в таблицу payments
@@ -1242,6 +1249,20 @@ async function savePrepay(){
     const _scrollPay=_kbPay?_kbPay.scrollLeft:0;
     closePrepay(); render(); updateStats(); showToast('Оплата обновлена');
     setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=_scrollPay},50);
+    
+    // Автоперемещение в целевую колонку если оплата полная
+    if(_pendingMoveOrderNum && _pendingMoveStatus && o.order_num===_pendingMoveOrderNum){
+      const targetSt=_pendingMoveStatus;
+      _pendingMoveOrderNum=null;
+      _pendingMoveStatus=null;
+      const newSum=parseFloat(o.order_sum)||0;
+      if(newSum<=0 || newPrepay>=newSum){
+        // Оплата полная — перемещаем
+        setTimeout(()=>quickStatus(o.order_num, targetSt), 300);
+      } else {
+        showToast('Оплата внесена, но ещё не полная. Остаток: '+fmt(newSum-newPrepay));
+      }
+    }
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
 

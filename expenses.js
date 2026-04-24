@@ -29,9 +29,13 @@ async function loadExpenses(){
     if(eRes.data) expenses=eRes.data;
     if(cRes.data) expCategories=cRes.data;
     fillExpCatFilter();
-    await processRecurringExpenses(); // Автосоздание регулярных за текущий месяц
-    if(!expensesLoaded){ setExpPeriod('month'); expensesLoaded=true; }
-    else renderExpenses();
+    if(!expensesLoaded){
+      await processRecurringExpenses(); // Только один раз при первом входе
+      setExpPeriod('month');
+      expensesLoaded=true;
+    } else {
+      renderExpenses();
+    }
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
 
@@ -52,11 +56,11 @@ async function processRecurringExpenses(){
     const expDate=yearMonth+'-'+String(day).padStart(2,'0');
     
     // Проверяем — уже есть расход за этот месяц от этого регулярного?
+    // Сравниваем по: дата, категория, сумма (description может отличаться из-за 🔄)
     const exists=expenses.find(e=>
-      !e.is_recurring &&
+      e.id!==r.id &&
       e.expense_date===expDate &&
       e.category===r.category &&
-      e.description===r.description &&
       Math.abs((parseFloat(e.amount)||0)-(parseFloat(r.amount)||0))<0.01
     );
     if(exists) continue;
@@ -65,7 +69,7 @@ async function processRecurringExpenses(){
       expense_date:expDate,
       category:r.category,
       amount:parseFloat(r.amount)||0,
-      description:(r.description||'')+(r.description?' ':'')+'🔄',
+      description:(r.description||'')+' 🔄',
       order_num:r.order_num||null,
       is_recurring:false,
       recurring_day:null
@@ -341,7 +345,10 @@ async function saveExpense(){
       showToast('Расход добавлен');
     }
     closeExpense();
-    await loadExpenses();
+    // Перезагружаем данные из Supabase и сразу рендерим
+    const {data}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
+    if(data) expenses=data;
+    renderExpenses();
     render(); // обновляем колонку расходов в заказах
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
@@ -353,8 +360,11 @@ async function deleteExpense(){
     const {error}=await sb.from('expenses').delete().eq('id',expEditId);
     if(error) throw error;
     closeExpense();
-    await loadExpenses();
-    render(); // обновляем колонку расходов в заказах
+    // Перезагружаем данные из Supabase и сразу рендерим
+    const {data}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
+    if(data) expenses=data;
+    renderExpenses();
+    render();
     showToast('Расход удалён');
   }catch(e){ showToast('Ошибка: '+e.message) }
 }
