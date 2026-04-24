@@ -378,8 +378,8 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Просрочено</div><div class="val red" id="d-overdue">—</div></div>
         <div class="stat"><div class="lbl">Готово к выдаче</div><div class="val green" id="d-ready">—</div></div>
         <div class="stat"><div class="lbl">Ожидают оплаты</div><div class="val" id="d-unpaid" style="color:var(--amber)">—</div></div>
-        <div class="stat"><div class="lbl">Доход за месяц</div><div class="val green" id="d-month-income">—</div></div>
-        <div class="stat"><div class="lbl">Расходы за месяц</div><div class="val red" id="d-month-expense">—</div></div>
+        <div class="stat"><div class="lbl">Поступления за месяц</div><div class="val green" id="d-month-income">—</div></div>
+        <div class="stat"><div class="lbl">Затраты за месяц</div><div class="val red" id="d-month-expense">—</div></div>
       </div>
 
       <!-- Два блока: внимание + деньги -->
@@ -1223,15 +1223,11 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="f full"><label class="flabel">Начальный остаток</label><input class="finput" type="number" id="si-stock" min="0" placeholder="0"></div>
       </div>
     </div>
-    <div class="modal-ft" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-ghost" id="si-del-btn" onclick="deleteSkladItem()" style="display:none;color:var(--red);border-color:var(--red);font-size:12px;padding:6px 10px">🗑 Удалить</button>
-        <button class="btn btn-ghost" id="si-merge-btn" onclick="openMergeSklad()" style="display:none;font-size:12px;padding:6px 10px">🔗 Объединить</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-left:auto">
-        <button class="btn btn-ghost" onclick="closeSkladItem()" style="font-size:12px;padding:6px 10px">Отмена</button>
+    <div class="modal-ft" style="display:flex;align-items:center;gap:6px;justify-content:flex-end;flex-wrap:nowrap">
+        <button class="btn btn-ghost" id="si-del-btn" onclick="deleteSkladItem()" style="display:none;color:var(--red);border-color:var(--red);padding:6px 8px;font-size:12px;margin-right:auto">🗑</button>
+        <button class="btn btn-ghost" id="si-merge-btn" onclick="openMergeSklad()" style="display:none;font-size:12px;padding:6px 10px;margin-right:auto">🔗 Объединить</button>
+        <button class="btn btn-ghost" onclick="closeSkladItem()" style="font-size:12px;padding:6px 12px">Отмена</button>
         <button class="btn btn-primary" onclick="saveSkladItem()" style="font-size:12px;padding:6px 14px">Сохранить</button>
-      </div>
     </div>
   </div>
 </div>

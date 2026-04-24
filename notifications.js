@@ -7,15 +7,15 @@ let analyticsInited=false;
 function setAPeriod(mode){
   const now=new Date();
   if(mode==='month'){
-    $('a-from').value=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
-    $('a-to').value=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];
+    $('a-from').value=localDateStr(new Date(now.getFullYear(),now.getMonth(),1));
+    $('a-to').value=localDateStr(new Date(now.getFullYear(),now.getMonth()+1,0));
   } else if(mode==='quarter'){
     const qm=Math.floor(now.getMonth()/3)*3;
-    $('a-from').value=new Date(now.getFullYear(),qm,1).toISOString().split('T')[0];
-    $('a-to').value=new Date(now.getFullYear(),qm+3,0).toISOString().split('T')[0];
+    $('a-from').value=localDateStr(new Date(now.getFullYear(),qm,1));
+    $('a-to').value=localDateStr(new Date(now.getFullYear(),qm+3,0));
   } else if(mode==='year'){
-    $('a-from').value=new Date(now.getFullYear(),0,1).toISOString().split('T')[0];
-    $('a-to').value=new Date(now.getFullYear(),11,31).toISOString().split('T')[0];
+    $('a-from').value=localDateStr(new Date(now.getFullYear(),0,1));
+    $('a-to').value=localDateStr(new Date(now.getFullYear(),11,31));
   } else {
     $('a-from').value=''; $('a-to').value='';
   }

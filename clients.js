@@ -37,16 +37,32 @@ async function renderDashboard(){
   // Месяц — расходы из expenses
   const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
   const monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0); // последний день месяца
-  const monthExpense=expenses.filter(e=>{const d=new Date(e.expense_date);return d>=monthStart&&d<=monthEnd}).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const monthExpense=expenses.filter(e=>{
+    const d=new Date(e.expense_date);d.setHours(0,0,0,0);
+    return d>=monthStart&&d<=monthEnd;
+  }).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   
-  // Месяц — доходы из payments
-  let monthIncome=0;
-  try{
-    const mStartStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';
-    const mEndStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(monthEnd.getDate()).padStart(2,'0');
-    const {data:pmts}=await sb.from('payments').select('amount').gte('payment_date',mStartStr).lte('payment_date',mEndStr);
-    if(pmts) monthIncome=pmts.reduce((s,p)=>s+Math.max(0,parseFloat(p.amount)||0),0);
-  }catch(e){}
+  // Месяц — поступления: все prepay по заказам за месяц
+  const monthAllOrders=orders.filter(o=>{
+    const d=pDate(o.order_date);if(!d)return false;d.setHours(0,0,0,0);
+    return d>=monthStart&&d<=monthEnd;
+  });
+  const monthWorkOrders=monthAllOrders.filter(o=>{
+    const s=(o.status||'').trim();
+    return s!=='Отправлено КП'&&s!=='Отказались';
+  });
+  const monthIncome=monthWorkOrders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  
+  // Месяц — себестоимость: материалы + работы из спецификаций заказов за месяц
+  let monthMatCost=0, monthWorkCost=0;
+  monthWorkOrders.forEach(o=>{
+    try{
+      const sp=JSON.parse(o.specification||'');
+      if(sp&&sp.mats) sp.mats.forEach(m=>{monthMatCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
+      if(sp&&sp.works) sp.works.forEach(w=>{monthWorkCost+=(parseFloat(w.price)||0)*(parseFloat(w.qty)||0)});
+    }catch(e){}
+  });
+  const monthCost=monthMatCost+monthWorkCost;
   
   // KPI
   $('d-active').textContent=active.length;
@@ -55,7 +71,7 @@ async function renderDashboard(){
   $('d-ready').textContent=ready.length;
   $('d-unpaid').textContent=unpaid.length;
   $('d-month-income').textContent=fmt(monthIncome);
-  $('d-month-expense').textContent=fmt(monthExpense);
+  $('d-month-expense').textContent=fmt(totalExpWithCost);
   
   // ═══ СРОЧНОЕ (красная плашка если есть) ═══
   const urgentItems=[];
@@ -105,20 +121,35 @@ async function renderDashboard(){
   }
   
   // ═══ ФИНАНСЫ ═══
-  const profit=monthIncome-monthExpense;
+  const totalExpWithCost=monthCost+monthExpense;
+  const profit=monthIncome-totalExpWithCost;
   let fh=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
     <div style="text-align:center;padding:8px;background:var(--accent-light);border-radius:var(--rs)">
-      <div style="font-size:10px;color:var(--accent-text)">Доход</div>
+      <div style="font-size:10px;color:var(--accent-text)">Поступления</div>
       <div style="font-size:14px;font-weight:700;color:var(--accent-text)">${fmt(monthIncome)}</div>
     </div>
     <div style="text-align:center;padding:8px;background:var(--red-light);border-radius:var(--rs)">
-      <div style="font-size:10px;color:var(--red)">Расходы</div>
-      <div style="font-size:14px;font-weight:700;color:var(--red)">${fmt(monthExpense)}</div>
+      <div style="font-size:10px;color:var(--red)">Себестоимость</div>
+      <div style="font-size:14px;font-weight:700;color:var(--red)">${fmt(monthCost)}</div>
     </div>
   </div>
-  <div style="text-align:center;padding:6px;background:${profit>=0?'var(--accent-light)':'var(--red-light)'};border-radius:var(--rs);margin-bottom:8px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+    <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:var(--rs)">
+      <div style="font-size:9px;color:var(--text3)">Материалы</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2)">${fmt(monthMatCost)}</div>
+    </div>
+    <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:var(--rs)">
+      <div style="font-size:9px;color:var(--text3)">Работа</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2)">${fmt(monthWorkCost)}</div>
+    </div>
+  </div>
+  ${monthExpense?`<div style="text-align:center;padding:6px;background:var(--surface2);border-radius:var(--rs);margin-bottom:8px">
+    <div style="font-size:9px;color:var(--text3)">Расходы</div>
+    <div style="font-size:12px;font-weight:600;color:var(--red)">${fmt(monthExpense)}</div>
+  </div>`:''}
+  <div style="text-align:center;padding:8px;background:${profit>=0?'var(--accent-light)':'var(--red-light)'};border-radius:var(--rs);margin-bottom:8px">
     <span style="font-size:10px;color:var(--text3)">Прибыль: </span>
-    <span style="font-size:14px;font-weight:700;color:${profit>=0?'var(--accent-text)':'var(--red)'}">${profit>=0?'+':''}${fmt(profit)}</span>
+    <span style="font-size:15px;font-weight:700;color:${profit>=0?'var(--accent-text)':'var(--red)'}">${profit>=0?'+':''}${fmt(profit)}</span>
   </div>`;
   if(unpaid.length){
     fh+=`<div style="font-size:11px;color:var(--amber);margin-bottom:4px">Ожидают оплаты: ${unpaid.length} заказов</div>

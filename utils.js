@@ -99,6 +99,7 @@ function $(x){ return document.getElementById(x) }
 function fmt(n){ return Math.round(n).toLocaleString('ru-RU')+' ₽' }
 function fmtK(n){ return n>=1000?Math.round(n/1000)+'к ₽':Math.round(n)+' ₽' }
 function pDate(v){ if(!v)return null; const d=new Date(v); return isNaN(d)?null:d }
+function localDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') }
 function badgeClass(st){ return{'Отправлено КП':'b-kp',Новый:'b-new','Материал заказан':'b-kp','В работе':'b-work','Готов к выдаче':'b-ready',Отгружен:'b-ship',Закрыт:'b-done',Приостановлен:'b-pause',Рекламация:'b-refuse',Отказались:'b-refuse'}[st]||'b-done' }
 function showToast(msg){ const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500) }
 function sync(state,txt){
@@ -190,13 +191,13 @@ function setPeriod(mode){
   if(mode==='month'){
     const from=new Date(now.getFullYear(),now.getMonth(),1);
     const to=new Date(now.getFullYear(),now.getMonth()+1,0);
-    $('p-from').value=from.toISOString().split('T')[0];
-    $('p-to').value=to.toISOString().split('T')[0];
+    $('p-from').value=localDateStr(from);
+    $('p-to').value=localDateStr(to);
   } else if(mode==='prev'){
     const from=new Date(now.getFullYear(),now.getMonth()-1,1);
     const to=new Date(now.getFullYear(),now.getMonth(),0);
-    $('p-from').value=from.toISOString().split('T')[0];
-    $('p-to').value=to.toISOString().split('T')[0];
+    $('p-from').value=localDateStr(from);
+    $('p-to').value=localDateStr(to);
   } else { $('p-from').value=''; $('p-to').value=''; }
   updateStats();
   renderKanban();
