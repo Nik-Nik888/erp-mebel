@@ -7,15 +7,15 @@ let expensesLoaded=false;
 function setExpPeriod(mode){
   const now=new Date();
   if(mode==='month'){
-    $('exp-from').value=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
-    $('exp-to').value=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];
+    $('exp-from').value=localDateStr(new Date(now.getFullYear(),now.getMonth(),1));
+    $('exp-to').value=localDateStr(new Date(now.getFullYear(),now.getMonth()+1,0));
   } else if(mode==='quarter'){
     const qm=Math.floor(now.getMonth()/3)*3;
-    $('exp-from').value=new Date(now.getFullYear(),qm,1).toISOString().split('T')[0];
-    $('exp-to').value=new Date(now.getFullYear(),qm+3,0).toISOString().split('T')[0];
+    $('exp-from').value=localDateStr(new Date(now.getFullYear(),qm,1));
+    $('exp-to').value=localDateStr(new Date(now.getFullYear(),qm+3,0));
   } else if(mode==='year'){
-    $('exp-from').value=new Date(now.getFullYear(),0,1).toISOString().split('T')[0];
-    $('exp-to').value=new Date(now.getFullYear(),11,31).toISOString().split('T')[0];
+    $('exp-from').value=localDateStr(new Date(now.getFullYear(),0,1));
+    $('exp-to').value=localDateStr(new Date(now.getFullYear(),11,31));
   } else { $('exp-from').value=''; $('exp-to').value=''; }
   renderExpenses();
 }
@@ -29,9 +29,58 @@ async function loadExpenses(){
     if(eRes.data) expenses=eRes.data;
     if(cRes.data) expCategories=cRes.data;
     fillExpCatFilter();
+    await processRecurringExpenses(); // Автосоздание регулярных за текущий месяц
     if(!expensesLoaded){ setExpPeriod('month'); expensesLoaded=true; }
     else renderExpenses();
   }catch(e){ showToast('Ошибка: '+e.message) }
+}
+
+// ── Автосоздание регулярных расходов за текущий месяц ──
+async function processRecurringExpenses(){
+  const recur=expenses.filter(e=>e.is_recurring);
+  if(!recur.length) return;
+  
+  const now=new Date();
+  const yearMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const today=now.getDate();
+  let created=0;
+  
+  for(const r of recur){
+    const day=r.recurring_day||1;
+    if(today<day) continue; // ещё не наступил день списания
+    
+    const expDate=yearMonth+'-'+String(day).padStart(2,'0');
+    
+    // Проверяем — уже есть расход за этот месяц от этого регулярного?
+    const exists=expenses.find(e=>
+      !e.is_recurring &&
+      e.expense_date===expDate &&
+      e.category===r.category &&
+      e.description===r.description &&
+      Math.abs((parseFloat(e.amount)||0)-(parseFloat(r.amount)||0))<0.01
+    );
+    if(exists) continue;
+    
+    const row={
+      expense_date:expDate,
+      category:r.category,
+      amount:parseFloat(r.amount)||0,
+      description:(r.description||'')+(r.description?' ':'')+'🔄',
+      order_num:r.order_num||null,
+      is_recurring:false,
+      recurring_day:null
+    };
+    
+    try{
+      const {data,error}=await sb.from('expenses').insert(row).select().single();
+      if(!error&&data){
+        expenses.unshift(data);
+        created++;
+      }
+    }catch(e){console.log('Recurring create error:',e)}
+  }
+  
+  if(created) showToast('🔄 Создано '+created+' регулярных расходов');
 }
 
 function getExpFiltered(){
@@ -68,6 +117,28 @@ function fillExpCatFilter(){
 
 function renderExpenses(){
   const filtered=getExpFiltered();
+  
+  // Собираем себестоимость из заказов за тот же период
+  const from=$('exp-from').value?new Date($('exp-from').value):null;
+  const to=$('exp-to').value?new Date($('exp-to').value+'T23:59:59'):null;
+  const orderCosts=[];
+  orders.forEach(o=>{
+    const d=pDate(o.order_date);if(!d)return;
+    if(from&&d<from)return;if(to&&d>to)return;
+    const s=(o.status||'').trim();
+    if(s==='Отправлено КП'||s==='Отказались')return;
+    try{
+      const sp=JSON.parse(o.specification||'');
+      let matCost=0,workCost=0;
+      if(sp&&sp.mats) sp.mats.forEach(m=>{matCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
+      if(sp&&sp.works) sp.works.forEach(w=>{workCost+=(parseFloat(w.price)||0)*(parseFloat(w.qty)||0)});
+      if(matCost>0) orderCosts.push({type:'mat',date:o.order_date,order_num:o.order_num,client:o.client,amount:matCost});
+      if(workCost>0) orderCosts.push({type:'work',date:o.order_date,order_num:o.order_num,client:o.client,amount:workCost});
+    }catch(e){}
+  });
+  const totalOrderMatCost=orderCosts.filter(c=>c.type==='mat').reduce((s,c)=>s+c.amount,0);
+  const totalOrderWorkCost=orderCosts.filter(c=>c.type==='work').reduce((s,c)=>s+c.amount,0);
+  
   // KPI
   const total=filtered.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   const matSum=filtered.filter(e=>e.category==='Материалы').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
@@ -76,13 +147,13 @@ function renderExpenses(){
   const fixedSum=filtered.filter(e=>fixedCats.includes(e.category)).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   const recurCount=expenses.filter(e=>e.is_recurring).length;
 
-  $('exp-total').textContent=fmt(total);
-  $('exp-mat').textContent=fmt(matSum);
-  $('exp-salary').textContent=fmt(salarySum);
+  $('exp-total').textContent=fmt(total+totalOrderMatCost+totalOrderWorkCost);
+  $('exp-mat').textContent=fmt(matSum+totalOrderMatCost);
+  $('exp-salary').textContent=fmt(salarySum+totalOrderWorkCost);
   $('exp-fixed').textContent=fmt(fixedSum);
   $('exp-recur').textContent=recurCount;
 
-  renderExpList();
+  renderExpList(orderCosts);
   renderExpByCat();
   renderExpRecurring();
 }
@@ -98,26 +169,57 @@ function setExpTab(tab,el){
   if(tab==='template') renderExpTemplate();
 }
 
-function renderExpList(){
+function renderExpList(orderCosts){
   const q=($('exp-search')?.value||'').toLowerCase();
   const catFilter=$('exp-filter-cat')?.value||'';
   let list=getExpFiltered();
   if(catFilter) list=list.filter(e=>e.category===catFilter);
   if(q) list=list.filter(e=>(e.description||'').toLowerCase().includes(q)||(e.category||'').toLowerCase().includes(q)||(e.order_num||'').toLowerCase().includes(q));
 
-  if(!list.length){$('exp-list-body').innerHTML='<div class="empty-state">Расходов не найдено</div>';return}
+  // Объединяем с себестоимостью заказов
+  const costRows=(orderCosts||[]).filter(c=>{
+    if(catFilter&&catFilter!=='Себестоимость') return false;
+    if(q){
+      const s=(c.client||'').toLowerCase()+(c.order_num||'').toLowerCase()+(c.type==='mat'?'материалы':'работа');
+      if(!s.includes(q)) return false;
+    }
+    return true;
+  }).map(c=>({
+    _isCost:true,
+    expense_date:c.date,
+    category:c.type==='mat'?'📦 Материалы (себест.)':'🔧 Работа (себест.)',
+    description:(c.client||'—'),
+    order_num:c.order_num,
+    amount:c.amount
+  }));
+
+  const merged=[...list.map(e=>({...e,_isCost:false})),...costRows];
+  merged.sort((a,b)=>new Date(b.expense_date)-new Date(a.expense_date));
+
+  if(!merged.length){$('exp-list-body').innerHTML='<div class="empty-state">Расходов не найдено</div>';return}
   let h=`<table><thead><tr><th>Дата</th><th>Категория</th><th>Описание</th><th>Заказ</th><th style="text-align:right">Сумма</th><th></th></tr></thead><tbody>`;
-  list.forEach(e=>{
-    const ci=getCatInfo(e.category);
+  merged.forEach(e=>{
     const d=e.expense_date?new Date(e.expense_date).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
-    h+=`<tr>
-      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${d}</td>
-      <td><span style="background:${ci.color}18;color:${ci.color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">${ci.icon} ${e.category}</span></td>
-      <td style="font-size:12px">${e.description||'—'}${e.is_recurring?'<span style="margin-left:4px;font-size:10px;color:var(--blue)">🔄</span>':''}</td>
-      <td style="font-size:11px;color:var(--blue)">${e.order_num||'—'}</td>
-      <td style="text-align:right;font-weight:600;color:var(--red);font-size:13px">${(parseFloat(e.amount)||0).toLocaleString('ru-RU')} ₽</td>
-      <td><button class="btn btn-ghost" style="padding:2px 8px;font-size:11px" onclick="openExpense(${e.id})">Изм.</button></td>
-    </tr>`;
+    if(e._isCost){
+      h+=`<tr style="background:var(--accent-light)">
+        <td style="color:var(--text3);font-size:11px;white-space:nowrap">${d}</td>
+        <td><span style="background:var(--accent-light);color:var(--accent-text);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">${e.category}</span></td>
+        <td style="font-size:12px">${e.description}</td>
+        <td style="font-size:11px;color:var(--blue);cursor:pointer" onclick="showPage('orders');setTimeout(()=>openEdit('${e.order_num}'),200)">${e.order_num||'—'}</td>
+        <td style="text-align:right;font-weight:600;color:var(--amber);font-size:13px">${(parseFloat(e.amount)||0).toLocaleString('ru-RU')} ₽</td>
+        <td></td>
+      </tr>`;
+    } else {
+      const ci=getCatInfo(e.category);
+      h+=`<tr>
+        <td style="color:var(--text3);font-size:11px;white-space:nowrap">${d}</td>
+        <td><span style="background:${ci.color}18;color:${ci.color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500">${ci.icon} ${e.category}</span></td>
+        <td style="font-size:12px">${e.description||'—'}${e.is_recurring?'<span style="margin-left:4px;font-size:10px;color:var(--blue)">🔄</span>':''}</td>
+        <td style="font-size:11px;color:var(--blue)">${e.order_num||'—'}</td>
+        <td style="text-align:right;font-weight:600;color:var(--red);font-size:13px">${(parseFloat(e.amount)||0).toLocaleString('ru-RU')} ₽</td>
+        <td><button class="btn btn-ghost" style="padding:2px 8px;font-size:11px" onclick="openExpense(${e.id})">Изм.</button></td>
+      </tr>`;
+    }
   });
   h+='</tbody></table>';
   $('exp-list-body').innerHTML=h;
@@ -187,7 +289,7 @@ function openExpense(id=null){
   expEditId=id;
   $('exp-modal-title').textContent=id?'Редактировать расход':'Новый расход';
   $('exp-del-btn').style.display=id?'inline-flex':'none';
-  $('exp-date').value=new Date().toISOString().split('T')[0];
+  $('exp-date').value=localDateStr(new Date());
   $('exp-amount').value='';
   $('exp-desc').value='';
   $('exp-order').value='';
@@ -218,7 +320,7 @@ async function saveExpense(){
   const amount=parseFloat($('exp-amount').value)||0;
   if(amount<=0){showToast('Укажите сумму');return}
   const row={
-    expense_date:$('exp-date').value||new Date().toISOString().split('T')[0],
+    expense_date:$('exp-date').value||localDateStr(new Date()),
     category:$('exp-cat').value||'Прочее',
     amount:amount,
     description:$('exp-desc').value||'',
@@ -405,7 +507,7 @@ function removeExpTemplate(idx){
 async function autoCreateExpenses(orderNum){
   const tpls=getExpTemplates();
   if(!tpls.length) return;
-  const today=new Date().toISOString().split('T')[0];
+  const today=localDateStr(new Date());
   const rows=tpls.map(t=>({
     expense_date:today,
     category:t.category,
