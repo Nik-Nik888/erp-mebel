@@ -36,13 +36,15 @@ async function renderDashboard(){
   
   // Месяц — расходы из expenses
   const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
-  const monthExpense=expenses.filter(e=>{const d=new Date(e.expense_date);return d>=monthStart}).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0); // последний день месяца
+  const monthExpense=expenses.filter(e=>{const d=new Date(e.expense_date);return d>=monthStart&&d<=monthEnd}).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   
-  // Месяц — доходы из payments (загрузим асинхронно)
+  // Месяц — доходы из payments
   let monthIncome=0;
   try{
-    const mStart=monthStart.toISOString().split('T')[0];
-    const {data:pmts}=await sb.from('payments').select('amount').gte('payment_date',mStart);
+    const mStartStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';
+    const mEndStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(monthEnd.getDate()).padStart(2,'0');
+    const {data:pmts}=await sb.from('payments').select('amount').gte('payment_date',mStartStr).lte('payment_date',mEndStr);
     if(pmts) monthIncome=pmts.reduce((s,p)=>s+Math.max(0,parseFloat(p.amount)||0),0);
   }catch(e){}
   

@@ -327,7 +327,7 @@ function addOrderMat(name='', qty=1, price=0){
   
   const i=orderMatCounter++;
   const allMats=getMatOptions();
-  const n=name||(allMats.length?allMats[0]:'');
+  const n=name||'';
   const p=price||matPrice(n);
   const stock=n?getMatStock(n):'—';
   const matSum=p*qty;
@@ -340,7 +340,7 @@ function addOrderMat(name='', qty=1, price=0){
   row.innerHTML=`
     <datalist id="${dlId}">${opts}</datalist>
     <button type="button" onclick="document.getElementById('omat-${i}').remove();updateOrderMatsEmpty();calcOrderSum()" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px 4px">×</button>
-    <input type="text" value="${n}" list="${dlId}" class="omat-name" placeholder="Материал..." autocomplete="off"
+    <input type="text" value="${n}" list="${dlId}" class="omat-name" placeholder="+ Добавить новый материал" autocomplete="off"
       oninput="onOrderMatChange(this,${i})" onchange="onOrderMatChange(this,${i})" onfocus="this.select()"
       style="width:100%;background:transparent;border:none;outline:none;font-size:12px;font-family:'Geologica',sans-serif;color:var(--text);margin-bottom:4px;padding-right:20px">
     <div style="display:flex;gap:6px;align-items:center">
@@ -356,7 +356,8 @@ function addOrderMat(name='', qty=1, price=0){
       <span class="omat-stock" id="omat-stock-${i}" style="font-size:10px;color:var(--text3)">${stock!=='—'?(stock>0?'✓'+stock:'⚠0'):'—'}</span>
       <button type="button" onclick="quickAddStock(${i})" title="Оприходовать на склад" style="background:var(--accent-light);border:1px solid var(--accent);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px;color:var(--accent-text);font-family:'Geologica',sans-serif;font-weight:500">+📦</button>
     </div>`;
-  wrap.appendChild(row);
+  // Вставляем в начало списка, а не в конец
+  if(name){wrap.appendChild(row)}else{wrap.insertBefore(row,wrap.firstChild)}
   expandMatsSection();
   updateOrderMatsEmpty();
   calcOrderSum();
@@ -607,6 +608,49 @@ async function saveOrder(){
   const btn=$('save-btn'); btn.textContent='Сохраняю...'; btn.disabled=true;
   const sum=parseFloat($('f-sum').value)||0;
   const prep=parseFloat($('f-prepay').value)||0;
+  const newStatus=$('f-status').value||'';
+  const oldOrder=editId?orders.find(x=>x.id===editId):null;
+  const oldStatus=oldOrder?(oldOrder.status||'').trim():'';
+
+  // ── Проверка оплаты при смене статуса (настройка payment_check) ──
+  if(editId && newStatus!==oldStatus){
+    const payCheckCols=getPaymentCheckCols();
+    if(payCheckCols[newStatus] && sum>0 && prep<sum){
+      const debt=sum-prep;
+      let overlay=$('m-block');
+      if(!overlay){
+        overlay=document.createElement('div');
+        overlay.className='overlay';
+        overlay.id='m-block';
+        overlay.innerHTML=`<div class="modal" style="max-width:480px"><div class="modal-hd"><div class="modal-title">Проверка оплаты</div><button class="modal-close" onclick="this.closest('.overlay').classList.remove('open')">×</button></div><div class="modal-body" id="m-block-body"></div></div>`;
+        document.body.appendChild(overlay);
+      }
+      $('m-block-body').innerHTML=`
+        <div style="margin-bottom:14px;color:var(--red);font-weight:600;font-size:14px">⛔ Невозможно перевести в "${newStatus}"</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Заказ <b>${oldOrder.order_num}</b> не оплачен полностью. Внесите остаток оплаты.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;text-align:center">
+          <div style="background:var(--surface2);border-radius:var(--rs);padding:12px 8px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Сумма договора</div>
+            <div style="font-size:17px;font-weight:600">${sum.toLocaleString('ru-RU')} ₽</div>
+          </div>
+          <div style="background:var(--accent-light);border-radius:var(--rs);padding:12px 8px">
+            <div style="font-size:10px;color:var(--accent-text);margin-bottom:4px">Оплачено</div>
+            <div style="font-size:17px;font-weight:600;color:var(--accent-text)">${prep.toLocaleString('ru-RU')} ₽</div>
+          </div>
+          <div style="background:var(--red-light);border-radius:var(--rs);padding:12px 8px">
+            <div style="font-size:10px;color:var(--red);margin-bottom:4px">Остаток</div>
+            <div style="font-size:17px;font-weight:600;color:var(--red)">${debt.toLocaleString('ru-RU')} ₽</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="document.getElementById('m-block').classList.remove('open');openPrepay('${oldOrder.order_num}')" style="flex:1;justify-content:center">Внести оплату →</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('m-block').classList.remove('open')" style="flex:1;justify-content:center">Отмена</button>
+        </div>`;
+      overlay.classList.add('open');
+      btn.textContent='Сохранить'; btn.disabled=false;
+      return;
+    }
+  }
   // Строим спецификацию из материалов формы
   const formMats=getOrderMatsFromForm();
   let specValue='';
@@ -952,8 +996,9 @@ async function quickStatus(rid,newSt){
   const o=findO(rid); if(!o) return;
   const oldSt=(o.status||'').trim();
 
-  // ── БЛОКИРОВКА: нельзя закрыть заказ если не оплачен полностью ──
-  if(newSt==='Закрыт'){
+  // ── БЛОКИРОВКА: проверяем оплату по настройкам ──
+  const payCheckCols=getPaymentCheckCols();
+  if(payCheckCols[newSt]){
     const sum=parseFloat(o.order_sum)||0;
     const paid=parseFloat(o.prepay)||0;
     if(sum>0 && paid<sum){
@@ -967,8 +1012,8 @@ async function quickStatus(rid,newSt){
         document.body.appendChild(overlay);
       }
       $('m-block-body').innerHTML=`
-        <div style="margin-bottom:14px;color:var(--red);font-weight:600;font-size:14px">⛔ Невозможно закрыть заказ</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Заказ <b>${rid}</b> не оплачен полностью. Внесите остаток оплаты перед закрытием.</div>
+        <div style="margin-bottom:14px;color:var(--red);font-weight:600;font-size:14px">⛔ Невозможно перевести в "${newSt}"</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Заказ <b>${rid}</b> не оплачен полностью. Внесите остаток оплаты.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;text-align:center">
           <div style="background:var(--surface2);border-radius:var(--rs);padding:12px 8px">
             <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Сумма договора</div>

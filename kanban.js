@@ -68,12 +68,18 @@ function getKanbanColumns(){
 }
 function saveKanbanColumns(cols){saveSetting('kanban_columns',cols)}
 
+// ── Проверка оплаты при перемещении в колонку ──
+function getPaymentCheckCols(){
+  return getSetting('payment_check',{'Закрыт':true});
+}
+
 // ── Pending (draft) state for settings modal ──
 let _pendingFields=null;
 let _pendingCols=null;
 let _pendingSrcColors=null;
 let _pendingMatRules=null;
 let _pendingMatKeywords=null;
+let _pendingPayCheck=null;
 
 function _initPending(){
   _pendingFields={...getKanbanFields()};
@@ -81,6 +87,7 @@ function _initPending(){
   _pendingSrcColors={...getSourceColors()};
   _pendingMatRules={...getMatCheckRules()};
   _pendingMatKeywords=[...getMatKeywords()];
+  _pendingPayCheck={...getPaymentCheckCols()};
 }
 
 function openKanbanSettings(){
@@ -139,13 +146,12 @@ function _renderKbSettingsBody(){
   h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">🗂 Колонки (этапы)</div>`;
   h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Порядок и видимость колонок</div>`;
   cols.forEach((col,i)=>{
-    const isDefault=allStatuses.includes(col);
     h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
       <input type="checkbox" checked onchange="toggleKanbanCol('${col}',this.checked)" style="margin:0">
       <span style="font-size:13px;flex:1;font-weight:500">${col}</span>
       <button onclick="moveKanbanCol(${i},-1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:var(--text3)">↑</button>
       <button onclick="moveKanbanCol(${i},1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:var(--text3)">↓</button>
-      ${!isDefault?`<button onclick="removeKanbanCol('${col}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px">×</button>`:'<span style="width:20px"></span>'}
+      <button onclick="removeKanbanCol('${col}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px">×</button>
     </div>`;
   });
   const hidden=allStatuses.filter(s=>!cols.includes(s));
@@ -158,7 +164,17 @@ function _renderKbSettingsBody(){
     });
   }
   
-  // Секция 4: Проверка материалов при перемещении
+  // Секция 4: Проверка оплаты при перемещении
+  const payCheck=_pendingPayCheck;
+  h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">💰 Проверка оплаты</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Не пускать заказ в колонку если не оплачен полностью</div>`;
+  cols.forEach(col=>{
+    h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
+      <input type="checkbox" ${payCheck[col]?'checked':''} onchange="_pendingPayCheck['${col}']=this.checked" style="margin:0"> ${col}
+    </label>`;
+  });
+
+  // Секция 5: Проверка материалов при перемещении
   h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">📦 Проверка материалов при перемещении</div>`;
   h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Для каждой колонки задайте какие материалы проверять перед перемещением карточки</div>`;
   
@@ -196,7 +212,8 @@ async function saveAllKanbanSettings(){
     kanban_columns:_pendingCols,
     source_colors:_pendingSrcColors,
     mat_check_rules:_pendingMatRules,
-    mat_keywords:_pendingMatKeywords
+    mat_keywords:_pendingMatKeywords,
+    payment_check:_pendingPayCheck
   };
   
   let hasError=false;
