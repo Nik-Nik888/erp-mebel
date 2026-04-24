@@ -71,7 +71,7 @@ async function renderDashboard(){
   $('d-ready').textContent=ready.length;
   $('d-unpaid').textContent=unpaid.length;
   $('d-month-income').textContent=fmt(monthIncome);
-  $('d-month-expense').textContent=fmt(totalExpWithCost);
+  $('d-month-expense').textContent=fmt(monthCost+monthExpense);
   
   // ═══ СРОЧНОЕ (красная плашка если есть) ═══
   const urgentItems=[];
