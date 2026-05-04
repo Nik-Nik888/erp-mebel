@@ -76,6 +76,7 @@ async function initApp(user){
     sync('ok','K2 ✓');
     await loadChatMessages();
     subscribeChatRealtime();chatLoaded=true;updateChatOrderFilter();
+    subscribeOrdersRealtime(); // Realtime подписка на изменения заказов
     renderDashboard();
     renderKanban();
     showChatFab();
@@ -192,6 +193,4 @@ async function createUser(){
   }catch(e){showToast('Ошибка: '+e.message)}
 }
 
-// Добавляем обработку страницы users в showPage
-const origShowPage=showPage;
 

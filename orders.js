@@ -33,6 +33,90 @@ async function loadOrders(){
   }
 }
 
+// ══════════════════════════════════════════════════════
+// SOFT RELOAD — обновляет orders из БД без сброса фильтров и скролла
+// Используется для фоновой синхронизации и Realtime
+// ══════════════════════════════════════════════════════
+let _ordersSyncing=false;
+async function softReloadOrders(){
+  if(_ordersSyncing) return;
+  _ordersSyncing=true;
+  try{
+    const {data,error}=await sb.from('orders').select('*').order('id',{ascending:false});
+    if(error||!data){_ordersSyncing=false;return}
+    
+    const newOrders=data.sort((a,b)=>{
+      const na=parseInt((String(a.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
+      const nb=parseInt((String(b.order_num||'').match(/(\d+)/)||[0,'0'])[1])||0;
+      if(na!==nb) return nb-na;
+      return (b.id||0)-(a.id||0);
+    });
+    
+    // Сравниваем только если что-то реально изменилось
+    let changed=newOrders.length!==orders.length;
+    if(!changed){
+      for(let i=0;i<newOrders.length;i++){
+        const a=newOrders[i],b=orders[i];
+        if(!b||a.id!==b.id||a.status!==b.status||a.prepay!==b.prepay||a.order_sum!==b.order_sum||a.deadline!==b.deadline){
+          changed=true;break;
+        }
+      }
+    }
+    
+    if(changed){
+      // Сохраняем скролл и не закрываем открытые модалки
+      const kanban=$('kanban-body')?.firstElementChild;
+      const savedScroll=kanban?kanban.scrollLeft:0;
+      orders=newOrders;
+      render();
+      updateStats();
+      if(savedScroll>0){
+        setTimeout(()=>{const k=$('kanban-body')?.firstElementChild;if(k)k.scrollLeft=savedScroll},50);
+      }
+    }
+  }catch(e){console.log('Soft reload error:',e)}
+  _ordersSyncing=false;
+}
+
+// ══════════════════════════════════════════════════════
+// REALTIME — подписка на изменения заказов
+// ══════════════════════════════════════════════════════
+let ordersSubscription=null;
+function subscribeOrdersRealtime(){
+  if(ordersSubscription){
+    try{sb.removeChannel(ordersSubscription)}catch(e){}
+    ordersSubscription=null;
+  }
+  ordersSubscription=sb.channel('orders-realtime')
+    .on('postgres_changes',{event:'*',schema:'public',table:'orders'},payload=>{
+      // Не реагируем на свои изменения слишком быстро (debounce 800ms)
+      clearTimeout(window._ordersRealtimeTimer);
+      window._ordersRealtimeTimer=setTimeout(()=>softReloadOrders(),800);
+    })
+    .subscribe((status)=>{
+      console.log('Orders realtime status:',status);
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        setTimeout(()=>{
+          console.log('Orders realtime reconnecting...');
+          ordersSubscription=null;
+          subscribeOrdersRealtime();
+        },3000);
+      }
+    });
+}
+
+// Fallback: периодическая синхронизация каждые 5 минут на случай если Realtime упал
+setInterval(()=>{
+  if(!document.hidden && currentProfile) softReloadOrders();
+},5*60*1000);
+
+// При возврате фокуса на вкладку — сразу синхронизация
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && currentProfile){
+    softReloadOrders();
+  }
+});
+
 function fillDataLists(){
   const cl=[...new Set(orders.map(o=>(o.client||'').trim()).filter(Boolean))];
   const clEl=$('cl-list'); if(clEl){clEl.innerHTML='';cl.forEach(c=>{const o=document.createElement('option');o.value=c;clEl.appendChild(o)})}
