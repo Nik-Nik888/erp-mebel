@@ -119,20 +119,78 @@ async function checkOverdueNotify(){
 
 setInterval(()=>{checkOverdueNotify()},30*60*1000);
 
-function checkLowStockNotify(){
-  const key='k2_lowstock_notified_'+localDateStr(new Date());
-  if(localStorage.getItem(key)) return;
-  const low=skladItems.filter(item=>{
-    const stock=skladStock(item.item_id);
-    const min=parseFloat(item.min_stock)||0;
-    return min>0&&stock<=min&&!String(item.item_id||'').startsWith('pending_');
+async function checkLowStockNotify(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayKey=localDateStr(today);
+  
+  // Проверяем что сейчас >= 10:00 по Москве
+  const mskNow=new Date().toLocaleString('en-US',{timeZone:'Europe/Moscow',hour:'numeric',hour12:false});
+  const hour=parseInt(mskNow)||0;
+  if(hour<10) return;
+  
+  // ── АТОМАРНАЯ БЛОКИРОВКА (одно уведомление в день со всех устройств) ──
+  const todayValue=JSON.stringify(todayKey);
+  let weWonTheRace=false;
+  
+  try{
+    const {data:updated,error:updErr}=await sb
+      .from('app_settings')
+      .update({value:todayValue,updated_at:new Date().toISOString()})
+      .eq('key','lowstock_last_sent')
+      .neq('value',todayValue)
+      .select();
+    
+    if(updErr){console.log('Low stock lock update error:',updErr);return}
+    
+    if(updated && updated.length>0){
+      weWonTheRace=true;
+    } else {
+      const {error:insErr}=await sb
+        .from('app_settings')
+        .insert({key:'lowstock_last_sent',value:todayValue,updated_at:new Date().toISOString()});
+      
+      if(!insErr) weWonTheRace=true;
+    }
+  }catch(e){console.log('Low stock lock error:',e);return}
+  
+  if(!weWonTheRace) return;
+  
+  // ── Загружаем СВЕЖИЕ данные склада из БД ──
+  let freshItems=[], freshMoves=[];
+  try{
+    const [iRes,mRes]=await Promise.all([
+      sb.from('sklad_items').select('*'),
+      sb.from('sklad_moves').select('*')
+    ]);
+    if(iRes.data) freshItems=iRes.data;
+    if(mRes.data) freshMoves=mRes.data;
+  }catch(e){return}
+  
+  // Считаем остатки локально по свежим данным
+  const stockMap={};
+  freshMoves.forEach(m=>{
+    const id=m.item_id;
+    stockMap[id]=(stockMap[id]||0)+(parseFloat(m.qty)||0);
   });
-  if(low.length){
-    low.slice(0,5).forEach(item=>{
-      tgNotify('low_stock',{name:item.name,stock:skladStock(item.item_id),min:item.min_stock});
-    });
-    if(low.length>5) tgSend('📦 ...и ещё '+(low.length-5)+' позиций заканчиваются');
-    localStorage.setItem(key,'1');
-  }
+  
+  const low=freshItems.filter(item=>{
+    const stock=stockMap[item.item_id]||0;
+    const min=parseFloat(item.min_stock)||0;
+    return min>0 && stock<=min && !String(item.item_id||'').startsWith('pending_');
+  });
+  
+  if(!low.length) return;
+  
+  // Отправляем единое уведомление вместо нескольких
+  let msg='📦 <b>Заканчиваются на складе ('+low.length+')</b>\n';
+  low.slice(0,10).forEach(item=>{
+    const stock=stockMap[item.item_id]||0;
+    const min=parseFloat(item.min_stock)||0;
+    msg+='\n• '+item.name+': '+stock+' '+(item.unit||'шт')+' (мин. '+min+')';
+  });
+  if(low.length>10) msg+='\n\n...и ещё '+(low.length-10)+' позиций';
+  tgSend(msg);
 }
+
+setInterval(()=>{checkLowStockNotify()},30*60*1000);
 
