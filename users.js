@@ -40,48 +40,45 @@ async function checkOverdueNotify(){
   // Проверяем что сейчас >= 10:00 по Москве
   const mskNow=new Date().toLocaleString('en-US',{timeZone:'Europe/Moscow',hour:'numeric',hour12:false});
   const hour=parseInt(mskNow)||0;
-  if(hour<10) return;
+  if(hour<10){console.log('[overdue] skip: time<10:00 MSK, hour=',hour);return}
   
-  // ── АТОМАРНАЯ БЛОКИРОВКА ──
-  // Используем app_settings.overdue_last_sent как глобальный замок.
-  // 1. Сначала пробуем UPDATE — обновится только если value != todayKey
-  //    Это атомарная операция на стороне БД.
-  // 2. Если затронута 1 строка — мы выиграли гонку, отправляем уведомление.
-  // 3. Если 0 строк — либо запись с todayKey уже есть (уже отправлено),
-  //    либо вообще нет записи (тогда делаем INSERT).
-  const todayValue=JSON.stringify(todayKey);
-  let weWonTheRace=false;
-  
+  // ── БЛОКИРОВКА через app_settings ──
+  // Шаг 1: читаем текущее значение
+  let currentStored=null;
   try{
-    // Атомарный UPDATE: обновится только если значение НЕ сегодняшнее
-    const {data:updated,error:updErr}=await sb
-      .from('app_settings')
-      .update({value:todayValue,updated_at:new Date().toISOString()})
-      .eq('key','overdue_last_sent')
-      .neq('value',todayValue)
-      .select();
-    
-    if(updErr){console.log('Overdue lock update error:',updErr);return}
-    
-    if(updated && updated.length>0){
-      // Мы успешно захватили замок — обновили запись с другого дня
-      weWonTheRace=true;
-    } else {
-      // 0 строк обновлено — либо нет записи, либо уже стоит сегодняшняя дата
-      // Пробуем INSERT — если получится, мы первые сегодня
-      const {error:insErr}=await sb
-        .from('app_settings')
-        .insert({key:'overdue_last_sent',value:todayValue,updated_at:new Date().toISOString()});
-      
-      if(!insErr){
-        weWonTheRace=true; // INSERT прошёл — мы первые
+    const {data,error}=await sb.from('app_settings').select('value').eq('key','overdue_last_sent').maybeSingle();
+    if(error){console.log('[overdue] read error:',error);return}
+    if(data){
+      let v=data.value;
+      // value может быть jsonb (объект/строка) или text-обёрнутый JSON
+      if(typeof v==='string'){
+        // text-поле с JSON-строкой типа '"2026-05-11"'
+        try{v=JSON.parse(v)}catch(e){}
       }
-      // Если INSERT упал с duplicate key — значит запись с todayKey уже есть,
-      // и кто-то другой уже отправил уведомление сегодня. Молча выходим.
+      currentStored=v;
     }
-  }catch(e){console.log('Overdue lock error:',e);return}
+  }catch(e){console.log('[overdue] read exception:',e);return}
   
-  if(!weWonTheRace) return; // Другое устройство нас опередило
+  console.log('[overdue] currentStored=',currentStored,'todayKey=',todayKey);
+  
+  // Если уже отправляли сегодня — выходим
+  if(currentStored===todayKey){
+    console.log('[overdue] already sent today, skipping');
+    return;
+  }
+  
+  // Шаг 2: пишем сегодняшнее значение (upsert)
+  // Гонка маловероятна — но если несколько устройств запишут одновременно, 
+  // запись в БД будет последняя, остальные клиенты при следующей проверке
+  // увидят todayKey и не отправят повторно (но один-два дубля в первую минуту возможны)
+  try{
+    const {error}=await sb.from('app_settings').upsert(
+      {key:'overdue_last_sent',value:JSON.stringify(todayKey),updated_at:new Date().toISOString()},
+      {onConflict:'key'}
+    );
+    if(error){console.log('[overdue] write error:',error);return}
+    console.log('[overdue] lock acquired, sending notification');
+  }catch(e){console.log('[overdue] write exception:',e);return}
   
   // ── Загружаем СВЕЖИЕ заказы из БД ──
   let freshOrders=[];
@@ -89,7 +86,6 @@ async function checkOverdueNotify(){
     const {data,error}=await sb.from('orders').select('order_num,client,status,deadline');
     if(error||!data) return;
     freshOrders=data;
-    // Обновляем локальный кэш
     if(typeof orders!=='undefined' && Array.isArray(orders)){
       data.forEach(fresh=>{
         const local=orders.find(o=>o.order_num===fresh.order_num);
@@ -103,7 +99,7 @@ async function checkOverdueNotify(){
     const s=(o.status||'').trim();
     return d<today&&s!=='Закрыт'&&s!=='Отгружен'&&s!=='Отказались';
   });
-  if(!overdue.length) return;
+  if(!overdue.length){console.log('[overdue] no overdue orders');return}
   
   let msg='⚠️ <b>Просроченные заказы ('+overdue.length+')</b>\n';
   overdue.slice(0,10).forEach(o=>{
@@ -123,39 +119,40 @@ async function checkLowStockNotify(){
   const today=new Date();today.setHours(0,0,0,0);
   const todayKey=localDateStr(today);
   
-  // Проверяем что сейчас >= 10:00 по Москве
   const mskNow=new Date().toLocaleString('en-US',{timeZone:'Europe/Moscow',hour:'numeric',hour12:false});
   const hour=parseInt(mskNow)||0;
-  if(hour<10) return;
+  if(hour<10){console.log('[lowstock] skip: time<10:00 MSK');return}
   
-  // ── АТОМАРНАЯ БЛОКИРОВКА (одно уведомление в день со всех устройств) ──
-  const todayValue=JSON.stringify(todayKey);
-  let weWonTheRace=false;
-  
+  // Читаем текущее значение блокировки
+  let currentStored=null;
   try{
-    const {data:updated,error:updErr}=await sb
-      .from('app_settings')
-      .update({value:todayValue,updated_at:new Date().toISOString()})
-      .eq('key','lowstock_last_sent')
-      .neq('value',todayValue)
-      .select();
-    
-    if(updErr){console.log('Low stock lock update error:',updErr);return}
-    
-    if(updated && updated.length>0){
-      weWonTheRace=true;
-    } else {
-      const {error:insErr}=await sb
-        .from('app_settings')
-        .insert({key:'lowstock_last_sent',value:todayValue,updated_at:new Date().toISOString()});
-      
-      if(!insErr) weWonTheRace=true;
+    const {data,error}=await sb.from('app_settings').select('value').eq('key','lowstock_last_sent').maybeSingle();
+    if(error){console.log('[lowstock] read error:',error);return}
+    if(data){
+      let v=data.value;
+      if(typeof v==='string'){try{v=JSON.parse(v)}catch(e){}}
+      currentStored=v;
     }
-  }catch(e){console.log('Low stock lock error:',e);return}
+  }catch(e){console.log('[lowstock] read exception:',e);return}
   
-  if(!weWonTheRace) return;
+  console.log('[lowstock] currentStored=',currentStored,'todayKey=',todayKey);
   
-  // ── Загружаем СВЕЖИЕ данные склада из БД ──
+  if(currentStored===todayKey){
+    console.log('[lowstock] already sent today, skipping');
+    return;
+  }
+  
+  // Пишем блокировку
+  try{
+    const {error}=await sb.from('app_settings').upsert(
+      {key:'lowstock_last_sent',value:JSON.stringify(todayKey),updated_at:new Date().toISOString()},
+      {onConflict:'key'}
+    );
+    if(error){console.log('[lowstock] write error:',error);return}
+    console.log('[lowstock] lock acquired, sending notification');
+  }catch(e){console.log('[lowstock] write exception:',e);return}
+  
+  // Свежие данные склада из БД
   let freshItems=[], freshMoves=[];
   try{
     const [iRes,mRes]=await Promise.all([
@@ -166,7 +163,6 @@ async function checkLowStockNotify(){
     if(mRes.data) freshMoves=mRes.data;
   }catch(e){return}
   
-  // Считаем остатки локально по свежим данным
   const stockMap={};
   freshMoves.forEach(m=>{
     const id=m.item_id;
@@ -179,9 +175,8 @@ async function checkLowStockNotify(){
     return min>0 && stock<=min && !String(item.item_id||'').startsWith('pending_');
   });
   
-  if(!low.length) return;
+  if(!low.length){console.log('[lowstock] no low stock items');return}
   
-  // Отправляем единое уведомление вместо нескольких
   let msg='📦 <b>Заканчиваются на складе ('+low.length+')</b>\n';
   low.slice(0,10).forEach(item=>{
     const stock=stockMap[item.item_id]||0;
