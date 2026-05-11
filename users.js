@@ -42,37 +42,61 @@ async function checkOverdueNotify(){
   const hour=parseInt(mskNow)||0;
   if(hour<10) return;
   
-  // Проверяем НАПРЯМУЮ в Supabase — уже отправляли сегодня?
-  try{
-    const {data}=await sb.from('app_settings').select('value').eq('key','overdue_last_sent').single();
-    if(data){
-      const val=data.value;
-      const stored=(typeof val==='string'&&val.startsWith('"'))?JSON.parse(val):val;
-      if(stored===todayKey) return; // уже отправлено с другого устройства
-    }
-  }catch(e){} // записи нет — продолжаем
+  // ── АТОМАРНАЯ БЛОКИРОВКА ──
+  // Используем app_settings.overdue_last_sent как глобальный замок.
+  // 1. Сначала пробуем UPDATE — обновится только если value != todayKey
+  //    Это атомарная операция на стороне БД.
+  // 2. Если затронута 1 строка — мы выиграли гонку, отправляем уведомление.
+  // 3. Если 0 строк — либо запись с todayKey уже есть (уже отправлено),
+  //    либо вообще нет записи (тогда делаем INSERT).
+  const todayValue=JSON.stringify(todayKey);
+  let weWonTheRace=false;
   
-  // ВАЖНО: загружаем СВЕЖИЕ данные из БД — кэш в памяти может быть устаревшим
-  // если приложение открыто давно (несколько дней)
+  try{
+    // Атомарный UPDATE: обновится только если значение НЕ сегодняшнее
+    const {data:updated,error:updErr}=await sb
+      .from('app_settings')
+      .update({value:todayValue,updated_at:new Date().toISOString()})
+      .eq('key','overdue_last_sent')
+      .neq('value',todayValue)
+      .select();
+    
+    if(updErr){console.log('Overdue lock update error:',updErr);return}
+    
+    if(updated && updated.length>0){
+      // Мы успешно захватили замок — обновили запись с другого дня
+      weWonTheRace=true;
+    } else {
+      // 0 строк обновлено — либо нет записи, либо уже стоит сегодняшняя дата
+      // Пробуем INSERT — если получится, мы первые сегодня
+      const {error:insErr}=await sb
+        .from('app_settings')
+        .insert({key:'overdue_last_sent',value:todayValue,updated_at:new Date().toISOString()});
+      
+      if(!insErr){
+        weWonTheRace=true; // INSERT прошёл — мы первые
+      }
+      // Если INSERT упал с duplicate key — значит запись с todayKey уже есть,
+      // и кто-то другой уже отправил уведомление сегодня. Молча выходим.
+    }
+  }catch(e){console.log('Overdue lock error:',e);return}
+  
+  if(!weWonTheRace) return; // Другое устройство нас опередило
+  
+  // ── Загружаем СВЕЖИЕ заказы из БД ──
   let freshOrders=[];
   try{
     const {data,error}=await sb.from('orders').select('order_num,client,status,deadline');
     if(error||!data) return;
     freshOrders=data;
-    // Также обновляем глобальный кэш чтобы UI был в актуальном состоянии
+    // Обновляем локальный кэш
     if(typeof orders!=='undefined' && Array.isArray(orders)){
-      // Обновляем поля статуса в локальном массиве
       data.forEach(fresh=>{
         const local=orders.find(o=>o.order_num===fresh.order_num);
         if(local){local.status=fresh.status;local.deadline=fresh.deadline}
       });
     }
   }catch(e){return}
-  
-  // Сразу помечаем как отправленное ДО отправки — чтобы другие устройства не дублировали
-  try{
-    await sb.from('app_settings').upsert({key:'overdue_last_sent',value:JSON.stringify(todayKey),updated_at:new Date().toISOString()},{onConflict:'key'});
-  }catch(e){}
   
   const overdue=freshOrders.filter(o=>{
     const d=pDate(o.deadline);if(!d)return false;d.setHours(0,0,0,0);
