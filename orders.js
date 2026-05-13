@@ -773,17 +773,45 @@ async function saveOrder(){
   };
   try{
     if(editId){
+      const oldPrepay=parseFloat(oldOrder?.prepay)||0;
       const {error}=await sb.from('orders').update(row).eq('id',editId);
       if(error) throw error;
       // Обновляем локальный объект
       const local=orders.find(x=>x.id===editId);
       if(local) Object.assign(local,row);
       auditLog('update','order',row.order_num,{fields:Object.keys(row)});
+      // Если предоплата изменилась — создаём запись в payments
+      const delta=prep-oldPrepay;
+      if(Math.abs(delta)>0.01){
+        try{
+          await sb.from('payments').insert({
+            order_id:editId,
+            order_num:row.order_num,
+            amount:delta,
+            payment_date:localDateStr(new Date()),
+            note:'Изменение оплаты в карточке заказа'
+          });
+          await loadPayments(true);
+        }catch(e){console.log('Payment insert error:',e)}
+      }
       showToast('Заказ обновлён');
     } else {
       const {error,data:inserted}=await sb.from('orders').insert(row).select();
       if(error) throw error;
       const newId=inserted&&inserted[0]?inserted[0].id:null;
+      // Если есть предоплата при создании — создаём запись в payments
+      if(prep>0 && newId){
+        try{
+          await sb.from('payments').insert({
+            order_id:newId,
+            order_num:row.order_num,
+            amount:prep,
+            payment_date:row.order_date||localDateStr(new Date()),
+            note:'Предоплата при создании заказа'
+          });
+          await loadPayments(true);
+        }catch(e){console.log('Payment insert error:',e)}
+      }
       // Логируем создание + TG уведомление
       await logStatusChange(row.order_num, '', row.status);
       auditLog('create','order',row.order_num,{client:row.client,status:row.status,sum:row.order_sum});

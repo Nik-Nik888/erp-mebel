@@ -95,7 +95,7 @@ let kpMats = 0, kpWorks = 0, kpInited = false;
 let MAT_CATALOG = [], WORK_CATALOG = [];
 
 // ── Кэш платежей ──
-let paymentsCache=[], paymentsCacheTime=0;
+let paymentsCache=[], paymentsCacheTime=0, _paymentsMigrationDone=false;
 
 async function loadPayments(force=false){
   // Кэш на 60 секунд чтобы не дёргать БД на каждый рендер
@@ -105,8 +105,51 @@ async function loadPayments(force=false){
     if(error||!data) return paymentsCache;
     paymentsCache=data;
     paymentsCacheTime=Date.now();
+    
+    // Одноразовая миграция: для каждого заказа с prepay>0, у которого
+    // сумма payments < prepay, создаём недостающую запись
+    if(!_paymentsMigrationDone && typeof orders!=='undefined' && orders.length){
+      _paymentsMigrationDone=true;
+      await migrateLegacyPayments();
+    }
   }catch(e){console.log('loadPayments error:',e)}
   return paymentsCache;
+}
+
+// Миграция: для заказов с prepay > 0 но без полных записей в payments
+// создаём недостающую запись с датой заказа (или сегодня если даты нет)
+async function migrateLegacyPayments(){
+  const toInsert=[];
+  orders.forEach(o=>{
+    const prepay=parseFloat(o.prepay)||0;
+    if(prepay<=0) return;
+    // Сумма уже существующих платежей по этому заказу
+    const existing=paymentsCache
+      .filter(p=>p.order_num===o.order_num)
+      .reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+    const missing=prepay-existing;
+    if(missing>0.01){
+      toInsert.push({
+        order_id:o.id,
+        order_num:o.order_num,
+        amount:missing,
+        payment_date:o.order_date||localDateStr(new Date()),
+        note:'Авто-миграция: восстановление платежа'
+      });
+    }
+  });
+  
+  if(!toInsert.length) return;
+  
+  console.log('[payments migration] восстанавливаем '+toInsert.length+' платежей');
+  try{
+    const {error}=await sb.from('payments').insert(toInsert);
+    if(error){console.log('Payments migration error:',error);return}
+    // Перечитываем кэш
+    const {data}=await sb.from('payments').select('order_num,order_id,amount,payment_date');
+    if(data){paymentsCache=data;paymentsCacheTime=Date.now()}
+    console.log('[payments migration] восстановлено '+toInsert.length+' платежей');
+  }catch(e){console.log('Payments migration exception:',e)}
 }
 
 // Сумма платежей в периоде (по дате фактической оплаты)
