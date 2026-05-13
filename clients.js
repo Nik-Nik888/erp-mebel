@@ -49,7 +49,7 @@ async function showDashboardPayments(){
     Object.entries(byDate).forEach(([date,info])=>{
       h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);margin-top:8px">
         <div style="font-size:12px;font-weight:600;color:var(--text2)">${date}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--accent-text)">${fmt(info.total)}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${fmt(info.total)}</div>
       </div>`;
       info.items.forEach(p=>{
         const amount=parseFloat(p.amount)||0;
