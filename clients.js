@@ -1,6 +1,77 @@
 // ══════════════════════════════════════════════════════
 // ДАШБОРД
 // ══════════════════════════════════════════════════════
+// ── Открыть историю платежей за текущий месяц (с дашборда) ──
+async function showDashboardPayments(){
+  const now=new Date();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0);
+  
+  // Временно меняем фильтры заказов чтобы переиспользовать showPaymentsHistory
+  // (но НЕ применяем — просто читаем как параметры)
+  await loadPayments(true);
+  
+  const list=paymentsCache.filter(p=>{
+    if(!p.payment_date) return false;
+    const d=new Date(p.payment_date);
+    return d>=monthStart && d<=new Date(monthEnd.getTime()+86400000-1);
+  }).sort((a,b)=>new Date(b.payment_date)-new Date(a.payment_date));
+  
+  const total=list.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+  const monthName=now.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  
+  let overlay=$('m-payments-hist');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.className='overlay';
+    overlay.id='m-payments-hist';
+    overlay.innerHTML=`<div class="modal" style="max-width:640px;max-height:85vh;display:flex;flex-direction:column"><div class="modal-hd"><div class="modal-title">📋 История поступлений</div><button class="modal-close" onclick="$('m-payments-hist').classList.remove('open')">×</button></div><div class="modal-body" id="m-payments-hist-body" style="overflow-y:auto;flex:1"></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  
+  let h=`<div style="background:var(--accent-light);padding:12px;border-radius:var(--rs);margin-bottom:14px;text-align:center">
+    <div style="font-size:11px;color:var(--accent-text);margin-bottom:4px">${monthName}</div>
+    <div style="font-size:22px;font-weight:700;color:var(--accent-text)">${fmt(total)}</div>
+    <div style="font-size:11px;color:var(--accent-text);margin-top:2px">${list.length} ${list.length===1?'платёж':list.length<5?'платежа':'платежей'}</div>
+  </div>`;
+  
+  if(!list.length){
+    h+=`<div style="text-align:center;color:var(--text3);padding:30px;font-size:13px">Платежей в этом месяце нет</div>`;
+  } else {
+    const byDate={};
+    list.forEach(p=>{
+      const dStr=new Date(p.payment_date).toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});
+      if(!byDate[dStr]) byDate[dStr]={items:[],total:0};
+      byDate[dStr].items.push(p);
+      byDate[dStr].total+=(parseFloat(p.amount)||0);
+    });
+    
+    Object.entries(byDate).forEach(([date,info])=>{
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);margin-top:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2)">${date}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--accent-text)">${fmt(info.total)}</div>
+      </div>`;
+      info.items.forEach(p=>{
+        const amount=parseFloat(p.amount)||0;
+        const isReturn=amount<0;
+        const ord=orders.find(o=>o.order_num===p.order_num);
+        const client=ord?.client||'—';
+        h+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);cursor:${ord?'pointer':'default'}" ${ord?`onclick="$('m-payments-hist').classList.remove('open');showPage('orders');setTimeout(()=>openEdit('${p.order_num}'),200)"`:''}>
+          <span style="font-size:14px">${isReturn?'↩️':'💰'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500">${p.order_num||'—'} · ${client}</div>
+            ${p.note?`<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.note}</div>`:''}
+          </div>
+          <div style="font-size:13px;font-weight:600;color:${isReturn?'var(--red)':'var(--accent-text)'};white-space:nowrap">${isReturn?'':'+'}${fmt(amount)}</div>
+        </div>`;
+      });
+    });
+  }
+  
+  $('m-payments-hist-body').innerHTML=h;
+  overlay.classList.add('open');
+}
+
 async function renderDashboard(){
   const today=new Date();today.setHours(0,0,0,0);
   const tomorrow=new Date(today);tomorrow.setDate(tomorrow.getDate()+1);

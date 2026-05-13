@@ -388,6 +388,83 @@ async function suggestNewMaterials(mats){
 
 // ── ORDER MATERIAL PICKER ─────────────────────────────
 let _pendingMoveOrderNum=null, _pendingMoveStatus=null;
+
+// ── Модалка "История поступлений" ──
+async function showPaymentsHistory(){
+  const from=$('p-from')?.value?new Date($('p-from').value):null;
+  const to=$('p-to')?.value?new Date($('p-to').value+'T23:59:59'):null;
+  
+  // Загружаем актуальные платежи
+  await loadPayments(true);
+  
+  // Фильтруем по периоду
+  const list=paymentsCache.filter(p=>{
+    if(!p.payment_date) return false;
+    const d=new Date(p.payment_date);
+    if(from && d<from) return false;
+    if(to && d>to) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.payment_date)-new Date(a.payment_date));
+  
+  const total=list.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+  
+  const fromStr=$('p-from')?.value?new Date($('p-from').value).toLocaleDateString('ru-RU'):'начало';
+  const toStr=$('p-to')?.value?new Date($('p-to').value).toLocaleDateString('ru-RU'):'сегодня';
+  const periodLabel=$('p-from')?.value||$('p-to')?.value?`${fromStr} — ${toStr}`:'за всё время';
+  
+  let overlay=$('m-payments-hist');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.className='overlay';
+    overlay.id='m-payments-hist';
+    overlay.innerHTML=`<div class="modal" style="max-width:640px;max-height:85vh;display:flex;flex-direction:column"><div class="modal-hd"><div class="modal-title">📋 История поступлений</div><button class="modal-close" onclick="$('m-payments-hist').classList.remove('open')">×</button></div><div class="modal-body" id="m-payments-hist-body" style="overflow-y:auto;flex:1"></div></div>`;
+    document.body.appendChild(overlay);
+  }
+  
+  let h=`<div style="background:var(--accent-light);padding:12px;border-radius:var(--rs);margin-bottom:14px;text-align:center">
+    <div style="font-size:11px;color:var(--accent-text);margin-bottom:4px">Период: ${periodLabel}</div>
+    <div style="font-size:22px;font-weight:700;color:var(--accent-text)">${fmt(total)}</div>
+    <div style="font-size:11px;color:var(--accent-text);margin-top:2px">${list.length} ${list.length===1?'платёж':list.length<5?'платежа':'платежей'}</div>
+  </div>`;
+  
+  if(!list.length){
+    h+=`<div style="text-align:center;color:var(--text3);padding:30px;font-size:13px">Платежей за этот период нет</div>`;
+  } else {
+    // Группируем по дате
+    const byDate={};
+    list.forEach(p=>{
+      const dStr=new Date(p.payment_date).toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});
+      if(!byDate[dStr]) byDate[dStr]={items:[],total:0};
+      byDate[dStr].items.push(p);
+      byDate[dStr].total+=(parseFloat(p.amount)||0);
+    });
+    
+    Object.entries(byDate).forEach(([date,info])=>{
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);margin-top:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2)">${date}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--accent-text)">${fmt(info.total)}</div>
+      </div>`;
+      info.items.forEach(p=>{
+        const amount=parseFloat(p.amount)||0;
+        const isReturn=amount<0;
+        const ord=orders.find(o=>o.order_num===p.order_num);
+        const client=ord?.client||'—';
+        h+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);cursor:${ord?'pointer':'default'}" ${ord?`onclick="$('m-payments-hist').classList.remove('open');openEdit('${p.order_num}')"`:''}>
+          <span style="font-size:14px">${isReturn?'↩️':'💰'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500">${p.order_num||'—'} · ${client}</div>
+            ${p.note?`<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.note}</div>`:''}
+          </div>
+          <div style="font-size:13px;font-weight:600;color:${isReturn?'var(--red)':'var(--accent-text)'};white-space:nowrap">${isReturn?'':'+'}${fmt(amount)}</div>
+        </div>`;
+      });
+    });
+  }
+  
+  $('m-payments-hist-body').innerHTML=h;
+  overlay.classList.add('open');
+}
+
 let orderMatCounter=0;
 
 function addOrderMat(name='', qty=1, price=0){
@@ -792,6 +869,7 @@ async function saveOrder(){
             note:'Изменение оплаты в карточке заказа'
           });
           await loadPayments(true);
+          auditLog('income','order',row.order_num,{amount:delta,client:row.client,note:'Изменение оплаты в карточке'});
         }catch(e){console.log('Payment insert error:',e)}
       }
       showToast('Заказ обновлён');
@@ -810,6 +888,7 @@ async function saveOrder(){
             note:'Предоплата при создании заказа'
           });
           await loadPayments(true);
+          auditLog('income','order',row.order_num,{amount:prep,client:row.client,note:'Предоплата при создании'});
         }catch(e){console.log('Payment insert error:',e)}
       }
       // Логируем создание + TG уведомление
@@ -1357,6 +1436,8 @@ async function savePrepay(){
       tgNotify('payment',{order_num:o.order_num,client:o.client,amount:delta.toLocaleString('ru-RU'),total:newPrepay.toLocaleString('ru-RU'),sum:sum?sum.toLocaleString('ru-RU'):'—'});
     }
     auditLog('payment','order',o.order_num,{amount:prepayMode==='add'?delta:-delta,total:newPrepay,note});
+    // Также логируем фактический приход денег
+    auditLog('income','order',o.order_num,{amount:prepayMode==='add'?delta:-delta,client:o.client,note:note||(prepayMode==='add'?'Доплата':'Возврат'),date:payDate});
     // Принудительно обновляем кэш платежей
     await loadPayments(true);
     const _kbPay=$('kanban-body')?.firstElementChild;

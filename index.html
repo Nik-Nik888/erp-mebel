@@ -378,7 +378,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="stat" onclick="showPage('orders')" style="cursor:pointer"><div class="lbl">Просрочено</div><div class="val red" id="d-overdue">—</div></div>
         <div class="stat"><div class="lbl">Готово к выдаче</div><div class="val green" id="d-ready">—</div></div>
         <div class="stat"><div class="lbl">Ожидают оплаты</div><div class="val" id="d-unpaid" style="color:var(--amber)">—</div></div>
-        <div class="stat"><div class="lbl">Поступления за месяц</div><div class="val green" id="d-month-income">—</div></div>
+        <div class="stat" onclick="showDashboardPayments()" style="cursor:pointer"><div class="lbl">Поступления за месяц</div><div class="val green" id="d-month-income">—</div></div>
         <div class="stat"><div class="lbl">Затраты за месяц</div><div class="val red" id="d-month-expense">—</div></div>
       </div>
 
@@ -455,7 +455,7 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div class="stat" onclick="setKanbanFilter('ready')" style="cursor:pointer"><div class="lbl">Готовы</div><div class="val green" id="s-ready">—</div><div class="hint">ждут клиента</div></div>
         <div class="stat" onclick="setKanbanFilter('')" style="cursor:pointer"><div class="lbl">Кол-во</div><div class="val" id="s-count">—</div><div class="hint">заказов</div></div>
         <div class="stat"><div class="lbl">Договоров</div><div class="val" id="s-contracts">—</div><div class="hint">сумма</div></div>
-        <div class="stat"><div class="lbl">Получено</div><div class="val green" id="s-received">—</div><div class="hint">оплаты</div></div>
+        <div class="stat" onclick="showPaymentsHistory()" style="cursor:pointer"><div class="lbl">Получено</div><div class="val green" id="s-received">—</div><div class="hint">📋 история</div></div>
       </div>
 
       <!-- Поиск и фильтры -->
@@ -812,14 +812,14 @@ tbody tr.overdue:hover td{background:#fff0f0}
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-ghost refresh-btn" onclick="refreshWith(this,()=>loadPayroll())">↻</button>
           <button class="btn btn-ghost" onclick="openGlobalSearch()" title="Поиск Ctrl+K" style="font-size:14px;padding:4px 8px">🔍</button>
-          <select class="fsel" id="pay-model" onchange="savePayModel();renderPayroll()" style="font-size:12px">
+          <select class="fsel" id="pay-model" onchange="savePayModel();showPayTab(payTab)" style="font-size:12px">
             <option value="salary_plus">Оклад + процент</option>
             <option value="piece">Чистая сделка</option>
             <option value="brigade">Бригадный подряд</option>
             <option value="kpi">KPI-система</option>
             <option value="salary">Чистый оклад</option>
           </select>
-          <input type="month" class="fsel" id="pay-month" onchange="renderPayroll()" style="font-size:12px;font-family:'Geologica',sans-serif">
+          <input type="month" class="fsel" id="pay-month" onchange="showPayTab(payTab)" style="font-size:12px;font-family:'Geologica',sans-serif">
         </div>
       </div>
       <!-- Tabs -->
