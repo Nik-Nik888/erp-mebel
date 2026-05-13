@@ -440,7 +440,7 @@ async function showPaymentsHistory(){
     });
     
     Object.entries(byDate).forEach(([date,info])=>{
-      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);margin-top:8px">
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:var(--rs);margin-top:10px;margin-bottom:4px">
         <div style="font-size:12px;font-weight:600;color:var(--text2)">${date}</div>
         <div style="font-size:13px;font-weight:700;color:var(--text)">${fmt(info.total)}</div>
       </div>`;
