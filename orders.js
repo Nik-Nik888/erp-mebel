@@ -1329,6 +1329,8 @@ async function savePrepay(){
       tgNotify('payment',{order_num:o.order_num,client:o.client,amount:delta.toLocaleString('ru-RU'),total:newPrepay.toLocaleString('ru-RU'),sum:sum?sum.toLocaleString('ru-RU'):'—'});
     }
     auditLog('payment','order',o.order_num,{amount:prepayMode==='add'?delta:-delta,total:newPrepay,note});
+    // Принудительно обновляем кэш платежей
+    await loadPayments(true);
     const _kbPay=$('kanban-body')?.firstElementChild;
     const _scrollPay=_kbPay?_kbPay.scrollLeft:0;
     closePrepay(); render(); updateStats(); showToast('Оплата обновлена');

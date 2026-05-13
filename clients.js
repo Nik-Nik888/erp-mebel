@@ -36,26 +36,36 @@ async function renderDashboard(){
   
   // Месяц — расходы из expenses
   const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
-  const monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0); // последний день месяца
+  const monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0,23,59,59);
   const monthExpense=expenses.filter(e=>{
     const d=new Date(e.expense_date);d.setHours(0,0,0,0);
     return d>=monthStart&&d<=monthEnd;
   }).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   
-  // Месяц — поступления: все prepay по заказам за месяц
-  const monthAllOrders=orders.filter(o=>{
-    const d=pDate(o.order_date);if(!d)return false;d.setHours(0,0,0,0);
-    return d>=monthStart&&d<=monthEnd;
-  });
-  const monthWorkOrders=monthAllOrders.filter(o=>{
-    const s=(o.status||'').trim();
-    return s!=='Отправлено КП'&&s!=='Отказались';
-  });
-  const monthIncome=monthWorkOrders.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  // Загружаем актуальные платежи
+  await loadPayments();
   
-  // Месяц — себестоимость: материалы + работы из спецификаций заказов за месяц
+  // Месяц — поступления: ВСЕ платежи из таблицы payments с датой в этом месяце
+  // (учёт по факту получения денег, а не по дате заказа)
+  const monthIncome=paymentsInPeriod(monthStart,monthEnd);
+  
+  // Какие заказы были оплачены в этом месяце? — для расчёта себестоимости
+  const monthPaidOrderNums=[...new Set(
+    paymentsCache.filter(p=>{
+      if(!p.payment_date) return false;
+      const d=new Date(p.payment_date);
+      return d>=monthStart&&d<=monthEnd && (parseFloat(p.amount)||0)>0;
+    }).map(p=>p.order_num)
+  )];
+  
+  // Себестоимость заказов, по которым были платежи в этом месяце
+  // (учитываем полную себестоимость заказа — поскольку платежи относятся к нему)
   let monthMatCost=0, monthWorkCost=0;
-  monthWorkOrders.forEach(o=>{
+  monthPaidOrderNums.forEach(oNum=>{
+    const o=orders.find(x=>x.order_num===oNum);
+    if(!o) return;
+    const s=(o.status||'').trim();
+    if(s==='Отправлено КП'||s==='Отказались') return;
     try{
       const sp=JSON.parse(o.specification||'');
       if(sp&&sp.mats) sp.mats.forEach(m=>{monthMatCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});

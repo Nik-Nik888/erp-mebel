@@ -62,7 +62,7 @@ async function initApp(user){
   // Загружаем данные
   sync('loading','Загрузка...');
   try{
-    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent(), loadAppSettings()]);
+    await Promise.all([loadCatalog(), loadOrders(), loadSkladSilent(), loadExpensesSilent(), loadClientsSilent(), loadAppSettings(), loadPayments()]);
     loadProdStages();
     // Предзагрузка расценок и сотрудников для Цеха и карточки заказа
     try{

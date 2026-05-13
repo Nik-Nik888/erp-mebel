@@ -94,6 +94,34 @@ let orders = [], tab = 'all', editId = null, commentId = null, prepayId = null;
 let kpMats = 0, kpWorks = 0, kpInited = false;
 let MAT_CATALOG = [], WORK_CATALOG = [];
 
+// ── Кэш платежей ──
+let paymentsCache=[], paymentsCacheTime=0;
+
+async function loadPayments(force=false){
+  // Кэш на 60 секунд чтобы не дёргать БД на каждый рендер
+  if(!force && paymentsCache.length && (Date.now()-paymentsCacheTime)<60000) return paymentsCache;
+  try{
+    const {data,error}=await sb.from('payments').select('order_num,order_id,amount,payment_date');
+    if(error||!data) return paymentsCache;
+    paymentsCache=data;
+    paymentsCacheTime=Date.now();
+  }catch(e){console.log('loadPayments error:',e)}
+  return paymentsCache;
+}
+
+// Сумма платежей в периоде (по дате фактической оплаты)
+// Опционально фильтрует по списку order_num
+function paymentsInPeriod(from,to,orderNums){
+  return paymentsCache.filter(p=>{
+    if(!p.payment_date) return false;
+    const d=new Date(p.payment_date);
+    if(from && d<from) return false;
+    if(to && d>to) return false;
+    if(orderNums && orderNums.length && !orderNums.includes(p.order_num)) return false;
+    return true;
+  }).reduce((s,p)=>s+(parseFloat(p.amount)||0),0); // amount может быть отрицательным (возврат)
+}
+
 // ── UTILS ──────────────────────────────────────────────
 function $(x){ return document.getElementById(x) }
 function fmt(n){ return Math.round(n).toLocaleString('ru-RU')+' ₽' }
@@ -238,7 +266,11 @@ function updateStats(){
   const ready=orders.filter(o=>(o.status||'').trim()==='Готов к выдаче');
   const po=getFilteredByPeriod().filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
   const contracts=po.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
-  const received=po.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
+  
+  // Получено — считаем по таблице payments за период (по дате фактической оплаты)
+  const from=$('p-from')?.value?new Date($('p-from').value):null;
+  const to=$('p-to')?.value?new Date($('p-to').value+'T23:59:59'):null;
+  const received=paymentsInPeriod(from,to);
 
   $('s-active').textContent=active.length;
   $('s-over').textContent=over.length;

@@ -34,27 +34,48 @@ function getAOrders(){
   });
 }
 
-function renderAnalytics(){
+async function renderAnalytics(){
   const ao=getAOrders();
   const closed=ao.filter(o=>(o.status||'').trim()==='Закрыт');
   const refused=ao.filter(o=>(o.status||'').trim()==='Отказались');
   const working=ao.filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
 
-  // Договоров — сумма всех заказов (кроме КП и отказов)
+  // Договоров — сумма всех заказов (кроме КП и отказов) с датой ЗАКАЗА в периоде
   const contracts=working.reduce((s,o)=>s+(parseFloat(o.order_sum)||0),0);
-  // Получено — все предоплаты по всем заказам за период
-  const received=ao.reduce((s,o)=>s+(parseFloat(o.prepay)||0),0);
-  // Себестоимость из спецификаций (по всем заказам у кого есть спец, кроме КП и отказов)
+  
+  // Период
+  const aFrom=$('a-from').value?new Date($('a-from').value):null;
+  const aTo=$('a-to').value?new Date($('a-to').value+'T23:59:59'):null;
+  
+  // Получено — по таблице payments (по фактической дате оплаты)
+  await loadPayments();
+  const received=paymentsInPeriod(aFrom,aTo);
+  
+  // Какие заказы получили оплаты в этом периоде — для расчёта себестоимости
+  const paidOrderNums=[...new Set(
+    paymentsCache.filter(p=>{
+      if(!p.payment_date) return false;
+      const d=new Date(p.payment_date);
+      if(aFrom&&d<aFrom) return false;
+      if(aTo&&d>aTo) return false;
+      return (parseFloat(p.amount)||0)>0;
+    }).map(p=>p.order_num)
+  )];
+  
+  // Себестоимость заказов, в которые поступали деньги в этот период
   let totalCost=0;
-  working.forEach(o=>{
+  paidOrderNums.forEach(oNum=>{
+    const o=orders.find(x=>x.order_num===oNum);
+    if(!o) return;
+    const s=(o.status||'').trim();
+    if(s==='Отправлено КП'||s==='Отказались') return;
     try{
       const sp=JSON.parse(o.specification||'');
       if(sp&&sp.mats) sp.mats.forEach(m=>{totalCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
     }catch(e){}
   });
+  
   // Расходы за период
-  const aFrom=$('a-from').value?new Date($('a-from').value):null;
-  const aTo=$('a-to').value?new Date($('a-to').value+'T23:59:59'):null;
   const periodExpenses=expenses.filter(e=>{
     const d=new Date(e.expense_date);
     if(aFrom&&d<aFrom) return false;
@@ -89,18 +110,42 @@ function renderAnalytics(){
 
 function renderRevenueChart(ao){
   const months={};
-  // Получено — по всем заказам за период
-  const working=ao.filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
-  working.forEach(o=>{
-    const d=pDate(o.order_date); if(!d) return;
+  
+  // Доход — группируем платежи из payments по месяцу payment_date
+  paymentsCache.forEach(p=>{
+    if(!p.payment_date) return;
+    const d=new Date(p.payment_date);
     const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     if(!months[key]) months[key]={rev:0,cost:0,exp:0};
-    months[key].rev+=(parseFloat(o.prepay)||0);
+    months[key].rev+=(parseFloat(p.amount)||0);
+  });
+  
+  // Себестоимость — по заказам, в которые поступали платежи в этом месяце
+  const orderPaidMonths={}; // order_num -> Set месяцев когда был платёж
+  paymentsCache.forEach(p=>{
+    if(!p.payment_date||!p.order_num) return;
+    const d=new Date(p.payment_date);
+    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!orderPaidMonths[p.order_num]) orderPaidMonths[p.order_num]=new Set();
+    orderPaidMonths[p.order_num].add(key);
+  });
+  
+  const working=ao.filter(o=>{const s=(o.status||'').trim();return s!=='Отправлено КП'&&s!=='Отказались'});
+  working.forEach(o=>{
+    const paidMonths=orderPaidMonths[o.order_num];
+    if(!paidMonths||!paidMonths.size) return;
+    let cost=0;
     try{
       const sp=JSON.parse(o.specification||'');
-      if(sp&&sp.mats) sp.mats.forEach(m=>{months[key].cost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
+      if(sp&&sp.mats) sp.mats.forEach(m=>{cost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
     }catch(e){}
+    if(!cost) return;
+    // Себестоимость относим к первому месяцу платежа
+    const firstMonth=[...paidMonths].sort()[0];
+    if(!months[firstMonth]) months[firstMonth]={rev:0,cost:0,exp:0};
+    months[firstMonth].cost+=cost;
   });
+  
   // Добавляем расходы из expenses по месяцам
   expenses.forEach(e=>{
     const d=new Date(e.expense_date); if(isNaN(d)) return;
