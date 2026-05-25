@@ -365,12 +365,9 @@ function setOrderLabel(color){
   const fld=$('f-label-color');
   if(!fld) return;
   fld.value=color||'';
-  const picker=$('f-label-picker');
-  if(!picker) return;
-  picker.querySelectorAll('[data-color]').forEach(el=>{
-    const isSelected=(el.dataset.color||'')===(color||'');
-    el.style.border=isSelected?'2px solid var(--text)':'2px solid transparent';
-  });
+}
+function updateLabelPreview(){
+  // Можно расширить если нужен превью
 }
 
 // ── AUTO-SUGGEST NEW MATERIALS TO SKLAD ───────────────
