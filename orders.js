@@ -360,15 +360,79 @@ function setSourceValue(val){
   }
 }
 
-// ── Цветовая метка ──
+// ── Цветовая метка (кастомный dropdown) ──
+const ORDER_LABEL_COLORS=[
+  {value:'',name:'— Без метки —',color:null},
+  {value:'#dc2626',name:'Красный',color:'#dc2626'},
+  {value:'#ea580c',name:'Оранжевый',color:'#ea580c'},
+  {value:'#eab308',name:'Жёлтый',color:'#eab308'},
+  {value:'#16a34a',name:'Зелёный',color:'#16a34a'},
+  {value:'#0891b2',name:'Голубой',color:'#0891b2'},
+  {value:'#2563eb',name:'Синий',color:'#2563eb'},
+  {value:'#7c3aed',name:'Фиолетовый',color:'#7c3aed'},
+  {value:'#db2777',name:'Розовый',color:'#db2777'},
+  {value:'#525252',name:'Серый',color:'#525252'}
+];
+
 function setOrderLabel(color){
   const fld=$('f-label-color');
   if(!fld) return;
   fld.value=color||'';
+  // Обновляем триггер
+  const swatch=$('f-label-swatch');
+  const text=$('f-label-text');
+  const opt=ORDER_LABEL_COLORS.find(o=>o.value===(color||''))||ORDER_LABEL_COLORS[0];
+  if(swatch){
+    if(opt.color){
+      swatch.style.background=opt.color;
+      swatch.style.border='1px solid '+opt.color;
+    } else {
+      swatch.style.background='transparent';
+      swatch.style.border='1px solid var(--border)';
+    }
+  }
+  if(text) text.textContent=opt.name;
+  // Закрываем список
+  const opts=$('f-label-options');
+  if(opts) opts.style.display='none';
 }
-function updateLabelPreview(){
-  // Можно расширить если нужен превью
+
+function toggleLabelDropdown(e){
+  if(e) e.stopPropagation();
+  const opts=$('f-label-options');
+  if(!opts) return;
+  if(opts.style.display==='none' || !opts.style.display){
+    // Заполняем список и открываем
+    let h='';
+    const current=$('f-label-color')?.value||'';
+    ORDER_LABEL_COLORS.forEach(o=>{
+      const isSelected=o.value===current;
+      const swatch=o.color
+        ? `<span style="width:14px;height:14px;border-radius:50%;background:${o.color};border:1px solid ${o.color};flex-shrink:0"></span>`
+        : `<span style="width:14px;height:14px;border-radius:50%;background:transparent;border:1px solid var(--border);flex-shrink:0"></span>`;
+      h+=`<div onclick="setOrderLabel('${o.value}')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;font-size:13px;${isSelected?'background:var(--surface2);font-weight:500':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${isSelected?'var(--surface2)':'transparent'}'">${swatch}<span>${o.name}</span></div>`;
+    });
+    opts.innerHTML=h;
+    opts.style.display='';
+    // Закрытие по клику вне
+    setTimeout(()=>{
+      document.addEventListener('click',_closeLabelDropdownOnce);
+    },10);
+  } else {
+    opts.style.display='none';
+  }
 }
+
+function _closeLabelDropdownOnce(e){
+  const dd=$('f-label-dropdown');
+  if(dd && !dd.contains(e.target)){
+    const opts=$('f-label-options');
+    if(opts) opts.style.display='none';
+    document.removeEventListener('click',_closeLabelDropdownOnce);
+  }
+}
+
+function updateLabelPreview(){}
 
 // ── AUTO-SUGGEST NEW MATERIALS TO SKLAD ───────────────
 async function suggestNewMaterials(mats){
