@@ -225,6 +225,7 @@ function openAdd(){
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
   $('f-status').value='Новый'; $('f-src2').value='Авито';
   $('f-src-custom').value=''; $('f-src-custom').style.display='none';
+  setOrderLabel(''); // сброс метки
   // Сбрасываем материалы
   $('f-mats-wrap').innerHTML='';
   orderMatCounter=0;
@@ -280,6 +281,7 @@ function openEdit(rid){
   const dt=pDate(o.order_date); $('f-date').value=dt?localDateStr(dt):'';
   $('f-status').value=(o.status||'').trim()||'Новый';
   setSourceValue(o.source||'Авито');
+  setOrderLabel(o.label_color||''); // загружаем метку
   // Файлы — показываем и загружаем
   $('f-files-section').style.display='';
   loadOrderFiles(rid);
@@ -356,6 +358,19 @@ function setSourceValue(val){
   } else {
     sel.value='__other'; inp.style.display=''; inp.value=val;
   }
+}
+
+// ── Цветовая метка ──
+function setOrderLabel(color){
+  const fld=$('f-label-color');
+  if(!fld) return;
+  fld.value=color||'';
+  const picker=$('f-label-picker');
+  if(!picker) return;
+  picker.querySelectorAll('[data-color]').forEach(el=>{
+    const isSelected=(el.dataset.color||'')===(color||'');
+    el.style.border=isSelected?'2px solid var(--text)':'2px solid transparent';
+  });
 }
 
 // ── AUTO-SUGGEST NEW MATERIALS TO SKLAD ───────────────
@@ -843,6 +858,7 @@ async function saveOrder(){
     order_sum: sum,
     dopay: sum>0?Math.max(0,sum-prep):0,
     source: getSourceValue(),
+    label_color: $('f-label-color')?.value||null,
     specification: specValue,
     comment: $('f-comment').value||'',
     stages: JSON.parse($('f-stages-data').value||'{}'),

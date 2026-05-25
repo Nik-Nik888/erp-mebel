@@ -1002,6 +1002,21 @@ tbody tr.overdue:hover td{background:#fff0f0}
           <select class="fsel2" id="f-src2" onchange="toggleCustomSource()"></select>
           <input class="finput" id="f-src-custom" placeholder="Укажите источник..." style="display:none;margin-top:4px">
         </div>
+        <div class="f"><label class="flabel">Цветовая метка</label>
+          <div id="f-label-picker" style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 0">
+            <div onclick="setOrderLabel('')" data-color="" style="width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text3)" title="Без метки">✕</div>
+            <div onclick="setOrderLabel('#dc2626')" data-color="#dc2626" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#dc2626;border:2px solid transparent" title="Красный"></div>
+            <div onclick="setOrderLabel('#ea580c')" data-color="#ea580c" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#ea580c;border:2px solid transparent" title="Оранжевый"></div>
+            <div onclick="setOrderLabel('#eab308')" data-color="#eab308" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#eab308;border:2px solid transparent" title="Жёлтый"></div>
+            <div onclick="setOrderLabel('#16a34a')" data-color="#16a34a" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#16a34a;border:2px solid transparent" title="Зелёный"></div>
+            <div onclick="setOrderLabel('#0891b2')" data-color="#0891b2" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#0891b2;border:2px solid transparent" title="Голубой"></div>
+            <div onclick="setOrderLabel('#2563eb')" data-color="#2563eb" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#2563eb;border:2px solid transparent" title="Синий"></div>
+            <div onclick="setOrderLabel('#7c3aed')" data-color="#7c3aed" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#7c3aed;border:2px solid transparent" title="Фиолетовый"></div>
+            <div onclick="setOrderLabel('#db2777')" data-color="#db2777" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#db2777;border:2px solid transparent" title="Розовый"></div>
+            <div onclick="setOrderLabel('#525252')" data-color="#525252" style="width:28px;height:28px;border-radius:50%;cursor:pointer;background:#525252;border:2px solid transparent" title="Серый"></div>
+          </div>
+          <input type="hidden" id="f-label-color" value="">
+        </div>
         <div class="f"><label class="flabel">Сумма заказа (₽)</label><input class="finput" type="number" id="f-sum" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Предоплата (₽)</label><input class="finput" type="number" id="f-prepay" oninput="calcDopay()"></div>
         <div class="f"><label class="flabel">Остаток (авто)</label><input class="finput" type="number" id="f-dopay" readonly style="background:var(--accent-light);color:var(--accent-text);font-weight:500"></div>

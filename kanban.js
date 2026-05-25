@@ -52,7 +52,7 @@ async function saveSetting(key,value){
 
 // ── Поля отображения на карточке ──
 function getKanbanFields(){
-  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,address:false,date:false,expenses:false,comment:false,chat:true});
+  return getSetting('kanban_fields',{description:true,deadline:true,sum:true,payment:true,prepay:false,dopay:false,manager:false,source:true,phone:false,address:false,date:false,expenses:false,comment:false,chat:true,label_color:true});
 }
 function saveKanbanFields(f){saveSetting('kanban_fields',f)}
 
@@ -115,7 +115,7 @@ function _renderKbSettingsBody(){
 
   // Секция 1: Что показывать на карточке
   let h=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Поля на карточке</div>`;
-  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',phone:'Телефон',address:'Адрес',date:'Дата создания',comment:'Комментарий',chat:'💬 Чат (если есть)'};
+  const FIELD_LABELS={description:'Описание',deadline:'Дедлайн',sum:'Сумма заказа',payment:'Полоска оплаты',prepay:'Предоплата',dopay:'Остаток',expenses:'Расходы',manager:'Менеджер',source:'Источник',label_color:'🔴 Цветовая метка',phone:'Телефон',address:'Адрес',date:'Дата создания',comment:'Комментарий',chat:'💬 Чат (если есть)'};
   Object.entries(FIELD_LABELS).forEach(([key,label])=>{
     h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
       <input type="checkbox" ${fields[key]?'checked':''} onchange="_pendingFields['${key}']=this.checked" style="margin:0"> ${label}
@@ -444,6 +444,7 @@ function renderKanban(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-weight:600">${o.order_num}</span>
           <div style="display:flex;gap:4px;align-items:center">
+            ${fields.label_color&&o.label_color?`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${o.label_color};flex-shrink:0" title="Метка"></span>`:''}
             ${fields.source&&o.source?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:${srcColor}18;color:${srcColor};font-weight:500">${o.source}</span>`:''}
             ${isOverdue?'<span style="color:var(--red);font-weight:500;font-size:10px">⚠</span>':''}
           </div>
