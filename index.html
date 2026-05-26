@@ -901,12 +901,21 @@ tbody tr.overdue:hover td{background:#fff0f0}
       </div>
 
       <!-- Время в статусах -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="font-size:12px;font-weight:600;color:var(--text2)">🕐 Среднее время в статусах</div>
           <div style="font-size:10px;color:var(--text3)">по всем заказам</div>
         </div>
         <div id="a-status-timing"></div>
+      </div>
+
+      <!-- Прибыльность по заказам -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">💼 Прибыльность по заказам</div>
+          <div style="font-size:10px;color:var(--text3)">отсортировано по чистой прибыли</div>
+        </div>
+        <div id="a-profitability" style="overflow-x:auto"></div>
       </div>
     </div>
 
@@ -1067,6 +1076,17 @@ tbody tr.overdue:hover td{background:#fff0f0}
         </div>
 
         <div class="f full"><label class="flabel">Комментарий</label><textarea class="ftextarea" id="f-comment"></textarea></div>
+
+        <!-- Финансовый итог по заказу -->
+        <div class="f full" id="f-finance-section" style="display:none;margin-top:4px">
+          <div style="background:var(--surface2);border-radius:var(--r);padding:14px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+              💼 Финансовый итог
+              <span id="f-finance-badge" style="font-size:10px;padding:2px 8px;border-radius:8px;background:var(--surface);font-weight:500"></span>
+            </div>
+            <div id="f-finance-body"></div>
+          </div>
+        </div>
 
         <!-- Файлы заказа -->
         <div class="f full" id="f-files-section" style="display:none;margin-top:4px">

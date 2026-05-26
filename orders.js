@@ -237,6 +237,8 @@ function openAdd(){
   $('f-files-section').style.display='none';
   $('f-files-list').innerHTML='';
   $('f-files-empty').style.display='';
+  // Финансы — скрываем для нового заказа
+  if($('f-finance-section'))$('f-finance-section').style.display='none';
   // Этапы — скрываем для нового
   $('f-stages-section').style.display='none';
   $('f-stages-data').value='{}';
@@ -285,6 +287,8 @@ function openEdit(rid){
   // Файлы — показываем и загружаем
   $('f-files-section').style.display='';
   loadOrderFiles(rid);
+  // Финансовый итог по заказу
+  renderOrderFinance(o);
   // Этапы производства
   $('f-stages-section').style.display='';
   const stages=getOrderStages(o);
@@ -433,6 +437,95 @@ function _closeLabelDropdownOnce(e){
 }
 
 function updateLabelPreview(){}
+
+// ── Рендеринг блока "Финансовый итог" в карточке заказа ──
+function renderOrderFinance(o){
+  if(!o || !$('f-finance-section')) return;
+  const sec=$('f-finance-section');
+  const body=$('f-finance-body');
+  const badge=$('f-finance-badge');
+  
+  const sum=parseFloat(o.order_sum)||0;
+  if(sum<=0){sec.style.display='none';return}
+  
+  const f=calcOrderFinance(o);
+  if(!f){sec.style.display='none';return}
+  sec.style.display='';
+  
+  // Бейдж сверху
+  if(f.isClosed){
+    if(f.netProfit>=0){
+      badge.textContent='✅ Прибыльный (закрыт)';
+      badge.style.background='var(--accent-light)';
+      badge.style.color='var(--accent-text)';
+    } else {
+      badge.textContent='⚠ Убыточный (закрыт)';
+      badge.style.background='var(--red-light)';
+      badge.style.color='var(--red)';
+    }
+  } else {
+    if(f.netProfit>=0){
+      badge.textContent='📊 Прогноз: прибыльный';
+      badge.style.background='var(--surface)';
+      badge.style.color='var(--text2)';
+    } else {
+      badge.textContent='⚠ Прогноз: убыточный';
+      badge.style.background='var(--red-light)';
+      badge.style.color='var(--red)';
+    }
+  }
+  
+  const paidPct=sum>0?Math.round(f.prepay/sum*100):0;
+  
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:12px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="color:var(--text2)">Сумма по договору</span>
+        <span style="font-weight:600">${fmt(sum)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="color:var(--text2)">Получено (${paidPct}%)</span>
+        <span style="font-weight:600;color:var(--accent-text)">${fmt(f.prepay)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;grid-column:span 2;border-top:1px solid var(--border);margin-top:4px;padding-top:8px">
+        <span style="color:var(--text2)">Осталось получить</span>
+        <span style="font-weight:600;color:${f.remaining>0?'var(--red)':'var(--text3)'}">${fmt(f.remaining)}</span>
+      </div>
+    </div>
+    
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px">Затраты</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:12px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="color:var(--text2)">📦 Материалы</span>
+        <span style="font-weight:500">${fmt(f.matCost)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="color:var(--text2)">🔧 Работы</span>
+        <span style="font-weight:500">${fmt(f.workCost)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="color:var(--text2)">📋 Прямые расходы${f.directExpCount?' ('+f.directExpCount+')':''}</span>
+        <span style="font-weight:500">${fmt(f.directExp)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0" title="Доля общих расходов компании (аренда, реклама, и т.п.), пропорциональная этому заказу">
+        <span style="color:var(--text2)">🏢 Доля накладных</span>
+        <span style="font-weight:500">${fmt(f.overheadShare)}</span>
+      </div>
+    </div>
+    
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px">Прибыль</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:6px 8px;background:var(--surface);border-radius:var(--rs)">
+        <span style="color:var(--text2)">Валовая</span>
+        <span style="font-weight:600;color:${f.grossProfit>=0?'var(--accent-text)':'var(--red)'}">${fmt(f.grossProfit)} <span style="font-size:10px;color:var(--text3);font-weight:400">(${f.grossProfitPct.toFixed(1)}%)</span></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 8px;background:var(--surface);border-radius:var(--rs)">
+        <span style="color:var(--text2)">Чистая</span>
+        <span style="font-weight:700;color:${f.netProfit>=0?'var(--accent-text)':'var(--red)'}">${fmt(f.netProfit)} <span style="font-size:10px;color:var(--text3);font-weight:400">(${f.netProfitPct.toFixed(1)}%)</span></span>
+      </div>
+    </div>
+  `;
+}
 
 // ── AUTO-SUGGEST NEW MATERIALS TO SKLAD ───────────────
 async function suggestNewMaterials(mats){

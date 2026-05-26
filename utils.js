@@ -97,6 +97,121 @@ let MAT_CATALOG = [], WORK_CATALOG = [];
 // ── Кэш платежей ──
 let paymentsCache=[], paymentsCacheTime=0, _paymentsMigrationDone=false;
 
+// ── Финансовый расчёт по заказу ──
+function calcOrderFinance(o){
+  if(!o) return null;
+  const sum=parseFloat(o.order_sum)||0;
+  const prepay=parseFloat(o.prepay)||0;
+  const remaining=Math.max(0,sum-prepay);
+  
+  // Себестоимость из спецификации
+  let matCost=0, workCost=0;
+  try{
+    const sp=JSON.parse(o.specification||'');
+    if(sp&&sp.mats) sp.mats.forEach(m=>{matCost+=(parseFloat(m.price)||0)*(parseFloat(m.qty)||0)});
+    if(sp&&sp.works) sp.works.forEach(w=>{workCost+=(parseFloat(w.price)||0)*(parseFloat(w.qty)||0)});
+  }catch(e){}
+  
+  // Прямые расходы — из expenses привязанные к этому заказу,
+  // НО исключая накладные категории
+  const overheadCats=getOverheadCategoryNames();
+  let directExp=0, directExpCount=0;
+  if(typeof expenses!=='undefined' && Array.isArray(expenses)){
+    expenses.forEach(e=>{
+      if(e.order_num===o.order_num && !overheadCats.includes(e.category)){
+        directExp+=(parseFloat(e.amount)||0);
+        directExpCount++;
+      }
+    });
+  }
+  
+  // Валовая прибыль = Получено − Материалы − Работы − Прямые расходы
+  const totalCost=matCost+workCost+directExp;
+  const grossProfit=prepay-totalCost;
+  const grossProfitPct=prepay>0?(grossProfit/prepay*100):0;
+  
+  // Доля накладных
+  const overheadShare=calcOverheadShare(o);
+  
+  // Чистая прибыль = Валовая − Доля накладных
+  const netProfit=grossProfit-overheadShare;
+  const netProfitPct=prepay>0?(netProfit/prepay*100):0;
+  
+  return {
+    sum, prepay, remaining,
+    matCost, workCost, 
+    directExp, directExpCount,
+    totalCost,
+    grossProfit, grossProfitPct,
+    overheadShare,
+    netProfit, netProfitPct,
+    isProfitable: netProfit>=0,
+    isClosed: (o.status||'').trim()==='Закрыт'
+  };
+}
+
+// ── Доля накладных на конкретный заказ ──
+// Гибридная схема:
+// - Заказ закрыт → точная доля за месяц закрытия (по фактическим расходам)
+// - Заказ в работе → средний процент за последние 3 месяца (стабильный прогноз)
+function calcOverheadShare(o){
+  const overheadCats=getOverheadCategoryNames();
+  if(!overheadCats.length) return 0;
+  
+  const orderDate=pDate(o.order_date);
+  const status=(o.status||'').trim();
+  const isClosed=status==='Закрыт';
+  const prepay=parseFloat(o.prepay)||0;
+  
+  // Определяем целевой месяц
+  let targetMonth;
+  if(isClosed && orderDate){
+    targetMonth=new Date(orderDate.getFullYear(),orderDate.getMonth(),1);
+  } else {
+    // Для заказов в работе — текущий месяц
+    const now=new Date();
+    targetMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  }
+  
+  // Считаем за период (3 месяца для прогноза, 1 месяц для закрытого)
+  const monthsBack=isClosed?0:2; // если закрыт — только текущий месяц закрытия, иначе 3 последних
+  const fromDate=new Date(targetMonth.getFullYear(),targetMonth.getMonth()-monthsBack,1);
+  const toDate=new Date(targetMonth.getFullYear(),targetMonth.getMonth()+1,0,23,59,59);
+  
+  // Сумма накладных за период
+  let overheadTotal=0;
+  if(typeof expenses!=='undefined' && Array.isArray(expenses)){
+    expenses.forEach(e=>{
+      if(!overheadCats.includes(e.category)) return;
+      const d=new Date(e.expense_date);
+      if(d>=fromDate && d<=toDate) overheadTotal+=(parseFloat(e.amount)||0);
+    });
+  }
+  
+  // Сумма поступлений за тот же период (по payment_date)
+  let incomeTotal=0;
+  if(typeof paymentsCache!=='undefined' && Array.isArray(paymentsCache)){
+    paymentsCache.forEach(p=>{
+      if(!p.payment_date) return;
+      const d=new Date(p.payment_date);
+      if(d>=fromDate && d<=toDate) incomeTotal+=(parseFloat(p.amount)||0);
+    });
+  }
+  
+  // % накладных от выручки
+  if(incomeTotal<=0) return 0;
+  const overheadPct=overheadTotal/incomeTotal;
+  
+  // Доля для этого заказа = его получение × %
+  return prepay*overheadPct;
+}
+
+// Получить список названий категорий-накладных
+function getOverheadCategoryNames(){
+  if(typeof expCategories==='undefined' || !Array.isArray(expCategories)) return [];
+  return expCategories.filter(c=>c.is_overhead).map(c=>c.name);
+}
+
 async function loadPayments(force=false){
   // Кэш на 60 секунд чтобы не дёргать БД на каждый рендер
   if(!force && paymentsCache.length && (Date.now()-paymentsCacheTime)<60000) return paymentsCache;

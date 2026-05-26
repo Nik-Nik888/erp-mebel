@@ -106,6 +106,94 @@ async function renderAnalytics(){
   renderMatUsage();
   renderMatLow();
   renderStatusTiming();
+  renderProfitabilityTable(ao);
+}
+
+// ── Таблица прибыльности заказов ──
+function renderProfitabilityTable(ao){
+  const el=$('a-profitability');
+  if(!el) return;
+  
+  // Берём заказы с спецификацией или с предоплатой
+  const list=ao.filter(o=>{
+    const s=(o.status||'').trim();
+    if(s==='Отправлено КП'||s==='Отказались') return false;
+    const sum=parseFloat(o.order_sum)||0;
+    return sum>0;
+  });
+  
+  if(!list.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center">Нет данных за период</div>';return}
+  
+  const rows=list.map(o=>{
+    const f=calcOrderFinance(o);
+    return {o,f};
+  }).filter(r=>r.f);
+  
+  // Сортируем по чистой прибыли убывание
+  rows.sort((a,b)=>b.f.netProfit-a.f.netProfit);
+  
+  // Итоги
+  const totalRevenue=rows.reduce((s,r)=>s+r.f.prepay,0);
+  const totalCost=rows.reduce((s,r)=>s+r.f.totalCost,0);
+  const totalOverhead=rows.reduce((s,r)=>s+r.f.overheadShare,0);
+  const totalGross=rows.reduce((s,r)=>s+r.f.grossProfit,0);
+  const totalNet=rows.reduce((s,r)=>s+r.f.netProfit,0);
+  const avgNetPct=totalRevenue>0?(totalNet/totalRevenue*100):0;
+  
+  let h=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+    <div style="background:var(--surface);padding:10px;border-radius:var(--rs)">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Поступления</div>
+      <div style="font-size:16px;font-weight:600;color:var(--accent-text)">${fmt(totalRevenue)}</div>
+    </div>
+    <div style="background:var(--surface);padding:10px;border-radius:var(--rs)">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Затраты</div>
+      <div style="font-size:16px;font-weight:600">${fmt(totalCost+totalOverhead)}</div>
+    </div>
+    <div style="background:var(--surface);padding:10px;border-radius:var(--rs)">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Валовая прибыль</div>
+      <div style="font-size:16px;font-weight:600;color:${totalGross>=0?'var(--accent-text)':'var(--red)'}">${fmt(totalGross)}</div>
+    </div>
+    <div style="background:var(--surface);padding:10px;border-radius:var(--rs)">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Чистая прибыль</div>
+      <div style="font-size:16px;font-weight:700;color:${totalNet>=0?'var(--accent-text)':'var(--red)'}">${fmt(totalNet)} <span style="font-size:11px;font-weight:400;color:var(--text3)">(${avgNetPct.toFixed(1)}%)</span></div>
+    </div>
+  </div>`;
+  
+  h+=`<table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border);color:var(--text3);text-transform:uppercase;font-size:10px">
+        <th style="text-align:left;padding:8px 6px;font-weight:500">№</th>
+        <th style="text-align:left;padding:8px 6px;font-weight:500">Клиент</th>
+        <th style="text-align:left;padding:8px 6px;font-weight:500">Статус</th>
+        <th style="text-align:right;padding:8px 6px;font-weight:500">Договор</th>
+        <th style="text-align:right;padding:8px 6px;font-weight:500">Получено</th>
+        <th style="text-align:right;padding:8px 6px;font-weight:500">Затраты</th>
+        <th style="text-align:right;padding:8px 6px;font-weight:500">Валовая</th>
+        <th style="text-align:right;padding:8px 6px;font-weight:500">Чистая</th>
+      </tr>
+    </thead>
+    <tbody>`;
+  
+  rows.forEach(({o,f})=>{
+    let rowColor='';
+    if(f.netProfit<0) rowColor='background:var(--red-light)';
+    else if(f.netProfitPct<10) rowColor='background:#fef3c7'; // жёлто-янтарный
+    
+    h+=`<tr style="${rowColor};border-bottom:1px solid var(--border);cursor:pointer" onclick="showPage('orders');setTimeout(()=>openEdit('${o.order_num}'),200)">
+      <td style="padding:8px 6px;font-weight:500;color:var(--blue)">${o.order_num||'—'}</td>
+      <td style="padding:8px 6px">${o.client||'—'}</td>
+      <td style="padding:8px 6px;font-size:11px;color:var(--text2)">${o.status||'—'}</td>
+      <td style="padding:8px 6px;text-align:right">${fmt(f.sum)}</td>
+      <td style="padding:8px 6px;text-align:right;color:var(--accent-text)">${fmt(f.prepay)}</td>
+      <td style="padding:8px 6px;text-align:right">${fmt(f.totalCost+f.overheadShare)}</td>
+      <td style="padding:8px 6px;text-align:right;color:${f.grossProfit>=0?'var(--accent-text)':'var(--red)'}">${fmt(f.grossProfit)}</td>
+      <td style="padding:8px 6px;text-align:right;font-weight:600;color:${f.netProfit>=0?'var(--accent-text)':'var(--red)'}">${fmt(f.netProfit)} <span style="font-size:10px;font-weight:400;color:var(--text3)">(${f.netProfitPct.toFixed(0)}%)</span></td>
+    </tr>`;
+  });
+  
+  h+='</tbody></table>';
+  
+  el.innerHTML=h;
 }
 
 function renderRevenueChart(ao){

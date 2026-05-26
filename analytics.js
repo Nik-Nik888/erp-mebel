@@ -109,6 +109,12 @@ function openClient(id=null){
       const stats=getClientStats(cl);
       if(stats.list.length){
         $('cl-orders-section').style.display='';
+        // Считаем общую прибыль с клиента
+        let totalNet=0, totalGross=0;
+        stats.list.forEach(o=>{
+          const f=calcOrderFinance(o);
+          if(f){totalNet+=f.netProfit;totalGross+=f.grossProfit}
+        });
         let oh=`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
           <div style="background:var(--surface2);border-radius:var(--rs);padding:8px 12px;text-align:center">
             <div style="font-size:16px;font-weight:600">${stats.orders}</div><div style="font-size:10px;color:var(--text3)">заказов</div>
@@ -118,6 +124,9 @@ function openClient(id=null){
           </div>
           <div style="background:var(--surface2);border-radius:var(--rs);padding:8px 12px;text-align:center">
             <div style="font-size:16px;font-weight:600">${stats.totalSum.toLocaleString('ru-RU')} ₽</div><div style="font-size:10px;color:var(--text3)">сумма</div>
+          </div>
+          <div style="background:${totalNet>=0?'var(--accent-light)':'var(--red-light)'};border-radius:var(--rs);padding:8px 12px;text-align:center" title="Сумма чистой прибыли по всем заказам клиента">
+            <div style="font-size:16px;font-weight:700;color:${totalNet>=0?'var(--accent-text)':'var(--red)'}">${totalNet.toLocaleString('ru-RU')} ₽</div><div style="font-size:10px;color:${totalNet>=0?'var(--accent-text)':'var(--red)'}">💼 чистая прибыль</div>
           </div>
         </div>`;
         stats.list.forEach(o=>{

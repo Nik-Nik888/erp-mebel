@@ -427,9 +427,24 @@ function renderExpCatsList(){
   el.innerHTML=expCategories.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
     <span style="font-size:16px;width:24px;text-align:center">${c.icon}</span>
     <span style="flex:1;font-size:13px;font-weight:500">${c.name}</span>
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);cursor:pointer" title="Накладные расходы — общие, не привязанные к одному заказу (аренда, реклама, коммуналка, постоянные зарплаты)">
+      <input type="checkbox" ${c.is_overhead?'checked':''} onchange="toggleCatOverhead(${c.id},this.checked)" style="margin:0"> Накладные
+    </label>
     <div style="width:14px;height:14px;border-radius:50%;background:${c.color}"></div>
     <button onclick="removeExpCategory(${c.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">×</button>
   </div>`).join('');
+}
+
+async function toggleCatOverhead(id,isOverhead){
+  try{
+    const {error}=await sb.from('expense_categories').update({is_overhead:isOverhead}).eq('id',id);
+    if(error) throw error;
+    const c=expCategories.find(x=>x.id===id);
+    if(c) c.is_overhead=isOverhead;
+    showToast(isOverhead?'Категория помечена как накладная':'Категория не накладная');
+    // Обновляем финансы во всех открытых местах
+    if(editId) renderOrderFinance();
+  }catch(e){showToast('Ошибка: '+e.message)}
 }
 
 async function addExpCategory(){
