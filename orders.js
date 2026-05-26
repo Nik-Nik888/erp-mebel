@@ -223,6 +223,7 @@ function openAdd(){
   $('f-spec-json').value='';
   updateSourceSelects();
   $('f-sum').value=''; $('f-prepay').value=''; $('f-dopay').value='';
+  populateStatusSelect('Новый');
   $('f-status').value='Новый'; $('f-src2').value='Авито';
   $('f-src-custom').value=''; $('f-src-custom').style.display='none';
   setOrderLabel(''); // сброс метки
@@ -281,6 +282,9 @@ function openEdit(rid){
   $('f-dopay').value=sum>0?Math.max(0,sum-prep):'';
   const ddl=pDate(o.deadline); $('f-ddl').value=ddl?localDateStr(ddl):'';
   const dt=pDate(o.order_date); $('f-date').value=dt?localDateStr(dt):'';
+  // ВАЖНО: сначала заполняем select всеми колонками канбана (включая кастомные),
+  // потом ставим value — иначе кастомные статусы (Проектирование и др.) "теряются"
+  populateStatusSelect(o.status||'');
   $('f-status').value=(o.status||'').trim()||'Новый';
   setSourceValue(o.source||'Авито');
   setOrderLabel(o.label_color||''); // загружаем метку
@@ -352,6 +356,25 @@ function getSourceValue(){
   const sel=$('f-src2').value;
   if(sel==='__other') return $('f-src-custom').value.trim()||'Другое';
   return sel;
+}
+
+// ── Динамическое заполнение select статуса ──
+// КРИТИЧНО: select должен содержать все колонки канбана (включая кастомные).
+// Иначе при сохранении статус "Проектирование" пропадает и заменяется на "Новый",
+// что приводит к улёту карточки в первую колонку.
+function populateStatusSelect(currentStatus){
+  const sel=$('f-status');
+  if(!sel) return;
+  const cols=typeof getKanbanColumns==='function'?getKanbanColumns():
+    ['Отправлено КП','Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Приостановлен','Рекламация','Отказались'];
+  
+  // Гарантируем что текущий статус заказа есть в списке (если был удалён из настроек,
+  // всё равно показываем его, чтобы не потерять)
+  const cur=(currentStatus||'').trim();
+  const allOptions=[...cols];
+  if(cur && !allOptions.includes(cur)) allOptions.push(cur);
+  
+  sel.innerHTML=allOptions.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('');
 }
 
 function setSourceValue(val){
@@ -1006,7 +1029,7 @@ async function saveOrder(){
     address: $('f-address').value||'',
     description: $('f-desc').value||'',
     deadline: $('f-ddl').value||null,
-    status: $('f-status').value||'',
+    status: $('f-status').value||oldOrder?.status||'Новый',
     manager: $('f-manager').value||'',
     prepay: prep,
     order_sum: sum,
