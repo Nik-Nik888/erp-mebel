@@ -427,14 +427,20 @@ async function renderStatusTiming(){
       return ORDER.indexOf(a.status)-ORDER.indexOf(b.status);
     });
     
-    const maxAvg=Math.max(...avgData.map(d=>d.avgMs),1);
+    // Фильтрация: какие колонки показывать в статистике
+    // Берём из настроек (kanban_stats_columns) — массив колонок которые ОТКЛЮЧЕНЫ
+    // По умолчанию исключаем "Закрыт" и "Отказались"
+    const hiddenInStats=getSetting('kanban_stats_hidden',['Закрыт','Отказались']);
+    const visibleAvgData=avgData.filter(d=>!hiddenInStats.includes(d.status));
+    
+    const maxAvg=Math.max(...visibleAvgData.map(d=>d.avgMs),1);
     
     let h=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">`;
     
     // Левая часть — средние по статусам
     h+=`<div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Среднее время нахождения</div>`;
-    avgData.forEach(d=>{
+    visibleAvgData.forEach(d=>{
       const pct=maxAvg>0?d.avgMs/maxAvg*100:0;
       const bc=badgeClass(d.status);
       h+=`<div style="margin-bottom:8px">
@@ -450,30 +456,47 @@ async function renderStatusTiming(){
     
     // Правая часть — топ долгих заказов
     h+=`<div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Самые долгие заказы (общее время)</div>`;
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Самые долгие заказы (без закрытых)</div>`;
+    
+    // Из топа "долгих заказов" исключаем только Закрыт — он завершён, длительность не важна
+    // Все остальные статусы (Приостановлен, Рекламация, Отгружен, и т.д.) — должны попадать
+    const isClosedStatus=(s)=>{
+      const norm=(s||'').toLowerCase().trim().replace(/\s+/g,' ');
+      return norm==='закрыт';
+    };
+    
     const orderTotals=Object.entries(byOrder).map(([orderNum,logs])=>{
+      // Берём актуальный статус из заказа, а не из лога (лог может отставать)
+      const o=findO(orderNum);
+      const actualStatus=(o?.status||logs[logs.length-1].new_status||'').trim();
       const first=new Date(logs[0].changed_at);
-      const lastStatus=logs[logs.length-1].new_status;
-      const totalMs=(lastStatus==='Закрыт'||lastStatus==='Отказались')?
-        new Date(logs[logs.length-1].changed_at)-first : Date.now()-first;
-      return {orderNum,totalMs,lastStatus,client:''};
-    }).sort((a,b)=>b.totalMs-a.totalMs).slice(0,7);
+      // Если заказ закрыт — берём момент закрытия, иначе — сейчас
+      let endMs=Date.now();
+      if(isClosedStatus(actualStatus)){
+        // Ищем последний переход в "Закрыт"
+        const closedLog=[...logs].reverse().find(l=>isClosedStatus(l.new_status));
+        if(closedLog) endMs=new Date(closedLog.changed_at).getTime();
+      }
+      const totalMs=endMs-first;
+      return {orderNum,totalMs,lastStatus:actualStatus,client:o?.client||'',isClosed:isClosedStatus(actualStatus)};
+    })
+      .filter(ot=>!ot.isClosed) // исключаем только закрытые
+      .sort((a,b)=>b.totalMs-a.totalMs)
+      .slice(0,7);
     
-    // Дополняем именами клиентов
-    orderTotals.forEach(ot=>{
-      const o=findO(ot.orderNum);
-      if(o) ot.client=o.client||'';
-    });
-    
-    orderTotals.forEach(ot=>{
-      const bc=badgeClass(ot.lastStatus);
-      h+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:11px;font-weight:500;color:var(--text);min-width:50px">${ot.orderNum}</span>
-        <span style="font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ot.client}</span>
-        <span class="badge ${bc}" style="font-size:9px">${ot.lastStatus}</span>
-        <span style="font-size:11px;font-weight:600;min-width:55px;text-align:right">${formatDuration(ot.totalMs)}</span>
-      </div>`;
-    });
+    if(!orderTotals.length){
+      h+=`<div style="color:var(--text3);font-size:12px;padding:12px;text-align:center">Нет долгих заказов</div>`;
+    } else {
+      orderTotals.forEach(ot=>{
+        const bc=badgeClass(ot.lastStatus);
+        h+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;font-weight:500;color:var(--text);min-width:50px">${ot.orderNum}</span>
+          <span style="font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ot.client}</span>
+          <span class="badge ${bc}" style="font-size:9px">${ot.lastStatus}</span>
+          <span style="font-size:11px;font-weight:600;min-width:55px;text-align:right">${formatDuration(ot.totalMs)}</span>
+        </div>`;
+      });
+    }
     
     h+=`</div></div>`;
     el.innerHTML=h;

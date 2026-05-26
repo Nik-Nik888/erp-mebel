@@ -80,6 +80,7 @@ let _pendingSrcColors=null;
 let _pendingMatRules=null;
 let _pendingMatKeywords=null;
 let _pendingPayCheck=null;
+let _pendingStatsHidden=null;
 
 function _initPending(){
   _pendingFields={...getKanbanFields()};
@@ -88,6 +89,7 @@ function _initPending(){
   _pendingMatRules={...getMatCheckRules()};
   _pendingMatKeywords=[...getMatKeywords()];
   _pendingPayCheck={...getPaymentCheckCols()};
+  _pendingStatsHidden=[...getSetting('kanban_stats_hidden',['Закрыт','Отказались'])];
 }
 
 function openKanbanSettings(){
@@ -199,7 +201,26 @@ function _renderKbSettingsBody(){
   h+=`</div>`;
   h+=`<div style="display:flex;gap:6px;margin-top:6px"><input class="finput" id="new-mat-kw" placeholder="Новое слово..." style="flex:1;font-size:12px"><button class="btn btn-ghost" onclick="addMatKeyword()" style="font-size:11px;padding:3px 10px">+</button></div>`;
 
+  // Секция 6: Видимость колонок в статистике
+  h+=`<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:16px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px">📊 Колонки в "Среднее время в статусах"</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Отметьте чтобы СКРЫТЬ колонку из аналитики "Среднее время в статусах"</div>`;
+  cols.forEach(col=>{
+    const isHidden=_pendingStatsHidden.includes(col);
+    h+=`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
+      <input type="checkbox" ${isHidden?'checked':''} onchange="toggleStatsHidden('${col.replace(/'/g,"\\'")}',this.checked)" style="margin:0"> ${col}
+    </label>`;
+  });
+
   $('m-kb-settings-body').innerHTML=h;
+}
+
+function toggleStatsHidden(col,hide){
+  if(hide){
+    if(!_pendingStatsHidden.includes(col)) _pendingStatsHidden.push(col);
+  } else {
+    const i=_pendingStatsHidden.indexOf(col);
+    if(i>=0) _pendingStatsHidden.splice(i,1);
+  }
 }
 
 // ── Сохранение ВСЕХ настроек одной кнопкой ──
@@ -213,7 +234,8 @@ async function saveAllKanbanSettings(){
     source_colors:_pendingSrcColors,
     mat_check_rules:_pendingMatRules,
     mat_keywords:_pendingMatKeywords,
-    payment_check:_pendingPayCheck
+    payment_check:_pendingPayCheck,
+    kanban_stats_hidden:_pendingStatsHidden
   };
   
   let hasError=false;
