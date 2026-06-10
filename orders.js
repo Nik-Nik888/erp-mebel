@@ -1269,6 +1269,110 @@ const RESERVE_STATUSES = [KP_STATUS]; // статусы где материал 
 const WRITEOFF_STATUSES = ['Новый','Материал заказан','В работе','Готов к выдаче','Отгружен','Закрыт','Рекламация']; // материал списан
 const RELEASE_STATUSES = ['Отказались']; // снять резерв
 
+// ── ОДНОРАЗОВАЯ МИГРАЦИЯ: списание для закрытых заказов где оно не прошло ──
+// Запуск из консоли браузера:
+//   migrateMissedWriteoffs()        — показать список (ничего не меняет)
+//   migrateMissedWriteoffs(true)    — выполнить списание
+async function migrateMissedWriteoffs(execute=false){
+  console.log('=== Поиск заказов без списания ===');
+  
+  // Свежие движения склада из БД
+  const {data:allMoves,error:movesErr}=await sb.from('sklad_moves').select('order_num,move_type,item_id,qty');
+  if(movesErr){console.error('Ошибка загрузки движений:',movesErr);return}
+  
+  // История статусов для определения даты закрытия
+  const {data:statusLogs}=await sb.from('order_status_log').select('order_num,new_status,changed_at').order('changed_at',{ascending:true});
+  
+  const candidates=[];
+  
+  orders.forEach(o=>{
+    const st=(o.status||'').trim();
+    if(!WRITEOFF_STATUSES.includes(st)) return; // только статусы где материал должен быть списан
+    
+    let mats=[];
+    try{
+      const sp=JSON.parse(o.specification||'');
+      if(sp&&sp.mats) mats=sp.mats.filter(m=>m.name&&(parseFloat(m.qty)||0)>0);
+    }catch(e){}
+    if(!mats.length) return; // нет материалов — нечего списывать
+    
+    // Есть ли уже списания (out) по этому заказу?
+    const hasOut=(allMoves||[]).some(m=>m.order_num===o.order_num&&m.move_type==='out');
+    if(hasOut) return; // списание уже было — пропускаем (защита от задвоения)
+    
+    // Определяем дату списания: дата перехода в текущий статус из лога, иначе order_date, иначе сегодня
+    let writeoffDate=localDateStr(new Date());
+    const log=(statusLogs||[]).filter(l=>l.order_num===o.order_num&&(l.new_status||'').trim()===st);
+    if(log.length){
+      writeoffDate=localDateStr(new Date(log[log.length-1].changed_at));
+    } else if(o.order_date){
+      const d=pDate(o.order_date);
+      if(d) writeoffDate=localDateStr(d);
+    }
+    
+    candidates.push({order:o,mats,writeoffDate});
+  });
+  
+  if(!candidates.length){
+    console.log('✅ Все заказы в порядке — пропущенных списаний нет');
+    showToast('Пропущенных списаний нет');
+    return;
+  }
+  
+  console.log('Найдено заказов без списания: '+candidates.length);
+  candidates.forEach(c=>{
+    console.log(`📋 ${c.order.order_num} (${c.order.status}) — ${c.order.client||'—'} — ${c.mats.length} материалов, дата списания: ${c.writeoffDate}`);
+    c.mats.forEach(m=>console.log(`   • ${m.name}: ${m.qty}`));
+  });
+  
+  if(!execute){
+    console.log('');
+    console.log('⚠ Это был просмотр. Для выполнения запусти: migrateMissedWriteoffs(true)');
+    showToast('Найдено '+candidates.length+' заказов — см. консоль (F12)');
+    return;
+  }
+  
+  // ── Выполнение ──
+  console.log('=== Выполняю списание ===');
+  let done=0, skippedMats=0;
+  
+  for(const c of candidates){
+    const moves=[];
+    for(const mat of c.mats){
+      const itemId=findSkladItemId(mat.name);
+      if(!itemId){
+        console.log(`⚠ ${c.order.order_num}: "${mat.name}" не найден на складе — пропущен`);
+        skippedMats++;
+        continue;
+      }
+      moves.push({
+        move_date:c.writeoffDate,
+        move_type:'out',
+        item_id:itemId,
+        qty:parseFloat(mat.qty)||0,
+        unit:'шт',
+        price:0,
+        order_num:c.order.order_num,
+        comment:'Списание по заказу (миграция)'
+      });
+    }
+    if(moves.length){
+      const {error}=await sb.from('sklad_moves').insert(moves);
+      if(error){
+        console.error(`❌ ${c.order.order_num}: ошибка —`,error.message);
+      } else {
+        skladLog.push(...moves);
+        done++;
+        console.log(`✅ ${c.order.order_num}: списано ${moves.length} позиций`);
+      }
+    }
+  }
+  
+  console.log('=== Готово ===');
+  console.log(`Обработано заказов: ${done}/${candidates.length}, пропущено материалов (нет на складе): ${skippedMats}`);
+  showToast(`Миграция: списано по ${done} заказам`);
+}
+
 function getSpecMats(o){
   // Извлекает массив материалов из спецификации КП заказа
   try{
