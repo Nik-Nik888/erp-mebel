@@ -965,6 +965,7 @@ async function saveOrder(){
   const newStatus=$('f-status').value||'';
   const oldOrder=editId?orders.find(x=>x.id===editId):null;
   const oldStatus=oldOrder?(oldOrder.status||'').trim():'';
+  const oldSpecRaw=oldOrder?(oldOrder.specification||''):''; // снимаем ДО Object.assign
 
   // ── Проверка оплаты при смене статуса (настройка payment_check) ──
   if(editId && newStatus!==oldStatus){
@@ -1098,6 +1099,53 @@ async function saveOrder(){
             } else {
               await clearMaterialWarningFromComment(editId);
             }
+          }
+        }
+      }
+      // ── ДЕЛЬТА-СИНХРОНИЗАЦИЯ материалов со складом ──
+      // Если заказ был и остаётся в "списанном" статусе, а состав материалов изменился:
+      // удалили/уменьшили → вернуть на склад, добавили/увеличили → дописать списание
+      const wasWO=WRITEOFF_STATUSES.includes(oldStatus);
+      const nowWO=WRITEOFF_STATUSES.includes(newStEd);
+      if(wasWO && nowWO){
+        let oldMats=[], newMats=[];
+        try{const osp=JSON.parse(oldSpecRaw||'');if(osp&&osp.mats)oldMats=osp.mats}catch(e){}
+        try{const nsp=JSON.parse(row.specification||'');if(nsp&&nsp.mats)newMats=nsp.mats}catch(e){}
+        
+        // Суммируем количества по имени (нормализованному)
+        const norm=(n)=>(n||'').trim().toLowerCase();
+        const oldMap={}, newMap={};
+        oldMats.forEach(m=>{const k=norm(m.name);if(k)oldMap[k]=(oldMap[k]||0)+(parseFloat(m.qty)||0)});
+        newMats.forEach(m=>{const k=norm(m.name);if(k)newMap[k]=(newMap[k]||0)+(parseFloat(m.qty)||0)});
+        
+        const deltaMoves=[];
+        const allNames=new Set([...Object.keys(oldMap),...Object.keys(newMap)]);
+        allNames.forEach(k=>{
+          const diff=(newMap[k]||0)-(oldMap[k]||0);
+          if(Math.abs(diff)<0.001) return;
+          const itemId=findSkladItemId(k);
+          if(!itemId) return; // нет на складе — пропускаем
+          if(diff>0){
+            // Материала стало больше — дописываем списание
+            deltaMoves.push({move_date:localDateStr(new Date()),move_type:'out',item_id:itemId,qty:diff,unit:'шт',price:0,order_num:row.order_num,comment:'Доп. списание (изменение спецификации)'});
+          } else {
+            // Материала стало меньше / удалён — возвращаем на склад
+            deltaMoves.push({move_date:localDateStr(new Date()),move_type:'in',item_id:itemId,qty:Math.abs(diff),unit:'шт',price:0,order_num:row.order_num,comment:'Возврат на склад (изменение спецификации)'});
+          }
+        });
+        
+        if(deltaMoves.length){
+          const {error:dErr}=await sb.from('sklad_moves').insert(deltaMoves);
+          if(!dErr){
+            skladLog.push(...deltaMoves);
+            const returned=deltaMoves.filter(m=>m.move_type==='in').length;
+            const added=deltaMoves.filter(m=>m.move_type==='out').length;
+            let msg=[];
+            if(returned)msg.push(returned+' возвращено на склад');
+            if(added)msg.push(added+' дополнительно списано');
+            showToast('📦 '+msg.join(', '));
+          } else {
+            console.error('Delta sync error:',dErr);
           }
         }
       }

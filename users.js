@@ -163,14 +163,18 @@ async function checkLowStockNotify(){
     if(mRes.data) freshMoves=mRes.data;
   }catch(e){return}
   
+  // Считаем остатки локально по свежим данным (с учётом типа движения)
   const stockMap={};
   freshMoves.forEach(m=>{
-    const id=m.item_id;
-    stockMap[id]=(stockMap[id]||0)+(parseFloat(m.qty)||0);
+    const id=String(m.item_id||'').trim().toLowerCase();
+    const q=parseFloat(m.qty)||0;
+    const t=String(m.move_type||'').trim();
+    if(t==='in'||t==='scrap_return') stockMap[id]=(stockMap[id]||0)+q;
+    else if(t==='out'||t==='reserve'||t==='scrap') stockMap[id]=(stockMap[id]||0)-q;
   });
   
   const low=freshItems.filter(item=>{
-    const stock=stockMap[item.item_id]||0;
+    const stock=stockMap[String(item.item_id||'').trim().toLowerCase()]||0;
     const min=parseFloat(item.min_stock)||0;
     return min>0 && stock<=min && !String(item.item_id||'').startsWith('pending_');
   });
@@ -179,9 +183,9 @@ async function checkLowStockNotify(){
   
   let msg='📦 <b>Заканчиваются на складе ('+low.length+')</b>\n';
   low.slice(0,10).forEach(item=>{
-    const stock=stockMap[item.item_id]||0;
+    const stock=stockMap[String(item.item_id||'').trim().toLowerCase()]||0;
     const min=parseFloat(item.min_stock)||0;
-    msg+='\n• '+item.name+': '+stock+' '+(item.unit||'шт')+' (мин. '+min+')';
+    msg+='\n• '+item.name+': '+(Math.round(stock*100)/100)+' '+(item.unit||'шт')+' (мин. '+min+')';
   });
   if(low.length>10) msg+='\n\n...и ещё '+(low.length-10)+' позиций';
   tgSend(msg);
