@@ -332,25 +332,31 @@ async function saveExpense(){
     is_recurring:$('exp-is-recur').checked,
     recurring_day:$('exp-is-recur').checked?(parseInt($('exp-recur-day').value)||1):null
   };
+  console.log('[saveExpense] saving:',row);
   try{
     if(expEditId){
       const {error}=await sb.from('expenses').update(row).eq('id',expEditId);
-      if(error) throw error;
+      if(error){console.error('[saveExpense] update error:',error);throw error}
       auditLog('update','expense',String(expEditId),{amount:row.amount,desc:row.description});
       showToast('Расход обновлён');
     } else {
-      const {error}=await sb.from('expenses').insert(row);
-      if(error) throw error;
+      const {data,error}=await sb.from('expenses').insert(row).select();
+      if(error){console.error('[saveExpense] insert error:',error);throw error}
+      console.log('[saveExpense] inserted:',data);
       auditLog('create','expense','',{amount:row.amount,desc:row.description,category:row.category});
       showToast('Расход добавлен');
     }
     closeExpense();
     // Перезагружаем данные из Supabase и сразу рендерим
-    const {data}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
-    if(data) expenses=data;
-    renderExpenses();
-    render(); // обновляем колонку расходов в заказах
-  }catch(e){ showToast('Ошибка: '+e.message) }
+    const {data:fresh,error:loadErr}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
+    if(loadErr){console.error('[saveExpense] reload error:',loadErr)}
+    if(fresh) expenses=fresh;
+    try{renderExpenses()}catch(e){console.error('[saveExpense] renderExpenses error:',e)}
+    try{render()}catch(e){console.error('[saveExpense] render error:',e)}
+  }catch(e){
+    console.error('[saveExpense] FAILED:',e);
+    showToast('Ошибка: '+(e.message||e));
+  }
 }
 
 async function deleteExpense(){
@@ -442,8 +448,11 @@ async function toggleCatOverhead(id,isOverhead){
     const c=expCategories.find(x=>x.id===id);
     if(c) c.is_overhead=isOverhead;
     showToast(isOverhead?'Категория помечена как накладная':'Категория не накладная');
-    // Обновляем финансы во всех открытых местах
-    if(editId) renderOrderFinance();
+    // Обновляем финансы в открытой карточке заказа
+    if(editId){
+      const o=orders.find(x=>x.id===editId);
+      if(o){try{renderOrderFinance(o)}catch(err){}}
+    }
   }catch(e){showToast('Ошибка: '+e.message)}
 }
 

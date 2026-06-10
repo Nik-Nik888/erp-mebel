@@ -1050,6 +1050,57 @@ async function saveOrder(){
       const local=orders.find(x=>x.id===editId);
       if(local) Object.assign(local,row);
       auditLog('update','order',row.order_num,{fields:Object.keys(row)});
+      // ── Логика смены статуса при редактировании карточки ──
+      // ВАЖНО: oldOrder уже мутирован через Object.assign выше, поэтому
+      // используем oldStatus, снятый в начале saveOrder до мутации
+      const oldStEd=oldStatus;
+      const newStEd=(row.status||'').trim();
+      if(oldStEd!==newStEd){
+        await logStatusChange(row.order_num, oldStEd, newStEd);
+        tgNotify('status_change',{order_num:row.order_num,client:row.client,oldStatus:oldStEd,newStatus:newStEd});
+        try{await autoMarkStages(local||{order_num:row.order_num,stages:row.stages}, newStEd)}catch(e){}
+        // Движение материалов по складу
+        let matsEd=[];
+        try{
+          const spEd=JSON.parse(row.specification||'');
+          if(spEd&&spEd.mats) matsEd=spEd.mats;
+        }catch(e){}
+        if(matsEd.length>0){
+          const wasReserveEd=RESERVE_STATUSES.includes(oldStEd);
+          const wasWriteOffEd=WRITEOFF_STATUSES.includes(oldStEd);
+          const nowWriteOffEd=WRITEOFF_STATUSES.includes(newStEd);
+          const nowReleaseEd=RELEASE_STATUSES.includes(newStEd);
+          if(nowReleaseEd && wasReserveEd){
+            await releaseReserve(row.order_num);
+            await clearMaterialWarningFromComment(editId);
+          } else if(nowReleaseEd && wasWriteOffEd){
+            const movesEd=[];
+            for(const mat of matsEd){
+              const itemId=findSkladItemId(mat.name);
+              if(!itemId) continue;
+              movesEd.push({
+                move_date:localDateStr(new Date()),
+                move_type:'in', item_id:itemId, qty:mat.qty, unit:'шт',
+                price:0, order_num:row.order_num, comment:'Возврат — клиент отказался'
+              });
+            }
+            if(movesEd.length){
+              await sb.from('sklad_moves').insert(movesEd);
+              skladLog.push(...movesEd);
+            }
+            await clearMaterialWarningFromComment(editId);
+          } else if(nowWriteOffEd && !wasWriteOffEd){
+            // Переход в статус списания из не-списанного — списываем материал
+            const warningsEd=await convertReserveToOut(row.order_num, matsEd);
+            if(warningsEd.length){
+              await addMaterialWarningToComment(editId, row.order_num, warningsEd);
+              showToast('⚠ Не хватает материала — пометка в комментарии');
+            } else {
+              await clearMaterialWarningFromComment(editId);
+            }
+          }
+        }
+      }
       // Если предоплата изменилась — создаём запись в payments
       const delta=prep-oldPrepay;
       if(Math.abs(delta)>0.01){
